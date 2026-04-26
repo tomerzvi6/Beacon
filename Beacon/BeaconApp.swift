@@ -1,0 +1,42 @@
+import SwiftUI
+import SwiftData
+
+@main
+struct BeaconApp: App {
+    let modelContainer: ModelContainer
+    @State private var environment = AppEnvironment()
+
+    init() {
+        let schema = Schema([
+            ScheduleEvent.self,
+            DailyTask.self,
+            Medication.self,
+            MedicationDose.self,
+            SymptomEntry.self,
+            MedicalDocument.self,
+            HospitalSyncAlert.self,
+            FeedPost.self,
+            FeedComment.self
+        ])
+        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+        do {
+            self.modelContainer = try ModelContainer(for: schema, configurations: [config])
+        } catch {
+            fatalError("Failed to create Beacon ModelContainer: \(error)")
+        }
+    }
+
+    var body: some Scene {
+        WindowGroup {
+            RootTabView()
+                .environment(environment)
+                .environment(\.locale, Locale(identifier: "he_IL"))
+                .environment(\.layoutDirection, .rightToLeft)
+                .tint(Theme.Palette.deepTeal)
+                .task {
+                    MockDataSeeder.seedIfNeeded(in: modelContainer.mainContext)
+                }
+        }
+        .modelContainer(modelContainer)
+    }
+}
