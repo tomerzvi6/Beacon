@@ -1,11 +1,12 @@
-from fastapi import FastAPI, HTTPException, status
-from fastapi.exceptions import RequestValidationError
+from fastapi import FastAPI
 
+from parser_api.middleware import apply_middleware
 from parser_api.routes import documents, doses, symptoms, tasks, uploads
 
 app = FastAPI(title="Beacon Parser API", version="0.1.0")
 
-# Register routes
+apply_middleware(app)
+
 app.include_router(uploads.router)
 app.include_router(documents.router)
 app.include_router(tasks.router)
