@@ -21,6 +21,7 @@ struct PermissionsSettingsView: View {
                 if environment.canInviteMembers {
                     inviteSection
                 }
+                accountSection
             }
             .navigationTitle("ניהול גישה")
             .navigationBarTitleDisplayMode(.inline)
@@ -135,6 +136,26 @@ struct PermissionsSettingsView: View {
             .buttonStyle(.plain)
         } header: {
             Text("הזמנה")
+        }
+    }
+
+    private var accountSection: some View {
+        Section {
+            Button(role: .destructive) {
+                Task { await environment.signOut() }
+            } label: {
+                HStack(spacing: Theme.Spacing.m) {
+                    Image(systemName: "rectangle.portrait.and.arrow.right")
+                        .font(.system(size: 18))
+                        .frame(width: 36, height: 36)
+                    Text("התנתק")
+                        .font(Theme.Typography.bodyEmphasis)
+                }
+                .padding(.vertical, 4)
+                .contentShape(Rectangle())
+            }
+        } header: {
+            Text("חשבון")
         }
     }
 }

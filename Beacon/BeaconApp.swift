@@ -4,7 +4,7 @@ import SwiftData
 @main
 struct BeaconApp: App {
     let modelContainer: ModelContainer
-    @State private var environment = AppEnvironment()
+    @State private var environment = AppEnvironment.live()
 
     init() {
         let schema = Schema([
@@ -28,15 +28,35 @@ struct BeaconApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootTabView()
+            rootView
                 .environment(environment)
                 .environment(\.locale, Locale(identifier: "he_IL"))
                 .environment(\.layoutDirection, .rightToLeft)
                 .tint(Theme.Palette.deepTeal)
                 .task {
                     MockDataSeeder.seedIfNeeded(in: modelContainer.mainContext)
+                    await environment.checkSession()
+                }
+                .onOpenURL { url in
+                    if let token = InviteService.parseInviteToken(from: url) {
+                        Task { await environment.acceptInvite(token: token) }
+                    }
                 }
         }
         .modelContainer(modelContainer)
+    }
+
+    @ViewBuilder
+    private var rootView: some View {
+        switch environment.authState {
+        case .loading:
+            SplashView()
+        case .unauthenticated:
+            LoginView()
+        case .needsOnboarding:
+            OnboardingView()
+        case .authenticated:
+            RootTabView()
+        }
     }
 }

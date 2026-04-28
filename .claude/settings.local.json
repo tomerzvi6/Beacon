@@ -1,7 +1,14 @@
 {
   "permissions": {
     "allow": [
-      "Bash(swift build *)"
+      "Bash(swift build *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(gh pr create --title 'POC planning: services map, multi-tenancy architecture & Rambam one-pager' --body ' *)",
+      "Bash(where gh *)",
+      "Bash(winget install *)",
+      "Bash(curl --version)"
     ]
   }
 }

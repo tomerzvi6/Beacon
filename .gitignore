@@ -1,0 +1,26 @@
+# macOS
+.DS_Store
+
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+*.xcuserdatad/
+xcuserdata/
+*.xccheckout
+*.moved-aside
+
+# Swift Package Manager
+.swiftpm/
+Packages/
+Package.resolved
+.build/
+
+# Secrets — NEVER commit these
+Beacon/Secrets.plist
+Secrets.plist
+*.env
+.env.local
+
+# Worktrees / Claude
+.claude/worktrees/

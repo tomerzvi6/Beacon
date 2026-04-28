@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import AuthenticationServices
 
 @Observable
 final class AppEnvironment {
@@ -16,22 +17,200 @@ final class AppEnvironment {
         }
     }
 
+    // MARK: - Auth state
+    var authState: AuthState = .loading
+    var authErrorMessage: String? = nil
+    private let authService: AuthService?
+    private(set) var supabaseUserId: UUID? = nil
+
+    // MARK: - Domain state (was previously hard-mocked)
     var currentUser: FamilyMember
     var patient: Patient
     var activeViewer: Viewer
     var members: [FamilyMember]
 
+    // MARK: - Init paths
+    /// Production initializer — empty state until session check completes.
+    /// Use this from `BeaconApp`.
+    static func live() -> AppEnvironment {
+        AppEnvironment(authService: AuthService())
+    }
+
+    private init(authService: AuthService) {
+        self.authService = authService
+        self.currentUser = .primaryCaregiver
+        self.patient = .primary
+        self.activeViewer = .caregiver
+        self.members = FamilyMember.all
+    }
+
+    /// Preview / mock initializer — bypasses Supabase entirely.
+    /// Default values match the previous behavior so existing previews
+    /// using `AppEnvironment()` continue to work unchanged.
     init(
         currentUser: FamilyMember = .primaryCaregiver,
         patient: Patient = .primary,
         activeViewer: Viewer = .caregiver,
-        members: [FamilyMember] = FamilyMember.all
+        members: [FamilyMember] = FamilyMember.all,
+        authState: AuthState = .authenticated
     ) {
+        self.authService = nil
         self.currentUser = currentUser
         self.patient = patient
         self.activeViewer = activeViewer
         self.members = members
+        self.authState = authState
     }
+
+    // MARK: - Session lifecycle
+
+    /// Called once on app launch. Decides whether to show login,
+    /// onboarding, or the main app.
+    @MainActor
+    func checkSession() async {
+        guard let authService else {
+            // Preview / mock mode — already authenticated
+            self.authState = .authenticated
+            return
+        }
+
+        if await authService.currentSession() == nil {
+            self.authState = .unauthenticated
+            return
+        }
+
+        await loadUserContextAndRoute(using: authService)
+    }
+
+    @MainActor
+    func signInWithApple(credential: ASAuthorizationAppleIDCredential, rawNonce: String) async {
+        guard let authService else { return }
+        authErrorMessage = nil
+        do {
+            try await authService.signInWithApple(credential: credential, rawNonce: rawNonce)
+            await loadUserContextAndRoute(using: authService)
+        } catch {
+            authErrorMessage = error.localizedDescription
+        }
+    }
+
+    @MainActor
+    func signInWithEmail(email: String, password: String) async {
+        guard let authService else { return }
+        authErrorMessage = nil
+        do {
+            try await authService.signInWithEmail(email: email, password: password)
+            await loadUserContextAndRoute(using: authService)
+        } catch {
+            authErrorMessage = error.localizedDescription
+        }
+    }
+
+    @MainActor
+    func signUpWithEmail(email: String, password: String) async {
+        guard let authService else { return }
+        authErrorMessage = nil
+        do {
+            try await authService.signUpWithEmail(email: email, password: password)
+            await loadUserContextAndRoute(using: authService)
+        } catch {
+            authErrorMessage = error.localizedDescription
+        }
+    }
+
+    @MainActor
+    func createFamily(patientName: String, caregiverName: String) async {
+        guard let authService else { return }
+        authErrorMessage = nil
+        do {
+            _ = try await authService.createFamily(
+                patientName: patientName,
+                caregiverName: caregiverName
+            )
+            await loadUserContextAndRoute(using: authService)
+        } catch {
+            authErrorMessage = error.localizedDescription
+        }
+    }
+
+    @MainActor
+    func signOut() async {
+        guard let authService else { return }
+        authErrorMessage = nil
+        do {
+            try await authService.signOut()
+            self.supabaseUserId = nil
+            self.authState = .unauthenticated
+        } catch {
+            authErrorMessage = error.localizedDescription
+        }
+    }
+
+    @MainActor
+    func acceptInvite(token: UUID) async {
+        guard let authService else { return }
+        authErrorMessage = nil
+        do {
+            _ = try await authService.acceptInvite(token: token)
+            await loadUserContextAndRoute(using: authService)
+        } catch {
+            authErrorMessage = error.localizedDescription
+        }
+    }
+
+    // MARK: - Routing helper
+
+    @MainActor
+    private func loadUserContextAndRoute(using authService: AuthService) async {
+        do {
+            let ctx = try await authService.loadUserContext()
+            self.supabaseUserId = ctx.userId
+
+            if !ctx.hasFamily || ctx.displayName == nil {
+                self.authState = .needsOnboarding
+                return
+            }
+
+            // Map remote user → local FamilyMember.
+            // For POC we keep the existing mock family list; the cloud
+            // user becomes the "current admin" and patient name comes
+            // from the family record.
+            let role: MemberRole = (ctx.role == "patient") ? .patient
+                                  : (ctx.role == "admin")  ? .admin
+                                  : .defaultMember
+            let cloudUser = FamilyMember(
+                id: ctx.userId.uuidString,
+                displayName: ctx.displayName ?? "מטפל/ת",
+                relation: "מטפל/ת ראשי/ת",
+                avatarSymbol: "person.crop.circle.fill",
+                role: role
+            )
+            self.currentUser = cloudUser
+            if let pname = ctx.patientName {
+                self.patient = Patient(
+                    id: self.patient.id,
+                    displayName: pname,
+                    relationToCaregiver: self.patient.relationToCaregiver,
+                    avatarSymbol: self.patient.avatarSymbol,
+                    age: self.patient.age,
+                    condition: self.patient.condition,
+                    primaryDoctor: self.patient.primaryDoctor,
+                    primaryHospital: self.patient.primaryHospital,
+                    bloodType: self.patient.bloodType,
+                    allergies: self.patient.allergies,
+                    emergencyContactName: self.patient.emergencyContactName,
+                    emergencyContactPhone: self.patient.emergencyContactPhone,
+                    todaysWellness: self.patient.todaysWellness
+                )
+            }
+            self.authState = .authenticated
+        } catch {
+            authErrorMessage = error.localizedDescription
+            self.authState = .unauthenticated
+        }
+    }
+
+    // MARK: - Existing functionality (unchanged)
 
     var isPatientView: Bool { activeViewer == .patient }
 
@@ -39,7 +218,6 @@ final class AppEnvironment {
         activeViewer = (activeViewer == .caregiver) ? .patient : .caregiver
     }
 
-    // MARK: Permission helpers
     func canRead(_ module: AppModule) -> Bool {
         effectiveUser.canRead(module)
     }
@@ -63,7 +241,6 @@ final class AppEnvironment {
         FamilyMember.all = members
     }
 
-    // MARK: Greeting
     var greetingName: String {
         switch activeViewer {
         case .caregiver: return currentUser.displayName
@@ -88,7 +265,6 @@ final class AppEnvironment {
         return formatter.string(from: Date())
     }
 
-    // MARK: Private
     private var effectiveUser: FamilyMember {
         isPatientView ? .patient : currentUser
     }

@@ -1,0 +1,227 @@
+import SwiftUI
+import AuthenticationServices
+
+struct LoginView: View {
+    @Environment(AppEnvironment.self) private var environment
+    @State private var nonce: (raw: String, hashed: String) = AuthService.makeNonce()
+    @State private var isWorking = false
+    @State private var showDevSheet = false
+
+    var body: some View {
+        ZStack {
+            LinearGradient(
+                colors: [Theme.Palette.deepTeal, Color(hex: "#0F2F3D")],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+
+            VStack(spacing: Theme.Spacing.xl) {
+                Spacer()
+
+                VStack(spacing: Theme.Spacing.m) {
+                    Image(systemName: "heart.text.square.fill")
+                        .font(.system(size: 56, weight: .semibold))
+                        .foregroundStyle(.white)
+                    Text("Beacon")
+                        .font(.system(size: 36, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                    Text("מרכז שליטה משפחתי")
+                        .font(Theme.Typography.bodyEmphasis)
+                        .foregroundStyle(.white.opacity(0.85))
+                    Text("לטיפול מאורגן, יחד")
+                        .font(Theme.Typography.body)
+                        .foregroundStyle(.white.opacity(0.65))
+                }
+
+                Spacer()
+
+                VStack(spacing: Theme.Spacing.m) {
+                    SignInWithAppleButton(.signIn) { request in
+                        request.requestedScopes = [.fullName, .email]
+                        request.nonce = nonce.hashed
+                    } onCompletion: { result in
+                        Task { await handleApple(result) }
+                    }
+                    .signInWithAppleButtonStyle(.white)
+                    .frame(height: 50)
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.button, style: .continuous))
+                    .accessibilityLabel("התחבר עם Apple")
+
+                    Button {
+                        showDevSheet = true
+                    } label: {
+                        Text("התחברות לפיתוח (Email)")
+                            .font(Theme.Typography.captionEmphasis)
+                            .foregroundStyle(.white.opacity(0.75))
+                            .underline()
+                    }
+                    .padding(.top, Theme.Spacing.s)
+                }
+                .padding(.horizontal, Theme.Spacing.l)
+
+                if isWorking {
+                    ProgressView().tint(.white)
+                }
+
+                if let msg = environment.authErrorMessage {
+                    Text(msg)
+                        .font(Theme.Typography.caption)
+                        .foregroundStyle(Theme.Palette.coralAccent)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, Theme.Spacing.l)
+                        .padding(.vertical, Theme.Spacing.s)
+                        .background(.white.opacity(0.95), in: RoundedRectangle(cornerRadius: Theme.CornerRadius.chip))
+                }
+
+                Text("בעצם ההתחברות אתה מסכים לתנאי השימוש ומדיניות הפרטיות.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.white.opacity(0.5))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, Theme.Spacing.l)
+                    .padding(.bottom, Theme.Spacing.l)
+            }
+        }
+        .sheet(isPresented: $showDevSheet) {
+            DevEmailSignInSheet()
+                .environment(environment)
+        }
+    }
+
+    @MainActor
+    private func handleApple(_ result: Result<ASAuthorization, Error>) async {
+        isWorking = true
+        defer { isWorking = false }
+        switch result {
+        case .success(let auth):
+            guard let credential = auth.credential as? ASAuthorizationAppleIDCredential else {
+                environment.authErrorMessage = AuthError.invalidAppleCredential.errorDescription
+                return
+            }
+            await environment.signInWithApple(credential: credential, rawNonce: nonce.raw)
+            // Refresh nonce for next attempt
+            nonce = AuthService.makeNonce()
+        case .failure(let error):
+            // User-cancelled errors should not be shown
+            let nsError = error as NSError
+            if nsError.code != ASAuthorizationError.canceled.rawValue {
+                environment.authErrorMessage = error.localizedDescription
+            }
+        }
+    }
+}
+
+// MARK: - Email/Password development sheet
+
+private struct DevEmailSignInSheet: View {
+    @Environment(AppEnvironment.self) private var environment
+    @Environment(\.dismiss) private var dismiss
+    @State private var email = ""
+    @State private var password = ""
+    @State private var mode: Mode = .signIn
+    @State private var isWorking = false
+
+    enum Mode: String, CaseIterable, Identifiable {
+        case signIn, signUp
+        var id: String { rawValue }
+        var label: String { self == .signIn ? "התחברות" : "הרשמה" }
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Picker("מצב", selection: $mode) {
+                        ForEach(Mode.allCases) { m in
+                            Text(m.label).tag(m)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                }
+
+                Section {
+                    TextField("אימייל", text: $email)
+                        .textContentType(.emailAddress)
+                        .keyboardType(.emailAddress)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                    SecureField("סיסמה (לפחות 6 תווים)", text: $password)
+                        .textContentType(mode == .signIn ? .password : .newPassword)
+                }
+
+                Section {
+                    Button {
+                        Task { await submit() }
+                    } label: {
+                        HStack {
+                            Spacer()
+                            if isWorking {
+                                ProgressView()
+                            } else {
+                                Text(mode.label).bold()
+                            }
+                            Spacer()
+                        }
+                    }
+                    .disabled(email.isEmpty || password.count < 6 || isWorking)
+                }
+
+                if let msg = environment.authErrorMessage {
+                    Section {
+                        Text(msg)
+                            .font(.caption)
+                            .foregroundStyle(Theme.Palette.coralAccent)
+                    }
+                }
+            } footer: {
+                Text("מסך זה מיועד לפיתוח ובדיקה בלבד. בייצור — Apple Sign-In בלבד.")
+            }
+            .navigationTitle("התחברות פיתוח")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("סגור") { dismiss() }
+                }
+            }
+        }
+        .environment(\.layoutDirection, .rightToLeft)
+    }
+
+    @MainActor
+    private func submit() async {
+        isWorking = true
+        defer { isWorking = false }
+        switch mode {
+        case .signIn:
+            await environment.signInWithEmail(email: email, password: password)
+        case .signUp:
+            await environment.signUpWithEmail(email: email, password: password)
+        }
+        if environment.authErrorMessage == nil {
+            dismiss()
+        }
+    }
+}
+
+// MARK: - Color hex helper (used by gradient)
+
+private extension Color {
+    init(hex: String) {
+        let hex = hex.trimmingCharacters(in: .alphanumerics.inverted)
+        var int: UInt64 = 0
+        Scanner(string: hex).scanHexInt64(&int)
+        let r, g, b: UInt64
+        switch hex.count {
+        case 6: (r, g, b) = ((int >> 16) & 0xff, (int >> 8) & 0xff, int & 0xff)
+        default: (r, g, b) = (0, 0, 0)
+        }
+        self.init(red: Double(r) / 255, green: Double(g) / 255, blue: Double(b) / 255)
+    }
+}
+
+#Preview("LoginView") {
+    LoginView()
+        .environment(AppEnvironment(authState: .unauthenticated))
+        .environment(\.locale, Locale(identifier: "he_IL"))
+        .environment(\.layoutDirection, .rightToLeft)
+}
