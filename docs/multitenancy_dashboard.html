@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Beacon — ארכיטקטורת Multi-Tenancy</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --teal: #16475A; --teal-light: #1F5A70; --teal-xlight: #C5DCE0;
+  --sage: #DCEEDD; --sage-dark: #5C8A6E;
+  --coral-bg: #FBE4E4; --coral: #B22D3F;
+  --amber-bg: #FEF3C7; --amber: #B45309;
+  --bg: #EFF4F4; --card: #FFFFFF;
+  --text: #1F3845; --muted: #6F7E84;
+  --border: rgba(22,71,90,0.08);
+  --shadow: 0 4px 20px rgba(22,71,90,0.10);
+}
+body { font-family:'Heebo',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+.page { max-width:1200px; margin:0 auto; padding:32px 20px 80px; }
+
+/* ─── HEADER ─── */
+.hero {
+  background: linear-gradient(135deg,var(--teal) 0%,#0F3340 100%);
+  color:white; border-radius:28px; padding:44px 40px;
+  margin-bottom:36px; box-shadow:var(--shadow); position:relative; overflow:hidden;
+}
+.hero::after {
+  content:''; position:absolute; bottom:-40px; left:-40px;
+  width:300px; height:300px; border-radius:50%;
+  background:radial-gradient(circle,rgba(197,220,224,.15) 0%,transparent 70%);
+}
+.hero h1 { font-size:34px; font-weight:800; letter-spacing:-.5px; margin-bottom:8px; }
+.hero p  { font-size:16px; opacity:.8; }
+.hero-tags { display:flex; gap:10px; margin-top:18px; flex-wrap:wrap; }
+.tag { background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.2);
+       padding:5px 14px; border-radius:999px; font-size:13px; font-weight:500; }
+
+/* ─── SECTION TITLES ─── */
+.section { margin-bottom:40px; }
+.section-head { display:flex; align-items:center; gap:12px; margin-bottom:20px; }
+.section-head h2 { font-size:22px; font-weight:700; color:var(--teal); }
+.step-num { width:34px; height:34px; border-radius:50%; background:var(--teal); color:white;
+            display:flex; align-items:center; justify-content:center;
+            font-weight:800; font-size:15px; flex-shrink:0; }
+
+/* ─── CARDS ─── */
+.card { background:var(--card); border-radius:20px; padding:24px; border:1px solid var(--border); box-shadow:0 2px 8px rgba(22,71,90,.06); }
+.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.grid3 { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+@media(max-width:700px){.grid2,.grid3{grid-template-columns:1fr;}}
+
+/* ─── ARCH DIAGRAM ─── */
+.arch { display:flex; align-items:center; justify-content:center; gap:0; flex-wrap:wrap; }
+.arch-box {
+  background:var(--card); border-radius:20px; padding:20px 24px;
+  border:2px solid var(--border); text-align:center; min-width:150px;
+  box-shadow:var(--shadow); position:relative;
+}
+.arch-box.owner { border-color:var(--teal); }
+.arch-box.db    { border-color:var(--sage-dark); }
+.arch-box.fam   { border-color:var(--teal-xlight); min-width:120px; }
+.arch-icon { font-size:32px; margin-bottom:8px; }
+.arch-label { font-weight:700; font-size:15px; color:var(--teal); }
+.arch-sub   { font-size:12px; color:var(--muted); margin-top:4px; }
+.arch-arrow {
+  display:flex; align-items:center; padding:0 8px; color:var(--muted);
+  font-size:24px; font-weight:300;
+}
+.arch-fams { display:flex; flex-direction:column; gap:10px; }
+
+/* ─── FLOW STEPS ─── */
+.flow { display:flex; flex-direction:column; gap:0; }
+.flow-step {
+  display:flex; gap:20px; align-items:flex-start; position:relative; padding-bottom:28px;
+}
+.flow-step:last-child { padding-bottom:0; }
+.flow-step::before {
+  content:''; position:absolute;
+  right:16px; top:36px; width:2px; bottom:0;
+  background:linear-gradient(to bottom,var(--teal-xlight),transparent);
+}
+.flow-step:last-child::before { display:none; }
+.flow-num {
+  width:34px; height:34px; border-radius:50%; background:var(--teal); color:white;
+  display:flex; align-items:center; justify-content:center;
+  font-weight:800; font-size:14px; flex-shrink:0; margin-top:2px; z-index:1;
+}
+.flow-content h3 { font-size:15px; font-weight:700; margin-bottom:4px; }
+.flow-content p  { font-size:13px; color:var(--muted); line-height:1.6; }
+.flow-code {
+  background:var(--bg); border-radius:10px; padding:10px 14px;
+  font-family:monospace; font-size:12px; color:var(--teal); margin-top:8px;
+  border:1px solid var(--teal-xlight); direction:ltr; text-align:left;
+}
+
+/* ─── DB DEMO ─── */
+.db-demo { }
+.user-switcher { display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap; }
+.user-btn {
+  display:flex; align-items:center; gap:10px; padding:10px 18px;
+  border-radius:14px; border:2px solid var(--border); background:var(--card);
+  cursor:pointer; font-family:inherit; font-size:14px; font-weight:600;
+  color:var(--muted); transition:all .2s;
+}
+.user-btn:hover { border-color:var(--teal-xlight); color:var(--text); }
+.user-btn.active { border-color:var(--teal); background:var(--teal); color:white; }
+.user-btn.fam-b.active { border-color:var(--sage-dark); background:var(--sage-dark); }
+.user-btn .avatar { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; }
+.avatar-a { background:var(--teal-xlight); }
+.avatar-b { background:var(--sage); }
+.avatar-owner { background:var(--amber-bg); }
+
+.db-table { width:100%; border-collapse:collapse; font-size:13px; }
+.db-table th { background:var(--teal); color:white; padding:10px 14px; font-weight:600; text-align:right; }
+.db-table th:first-child { border-radius:0 10px 0 0; }
+.db-table th:last-child  { border-radius:10px 0 0 0; }
+.db-table td { padding:10px 14px; border-bottom:1px solid var(--bg); transition:all .3s; }
+.db-table tr.row-a { background:rgba(197,220,224,.15); }
+.db-table tr.row-b { background:rgba(220,238,221,.15); }
+.db-table tr.dimmed td { opacity:.2; filter:blur(1px); }
+.db-table tr.highlighted td { background: rgba(22,71,90,.07); }
+.badge-a { background:var(--teal-xlight); color:var(--teal); padding:2px 10px; border-radius:999px; font-size:11px; font-weight:700; }
+.badge-b { background:var(--sage); color:var(--sage-dark); padding:2px 10px; border-radius:999px; font-size:11px; font-weight:700; }
+.db-query-box {
+  background:var(--teal); color:white; border-radius:14px; padding:14px 18px;
+  font-family:monospace; font-size:12.5px; margin-bottom:16px; direction:ltr; text-align:left;
+  transition:all .3s;
+}
+.db-query-box .comment { opacity:.6; }
+.result-count {
+  display:inline-flex; align-items:center; gap:6px;
+  padding:6px 14px; border-radius:999px; font-size:13px; font-weight:600;
+  margin-bottom:12px; transition:all .3s;
+}
+.result-count.a { background:var(--teal-xlight); color:var(--teal); }
+.result-count.b { background:var(--sage); color:var(--sage-dark); }
+.result-count.owner { background:var(--amber-bg); color:var(--amber); }
+
+/* ─── RLS EXPLANATION ─── */
+.rls-box {
+  background:linear-gradient(135deg,#0F2F3D 0%,var(--teal) 100%);
+  color:white; border-radius:20px; padding:28px;
+}
+.rls-box h3 { font-size:18px; font-weight:700; margin-bottom:16px; }
+.rls-code {
+  background:rgba(0,0,0,.3); border-radius:12px; padding:16px 20px;
+  font-family:monospace; font-size:13px; direction:ltr; text-align:left;
+  line-height:1.8; margin-bottom:16px;
+}
+.kw { color:#7DD3FC; } .fn { color:#86EFAC; } .str { color:#FCA5A5; }
+.rls-points { display:flex; flex-direction:column; gap:12px; }
+.rls-point { display:flex; gap:12px; align-items:flex-start; }
+.rls-point-icon { font-size:18px; flex-shrink:0; margin-top:1px; }
+.rls-point-text { font-size:14px; opacity:.9; line-height:1.6; }
+
+/* ─── OWNER VIEW ─── */
+.owner-panel { }
+.metric-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; margin-bottom:20px; }
+.metric { background:var(--bg); border-radius:14px; padding:16px; text-align:center; border:1px solid var(--border); }
+.metric-num { font-size:32px; font-weight:800; color:var(--teal); }
+.metric-label { font-size:12px; color:var(--muted); margin-top:4px; }
+.family-list { display:flex; flex-direction:column; gap:10px; }
+.family-row {
+  display:flex; align-items:center; gap:14px; padding:14px 18px;
+  background:var(--bg); border-radius:14px; border:1px solid var(--border);
+}
+.family-icon { width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+.family-info { flex:1; }
+.family-name { font-weight:700; font-size:14px; }
+.family-meta { font-size:12px; color:var(--muted); }
+.family-stats { display:flex; gap:10px; }
+.fstat { font-size:12px; color:var(--muted); background:var(--card); padding:4px 10px; border-radius:999px; border:1px solid var(--border); }
+
+/* ─── TOAST ─── */
+.toast {
+  position:fixed; bottom:28px; right:50%; transform:translateX(50%);
+  background:var(--teal); color:white; padding:12px 24px; border-radius:999px;
+  font-size:14px; font-weight:600; box-shadow:var(--shadow); opacity:0;
+  transition:opacity .3s; pointer-events:none; z-index:999; white-space:nowrap;
+}
+.toast.show { opacity:1; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- HERO -->
+<div class="hero">
+  <h1>ארכיטקטורת Multi-Tenancy</h1>
+  <p>איך Beacon מנהל 5 משפחות — בלי שמידע יתערבב</p>
+  <div class="hero-tags">
+    <span class="tag">Supabase RLS</span>
+    <span class="tag">Family Isolation</span>
+    <span class="tag">Apple Sign-In</span>
+    <span class="tag">POC Architecture</span>
+  </div>
+</div>
+
+<!-- SECTION 1: ARCH -->
+<div class="section">
+  <div class="section-head">
+    <div class="step-num">1</div>
+    <h2>המבנה הכולל</h2>
+  </div>
+  <div class="card">
+    <div class="arch" style="gap:16px; padding:8px 0; flex-wrap:wrap; justify-content:center;">
+      <div class="arch-box owner">
+        <div class="arch-icon">👤</div>
+        <div class="arch-label">אתה</div>
+        <div class="arch-sub">App Owner</div>
+        <div class="arch-sub" style="margin-top:4px;font-size:11px;background:var(--amber-bg);color:var(--amber);padding:2px 8px;border-radius:6px;display:inline-block;">Super Admin</div>
+      </div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box db">
+        <div class="arch-icon">🗄️</div>
+        <div class="arch-label">Supabase</div>
+        <div class="arch-sub">DB + Auth + RLS</div>
+        <div class="arch-sub" style="margin-top:8px;font-size:11px;background:var(--sage);color:var(--sage-dark);padding:2px 8px;border-radius:6px;display:inline-block;">family_id על כל שורה</div>
+      </div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-fams">
+        <div class="arch-box fam">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:20px;">🏠</span>
+            <div>
+              <div class="arch-label" style="font-size:13px;">משפחת כהן</div>
+              <div class="arch-sub">family_id: AAA</div>
+            </div>
+          </div>
+        </div>
+        <div class="arch-box fam">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:20px;">🏠</span>
+            <div>
+              <div class="arch-label" style="font-size:13px;">משפחת לוי</div>
+              <div class="arch-sub">family_id: BBB</div>
+            </div>
+          </div>
+        </div>
+        <div class="arch-box fam" style="border-style:dashed;opacity:.5;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:20px;">➕</span>
+            <div>
+              <div class="arch-label" style="font-size:13px;">משפחה חדשה</div>
+              <div class="arch-sub">נרשמת...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="background:var(--bg);border-radius:14px;padding:16px;margin-top:20px;font-size:13px;color:var(--muted);text-align:center;">
+      💡 <strong style="color:var(--text);">הכלל האחד:</strong> כל שורת מידע בDB מכילה <code style="background:var(--teal-xlight);color:var(--teal);padding:1px 6px;border-radius:4px;">family_id</code>. רק חברי אותה משפחה רואים אותה — אוטומטי, ברמת ה-DB.
+    </div>
+  </div>
+</div>
+
+<!-- SECTION 2: REGISTRATION FLOW -->
+<div class="section">
+  <div class="section-head">
+    <div class="step-num">2</div>
+    <h2>תהליך הרשמה של משפחה חדשה</h2>
+  </div>
+  <div class="card">
+    <div class="flow">
+      <div class="flow-step">
+        <div class="flow-num">1</div>
+        <div class="flow-content">
+          <h3>המטפל הראשי פותח אפליקציה בפעם הראשונה</h3>
+          <p>רונית לוחצת "כניסה עם Apple" — Apple מחזירה JWT token ייחודי</p>
+          <div class="flow-code">apple_user_id = "001.abc123xyz"</div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">2</div>
+        <div class="flow-content">
+          <h3>Supabase יוצר 3 רשומות בבת אחת</h3>
+          <p>משפחה, משתמש, וקישור ביניהם — בתוך Transaction אחד</p>
+          <div class="flow-code">
+INSERT INTO families  → { id: 'AAA', patient_name: 'אבא כהן' }<br>
+INSERT INTO users     → { id: 'U1', name: 'רונית', apple_id: '001.abc...' }<br>
+INSERT INTO members   → { user_id: 'U1', family_id: 'AAA', role: 'admin' }
+          </div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">3</div>
+        <div class="flow-content">
+          <h3>רונית שולחת לינק הזמנה לדניאל</h3>
+          <p>לינק מכיל token מוצפן שמקשר אוטומטית לאותה משפחה (family_id: AAA)</p>
+          <div class="flow-code">https://beacon.app/join?token=ENCRYPTED_AAA_TOKEN</div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">4</div>
+        <div class="flow-content">
+          <h3>דניאל לוחץ לינק → Apple Sign-In → נכנס לאותה משפחה</h3>
+          <p>token מפוענח → דניאל מתווסף למשפחה כהן עם role: member</p>
+          <div class="flow-code">INSERT INTO members → { user_id: 'U2', family_id: 'AAA', role: 'member' }</div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">5</div>
+        <div class="flow-content">
+          <h3>מכאן הכל אוטומטי</h3>
+          <p>כל request שדניאל שולח מכיל את ה-JWT שלו → Supabase יודע שהוא family AAA → RLS מסנן הכל</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION 3: INTERACTIVE DB DEMO -->
+<div class="section">
+  <div class="section-head">
+    <div class="step-num">3</div>
+    <h2>ה-DB בפועל — לחץ על משתמש כדי לראות מה הוא רואה</h2>
+  </div>
+  <div class="card db-demo">
+    <div class="user-switcher">
+      <button class="user-btn active" onclick="switchUser('a')" id="btn-a">
+        <div class="avatar avatar-a">👩</div>
+        <span>רונית (משפחת כהן)</span>
+      </button>
+      <button class="user-btn fam-b" onclick="switchUser('b')" id="btn-b">
+        <div class="avatar avatar-b">👩‍🦱</div>
+        <span>שרה (משפחת לוי)</span>
+      </button>
+      <button class="user-btn" onclick="switchUser('owner')" id="btn-owner">
+        <div class="avatar avatar-owner">🔑</div>
+        <span>אתה (App Owner)</span>
+      </button>
+    </div>
+
+    <div class="db-query-box" id="queryBox">
+      <span class="comment">-- השאילתה שנשלחת מהאפליקציה:</span><br>
+      SELECT * FROM tasks<br>
+      <span class="comment">-- RLS מוסיף אוטומטי:</span><br>
+      WHERE family_id = <span id="queryFamilyId" style="color:#FCA5A5;">'AAA'</span>
+    </div>
+
+    <div id="resultCount" class="result-count a">✅ 2 שורות מוחזרות</div>
+
+    <table class="db-table" id="dbTable">
+      <thead>
+        <tr>
+          <th>family_id</th>
+          <th>משימה</th>
+          <th>סטטוס</th>
+          <th>שובץ ל</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="row-a" data-family="a">
+          <td><span class="badge-a">AAA</span></td>
+          <td>לקנות תרופות מהרוקח</td>
+          <td>פתוח</td>
+          <td>רונית</td>
+        </tr>
+        <tr class="row-a" data-family="a">
+          <td><span class="badge-a">AAA</span></td>
+          <td>תיאום עם האונקולוג</td>
+          <td>הושלם</td>
+          <td>דניאל</td>
+        </tr>
+        <tr class="row-b" data-family="b">
+          <td><span class="badge-b">BBB</span></td>
+          <td>ביקור פיזיותרפיה</td>
+          <td>פתוח</td>
+          <td>שרה</td>
+        </tr>
+        <tr class="row-b" data-family="b">
+          <td><span class="badge-b">BBB</span></td>
+          <td>תרופות ערב — זופרן</td>
+          <td>פתוח</td>
+          <td>—</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- SECTION 4: RLS -->
+<div class="section">
+  <div class="section-head">
+    <div class="step-num">4</div>
+    <h2>איך הבידוד עובד — Row Level Security</h2>
+  </div>
+  <div class="rls-box">
+    <h3>הקוד שמגדירים פעם אחת בסופאבייס</h3>
+    <div class="rls-code">
+<span class="comment">-- מגדירים על כל טבלה (tasks, medications, documents...)</span><br>
+<span class="kw">CREATE POLICY</span> <span class="str">"family_isolation"</span> <span class="kw">ON</span> tasks<br>
+&nbsp;&nbsp;<span class="kw">USING</span> (family_id = <span class="fn">get_my_family_id</span>());<br><br>
+<span class="comment">-- פועל אוטומטי על כל SELECT / INSERT / UPDATE / DELETE</span><br>
+<span class="comment">-- אין צורך לשנות שום קוד באפליקציה — DB עושה הכל</span>
+    </div>
+    <div class="rls-points">
+      <div class="rls-point">
+        <div class="rls-point-icon">🔒</div>
+        <div class="rls-point-text"><strong>נאכף ברמת PostgreSQL</strong> — לא ברמת האפליקציה. גם אם יש bug בקוד, מידע לא "דולף".</div>
+      </div>
+      <div class="rls-point">
+        <div class="rls-point-icon">⚡</div>
+        <div class="rls-point-text"><strong>אוטומטי לחלוטין</strong> — כל טבלה שתוסיף בעתיד תקבל אותה policy. פעם אחת, לנצח.</div>
+      </div>
+      <div class="rls-point">
+        <div class="rls-point-icon">🚫</div>
+        <div class="rls-point-text"><strong>לא ניתן לעקוף</strong> — גם אם משתמש ישנה ידנית את ה-family_id ב-request, הDB מתעלם.</div>
+      </div>
+      <div class="rls-point">
+        <div class="rls-point-icon">📋</div>
+        <div class="rls-point-text"><strong>Audit log אוטומטי</strong> — Supabase מתעד כל ניסיון גישה. חיוני לרגולציה רפואית.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION 5: OWNER VIEW -->
+<div class="section">
+  <div class="section-head">
+    <div class="step-num">5</div>
+    <h2>מה אתה רואה כבעל האפליקציה</h2>
+  </div>
+  <div class="card owner-panel">
+    <div class="metric-grid">
+      <div class="metric"><div class="metric-num">5</div><div class="metric-label">משפחות פעילות</div></div>
+      <div class="metric"><div class="metric-num">23</div><div class="metric-label">משתמשים רשומים</div></div>
+      <div class="metric"><div class="metric-num">4.8</div><div class="metric-label">DAU ממוצע / משפחה</div></div>
+      <div class="metric"><div class="metric-num">$82</div><div class="metric-label">עלות חודשית</div></div>
+    </div>
+
+    <div style="font-size:13px;color:var(--muted);margin-bottom:14px;font-weight:600;">רשימת משפחות — Supabase Dashboard</div>
+    <div class="family-list">
+      <div class="family-row">
+        <div class="family-icon" style="background:var(--teal-xlight);">🏠</div>
+        <div class="family-info">
+          <div class="family-name">משפחת כהן</div>
+          <div class="family-meta">family_id: AAA • נרשמו: 12.03.2026 • admin: רונית</div>
+        </div>
+        <div class="family-stats">
+          <span class="fstat">5 חברים</span>
+          <span class="fstat">23 משימות</span>
+        </div>
+      </div>
+      <div class="family-row">
+        <div class="family-icon" style="background:var(--sage);">🏠</div>
+        <div class="family-info">
+          <div class="family-name">משפחת לוי</div>
+          <div class="family-meta">family_id: BBB • נרשמו: 18.03.2026 • admin: שרה</div>
+        </div>
+        <div class="family-stats">
+          <span class="fstat">3 חברים</span>
+          <span class="fstat">11 משימות</span>
+        </div>
+      </div>
+      <div class="family-row" style="opacity:.5;">
+        <div class="family-icon" style="background:var(--amber-bg);">🏠</div>
+        <div class="family-info">
+          <div class="family-name">משפחת ...</div>
+          <div class="family-meta">POC — 3 משפחות נוספות</div>
+        </div>
+        <div class="family-stats">
+          <span class="fstat">רמב"ם pilot</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="background:var(--coral-bg);border-radius:14px;padding:14px 18px;margin-top:16px;display:flex;gap:12px;align-items:flex-start;">
+      <span style="font-size:20px;flex-shrink:0;">⚠️</span>
+      <div style="font-size:13px;color:var(--coral);">
+        <strong>אתה לא "רואה" את המידע של המשפחות</strong> — רק metadata (כמה משתמשים, תאריכי פעילות). גישה לנתוני חולים דורשת תהליך audit מוגדר — זה גם מה שמשרד הבריאות מצפה לו.
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+function switchUser(who) {
+  ['a','b','owner'].forEach(u => {
+    document.getElementById('btn-'+u).classList.remove('active');
+  });
+  document.getElementById('btn-'+who).classList.add('active');
+
+  const rows = document.querySelectorAll('#dbTable tbody tr');
+  const qBox = document.getElementById('queryBox');
+  const qId  = document.getElementById('queryFamilyId');
+  const rc   = document.getElementById('resultCount');
+
+  if (who === 'a') {
+    rows.forEach(r => r.classList.toggle('dimmed', r.dataset.family !== 'a'));
+    rows.forEach(r => r.classList.toggle('highlighted', r.dataset.family === 'a'));
+    qId.textContent = "'AAA'";
+    qId.style.color = '#7DD3FC';
+    rc.textContent = '✅ 2 שורות מוחזרות (משפחת כהן בלבד)';
+    rc.className = 'result-count a';
+    qBox.style.background = 'var(--teal)';
+    showToast('רונית רואה רק את משפחת כהן (AAA)');
+  } else if (who === 'b') {
+    rows.forEach(r => r.classList.toggle('dimmed', r.dataset.family !== 'b'));
+    rows.forEach(r => r.classList.toggle('highlighted', r.dataset.family === 'b'));
+    qId.textContent = "'BBB'";
+    qId.style.color = '#86EFAC';
+    rc.textContent = '✅ 2 שורות מוחזרות (משפחת לוי בלבד)';
+    rc.className = 'result-count b';
+    qBox.style.background = 'var(--sage-dark)';
+    showToast('שרה רואה רק את משפחת לוי (BBB)');
+  } else {
+    rows.forEach(r => { r.classList.remove('dimmed'); r.classList.remove('highlighted'); });
+    qId.textContent = "ALL";
+    qId.style.color = '#FCD34D';
+    rc.textContent = '👁️ 4 שורות — כל המשפחות (Supabase Dashboard בלבד)';
+    rc.className = 'result-count owner';
+    qBox.style.background = '#5C3D1E';
+    showToast('כבעל האפליקציה — גישה ל-Service Role Key בלבד');
+  }
+}
+</script>
+</body>
+</html>

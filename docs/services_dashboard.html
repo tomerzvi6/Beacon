@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Beacon — מפת שירותים</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --deep-teal: #16475A;
+    --soft-blue: #C5DCE0;
+    --sage: #DCEEDD;
+    --sage-dark: #5C8A6E;
+    --coral-bg: #FBE4E4;
+    --coral-accent: #B22D3F;
+    --amber-bg: #FEF3C7;
+    --amber-accent: #B45309;
+    --bg: #EFF4F4;
+    --card-bg: #FFFFFF;
+    --text-primary: #1F3845;
+    --text-secondary: #6F7E84;
+    --shadow-sm: 0 1px 3px rgba(22, 71, 90, 0.08);
+    --shadow-md: 0 4px 16px rgba(22, 71, 90, 0.10);
+    --shadow-lg: 0 12px 32px rgba(22, 71, 90, 0.12);
+  }
+  html, body {
+    font-family: 'Heebo', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: linear-gradient(180deg, #EFF4F4 0%, #E5EDED 100%);
+    color: var(--text-primary);
+    min-height: 100vh;
+    line-height: 1.5;
+  }
+  .container { max-width: 1400px; margin: 0 auto; padding: 32px 24px 64px; }
+
+  /* Header */
+  .header {
+    background: linear-gradient(135deg, var(--deep-teal) 0%, #0F3340 100%);
+    color: white;
+    border-radius: 24px;
+    padding: 40px 36px;
+    margin-bottom: 32px;
+    box-shadow: var(--shadow-lg);
+    position: relative;
+    overflow: hidden;
+  }
+  .header::before {
+    content: '';
+    position: absolute;
+    top: -50%; left: -20%;
+    width: 60%; height: 200%;
+    background: radial-gradient(circle, rgba(220, 238, 221, 0.15) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .header-top { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px; position: relative; }
+  .header h1 { font-size: 32px; font-weight: 800; margin-bottom: 8px; letter-spacing: -0.5px; }
+  .header .subtitle { font-size: 16px; opacity: 0.85; font-weight: 400; }
+  .header-badge {
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(10px);
+    padding: 8px 16px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 500;
+    border: 1px solid rgba(255,255,255,0.2);
+  }
+
+  /* Stats grid */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  .stat-card {
+    background: var(--card-bg);
+    border-radius: 20px;
+    padding: 24px;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid rgba(22, 71, 90, 0.05);
+    transition: transform 0.2s, box-shadow 0.2s;
+    cursor: pointer;
+  }
+  .stat-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+  .stat-card.active { border: 2px solid var(--deep-teal); }
+  .stat-label { font-size: 13px; color: var(--text-secondary); font-weight: 500; margin-bottom: 8px; }
+  .stat-number { font-size: 40px; font-weight: 800; line-height: 1; letter-spacing: -1px; }
+  .stat-number.total { color: var(--deep-teal); }
+  .stat-number.have { color: var(--sage-dark); }
+  .stat-number.mock { color: var(--amber-accent); }
+  .stat-number.missing { color: var(--coral-accent); }
+  .stat-bar { margin-top: 12px; height: 6px; background: var(--bg); border-radius: 999px; overflow: hidden; }
+  .stat-bar-fill { height: 100%; border-radius: 999px; transition: width 0.6s ease; }
+  .stat-bar-fill.have { background: var(--sage-dark); }
+  .stat-bar-fill.mock { background: var(--amber-accent); }
+  .stat-bar-fill.missing { background: var(--coral-accent); }
+
+  /* Readiness gauge */
+  .readiness {
+    background: var(--card-bg);
+    border-radius: 20px;
+    padding: 24px;
+    margin-bottom: 32px;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid rgba(22, 71, 90, 0.05);
+  }
+  .readiness-label { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .readiness-label h3 { font-size: 16px; font-weight: 600; }
+  .readiness-percent { font-size: 28px; font-weight: 800; color: var(--deep-teal); }
+  .readiness-bar {
+    height: 14px;
+    background: var(--bg);
+    border-radius: 999px;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+  }
+  .readiness-segment { height: 100%; transition: width 0.8s ease; }
+  .readiness-segment.have { background: var(--sage-dark); }
+  .readiness-segment.mock { background: var(--amber-accent); }
+  .readiness-segment.missing { background: #E0E5E5; }
+  .readiness-legend { display: flex; gap: 20px; margin-top: 12px; flex-wrap: wrap; font-size: 13px; color: var(--text-secondary); }
+  .legend-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-left: 6px; vertical-align: middle; }
+
+  /* Filters */
+  .filters {
+    background: var(--card-bg);
+    border-radius: 20px;
+    padding: 20px;
+    margin-bottom: 24px;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+  }
+  .filter-group { display: flex; gap: 8px; flex-wrap: wrap; }
+  .filter-pill {
+    padding: 8px 16px;
+    border-radius: 999px;
+    background: var(--bg);
+    border: 1px solid transparent;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    transition: all 0.2s;
+  }
+  .filter-pill:hover { background: var(--soft-blue); }
+  .filter-pill.active { background: var(--deep-teal); color: white; }
+  .search-input {
+    flex: 1;
+    min-width: 200px;
+    padding: 10px 16px;
+    border: 1px solid #E0E5E5;
+    border-radius: 12px;
+    font-family: inherit;
+    font-size: 14px;
+    background: var(--bg);
+    color: var(--text-primary);
+    text-align: right;
+  }
+  .search-input:focus { outline: none; border-color: var(--deep-teal); background: white; }
+
+  /* Sections */
+  .section { margin-bottom: 32px; }
+  .section-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--deep-teal);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-right: 4px;
+  }
+  .section-title .icon { font-size: 22px; }
+  .section-title .count {
+    background: var(--soft-blue);
+    color: var(--deep-teal);
+    font-size: 12px;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-weight: 600;
+  }
+
+  /* Service cards */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 16px;
+  }
+  .card {
+    background: var(--card-bg);
+    border-radius: 20px;
+    padding: 20px;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid rgba(22, 71, 90, 0.05);
+    transition: all 0.25s;
+    display: flex;
+    flex-direction: column;
+  }
+  .card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+  .card.hidden { display: none; }
+  .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; gap: 12px; }
+  .card-title { font-size: 16px; font-weight: 700; color: var(--text-primary); flex: 1; }
+  .status-badge {
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+    letter-spacing: 0.3px;
+  }
+  .status-badge.have { background: var(--sage); color: var(--sage-dark); }
+  .status-badge.mock { background: var(--amber-bg); color: var(--amber-accent); }
+  .status-badge.missing { background: var(--coral-bg); color: var(--coral-accent); }
+
+  .options-list { display: flex; flex-direction: column; gap: 8px; margin-top: auto; }
+  .option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--bg);
+    border-radius: 12px;
+    font-size: 13px;
+    transition: background 0.15s;
+  }
+  .option:hover { background: #E5EDED; }
+  .option.top { background: linear-gradient(135deg, var(--sage) 0%, #C8E5D0 100%); }
+  .option-rank {
+    flex-shrink: 0;
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: white;
+    color: var(--text-secondary);
+    font-weight: 700;
+    font-size: 12px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: var(--shadow-sm);
+  }
+  .option.top .option-rank { background: var(--sage-dark); color: white; }
+  .option-name { flex: 1; font-weight: 500; color: var(--text-primary); }
+  .option.top .option-name { font-weight: 600; }
+
+  /* Recommendation block */
+  .recommendation {
+    background: linear-gradient(135deg, var(--deep-teal) 0%, #1F5A70 100%);
+    color: white;
+    border-radius: 24px;
+    padding: 32px;
+    margin-top: 32px;
+    box-shadow: var(--shadow-lg);
+  }
+  .recommendation h2 { font-size: 24px; font-weight: 700; margin-bottom: 16px; }
+  .stack-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-top: 20px;
+  }
+  .stack-item {
+    background: rgba(255,255,255,0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.15);
+    padding: 16px;
+    border-radius: 14px;
+  }
+  .stack-item-label { font-size: 12px; opacity: 0.75; margin-bottom: 4px; }
+  .stack-item-value { font-size: 16px; font-weight: 600; }
+  .cost-banner {
+    background: rgba(220, 238, 221, 0.2);
+    border: 1px solid rgba(220, 238, 221, 0.3);
+    border-radius: 16px;
+    padding: 16px 20px;
+    margin-top: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .cost-banner-label { font-size: 14px; opacity: 0.85; }
+  .cost-banner-value { font-size: 22px; font-weight: 800; }
+
+  .empty-state { text-align: center; padding: 40px; color: var(--text-secondary); font-size: 15px; }
+
+  @media (max-width: 640px) {
+    .container { padding: 16px; }
+    .header { padding: 28px 24px; }
+    .header h1 { font-size: 24px; }
+    .grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-top">
+      <div>
+        <h1>Beacon — מפת שירותים</h1>
+        <div class="subtitle">מעבר מ-MVP ב-Xcode לאפליקציה אמיתית • POC רמב"ם</div>
+      </div>
+      <div class="header-badge">אפריל 2026</div>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats" id="stats"></div>
+
+  <!-- Readiness gauge -->
+  <div class="readiness">
+    <div class="readiness-label">
+      <h3>מוכנות כוללת לפרודקשן</h3>
+      <div class="readiness-percent" id="readinessPercent">0%</div>
+    </div>
+    <div class="readiness-bar" id="readinessBar"></div>
+    <div class="readiness-legend">
+      <span><span class="legend-dot" style="background: var(--sage-dark);"></span>קיים</span>
+      <span><span class="legend-dot" style="background: var(--amber-accent);"></span>MOCK</span>
+      <span><span class="legend-dot" style="background: #E0E5E5;"></span>חסר</span>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters">
+    <div class="filter-group" id="statusFilters">
+      <button class="filter-pill active" data-status="all">הכל</button>
+      <button class="filter-pill" data-status="have">✅ קיים</button>
+      <button class="filter-pill" data-status="mock">🟡 MOCK</button>
+      <button class="filter-pill" data-status="missing">❌ חסר</button>
+    </div>
+    <input type="text" class="search-input" placeholder="חיפוש שירות..." id="searchInput">
+  </div>
+
+  <!-- Service sections -->
+  <div id="sections"></div>
+
+  <!-- Recommendation -->
+  <div class="recommendation">
+    <h2>💡 הסטאק המומלץ ל-POC</h2>
+    <p style="opacity: 0.9; line-height: 1.6;">קוהרנטי, חיסכון בעלויות, ומיקסום היכולות הילידיות של אפל. שילוב של Supabase כעמוד שדרה עם apple-native לכל מה שאפל עושה מצוין.</p>
+
+    <div class="stack-grid">
+      <div class="stack-item"><div class="stack-item-label">Backend</div><div class="stack-item-value">Supabase</div></div>
+      <div class="stack-item"><div class="stack-item-label">Auth</div><div class="stack-item-value">Apple Sign-In</div></div>
+      <div class="stack-item"><div class="stack-item-label">OCR</div><div class="stack-item-value">Apple Vision</div></div>
+      <div class="stack-item"><div class="stack-item-label">Push</div><div class="stack-item-value">APNs ישיר</div></div>
+      <div class="stack-item"><div class="stack-item-label">AI</div><div class="stack-item-value">Claude API</div></div>
+      <div class="stack-item"><div class="stack-item-label">EMR</div><div class="stack-item-value">FHIR (רמב"ם)</div></div>
+      <div class="stack-item"><div class="stack-item-label">Analytics</div><div class="stack-item-value">PostHog</div></div>
+      <div class="stack-item"><div class="stack-item-label">Crashes</div><div class="stack-item-value">Sentry</div></div>
+    </div>
+
+    <div class="cost-banner">
+      <div class="cost-banner-label">עלות חודשית משוערת ל-POC (10-20 משפחות)</div>
+      <div class="cost-banner-value">$50–$150</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const data = [
+  { section: '🔐 זהות וגישה', services: [
+    { name: 'Authentication', status: 'missing', options: ['Apple Sign-In (iOS-first, חינם)', 'Firebase Auth', 'Auth0'] },
+    { name: 'Family / Multi-user Sharing', status: 'mock', options: ['CloudKit Sharing (Apple native)', 'Firebase + Custom rules', 'Supabase RLS'] },
+  ]},
+  { section: '🗄️ נתונים ואחסון', services: [
+    { name: 'DB מובנה (משימות, תרופות)', status: 'mock', options: ['Firebase Firestore', 'Supabase (Postgres)', 'CloudKit'] },
+    { name: 'File Storage (PDFs, תמונות)', status: 'missing', options: ['Supabase Storage (S3-compatible)', 'Firebase Storage', 'AWS S3'] },
+    { name: 'Cache / Offline', status: 'have', options: ['SwiftData (קיים)', 'Realm', 'Core Data'] },
+  ]},
+  { section: '🌐 Backend & Sync', services: [
+    { name: 'Backend / API', status: 'missing', options: ['Supabase Edge Functions', 'Firebase Functions', 'Node.js on Railway'] },
+    { name: 'Real-time Sync משפחתי', status: 'missing', options: ['Supabase Realtime', 'Firebase Realtime DB', 'Ably / Pusher'] },
+    { name: 'Background Jobs', status: 'missing', options: ['Supabase Cron', 'Firebase Scheduled', 'Temporal'] },
+  ]},
+  { section: '🔔 התראות ותקשורת', services: [
+    { name: 'Push Notifications', status: 'missing', options: ['APNs ישיר (Apple, חינם)', 'Firebase FCM', 'OneSignal'] },
+    { name: 'SMS (הזמנות משפחה)', status: 'missing', options: ['Inforu (ישראלי, זול)', 'Twilio', 'MessageBird'] },
+    { name: 'Email', status: 'missing', options: ['Resend (פשוט, מודרני)', 'Postmark', 'SendGrid'] },
+  ]},
+  { section: '🏥 אינטגרציות רפואיות', services: [
+    { name: 'בית חולים — תיק רפואי', status: 'mock', options: ['HL7 FHIR API של רמב"ם', 'אופק - שיתוף מידע', 'dbMotion'] },
+    { name: 'תוצאות מעבדה', status: 'mock', options: ['FHIR Lab Results (רמב"ם)', 'מכבי / כללית API', 'OCR ידני'] },
+    { name: 'מאגר תרופות', status: 'mock', options: ['משרד הבריאות (drugs.health.gov.il)', 'DrugBank API', 'RxNorm + תרגום'] },
+    { name: 'יומן (תורים רפואיים)', status: 'missing', options: ['EventKit (iOS native)', 'Google Calendar API', 'Microsoft Graph'] },
+  ]},
+  { section: '🤖 AI ועיבוד', services: [
+    { name: 'LLM — סיכומים בעברית', status: 'mock', options: ['Claude API (עברית מצוינת)', 'GPT-4o', 'Gemini'] },
+    { name: 'OCR — מרשמים ומסמכים', status: 'missing', options: ['Apple Vision (on-device, פרטי)', 'Google Cloud Vision', 'AWS Textract'] },
+  ]},
+  { section: '📊 תפעול ומעקב', services: [
+    { name: 'Analytics', status: 'missing', options: ['PostHog (open-source + session replay)', 'Mixpanel', 'Amplitude'] },
+    { name: 'Crash Reporting', status: 'missing', options: ['Sentry (סטנדרט תעשייה)', 'Firebase Crashlytics', 'Bugsnag'] },
+    { name: 'Audit Logs (רגולציה)', status: 'missing', options: ['Supabase Audit + custom', 'Datadog', 'AWS CloudTrail'] },
+  ]},
+  { section: '🛡️ אבטחה ורגולציה', services: [
+    { name: 'Encryption (at-rest)', status: 'missing', options: ['CloudKit / Supabase encryption', 'AWS KMS', 'Custom CryptoKit'] },
+    { name: 'Compliance — משרד הבריאות', status: 'missing', options: ['Vanta / Drata (אוטומציה)', 'יועץ ישראלי + ידני', 'תהליך פנימי'] },
+  ]},
+];
+
+let activeStatus = 'all';
+let searchTerm = '';
+
+function calcStats() {
+  const all = data.flatMap(s => s.services);
+  return {
+    total: all.length,
+    have: all.filter(s => s.status === 'have').length,
+    mock: all.filter(s => s.status === 'mock').length,
+    missing: all.filter(s => s.status === 'missing').length,
+  };
+}
+
+function renderStats() {
+  const s = calcStats();
+  const el = document.getElementById('stats');
+  el.innerHTML = `
+    <div class="stat-card" data-filter="all">
+      <div class="stat-label">סה"כ שירותים</div>
+      <div class="stat-number total">${s.total}</div>
+    </div>
+    <div class="stat-card" data-filter="have">
+      <div class="stat-label">✅ קיים</div>
+      <div class="stat-number have">${s.have}</div>
+      <div class="stat-bar"><div class="stat-bar-fill have" style="width: ${(s.have/s.total*100)}%"></div></div>
+    </div>
+    <div class="stat-card" data-filter="mock">
+      <div class="stat-label">🟡 MOCK בלבד</div>
+      <div class="stat-number mock">${s.mock}</div>
+      <div class="stat-bar"><div class="stat-bar-fill mock" style="width: ${(s.mock/s.total*100)}%"></div></div>
+    </div>
+    <div class="stat-card" data-filter="missing">
+      <div class="stat-label">❌ חסר לחלוטין</div>
+      <div class="stat-number missing">${s.missing}</div>
+      <div class="stat-bar"><div class="stat-bar-fill missing" style="width: ${(s.missing/s.total*100)}%"></div></div>
+    </div>
+  `;
+  el.querySelectorAll('.stat-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const f = card.dataset.filter;
+      activeStatus = f;
+      document.querySelectorAll('#statusFilters .filter-pill').forEach(p =>
+        p.classList.toggle('active', p.dataset.status === f));
+      render();
+    });
+  });
+}
+
+function renderReadiness() {
+  const s = calcStats();
+  // Each "have" = 1 point, each "mock" = 0.3 points, missing = 0
+  const score = (s.have * 1 + s.mock * 0.3) / s.total * 100;
+  document.getElementById('readinessPercent').textContent = `${Math.round(score)}%`;
+  const havePct = (s.have/s.total*100);
+  const mockPct = (s.mock/s.total*100);
+  const missPct = (s.missing/s.total*100);
+  document.getElementById('readinessBar').innerHTML = `
+    <div class="readiness-segment have" style="width: ${havePct}%"></div>
+    <div class="readiness-segment mock" style="width: ${mockPct}%"></div>
+    <div class="readiness-segment missing" style="width: ${missPct}%"></div>
+  `;
+}
+
+function matchesFilter(svc) {
+  if (activeStatus !== 'all' && svc.status !== activeStatus) return false;
+  if (searchTerm && !svc.name.toLowerCase().includes(searchTerm.toLowerCase())
+      && !svc.options.some(o => o.toLowerCase().includes(searchTerm.toLowerCase()))) return false;
+  return true;
+}
+
+function statusLabel(s) {
+  return s === 'have' ? 'קיים' : s === 'mock' ? 'MOCK' : 'חסר';
+}
+
+function render() {
+  const container = document.getElementById('sections');
+  let html = '';
+  let totalShown = 0;
+
+  data.forEach(section => {
+    const filtered = section.services.filter(matchesFilter);
+    if (filtered.length === 0) return;
+    totalShown += filtered.length;
+
+    html += `<div class="section">
+      <div class="section-title">
+        ${section.section}
+        <span class="count">${filtered.length}</span>
+      </div>
+      <div class="grid">`;
+
+    filtered.forEach(svc => {
+      html += `<div class="card">
+        <div class="card-header">
+          <div class="card-title">${svc.name}</div>
+          <div class="status-badge ${svc.status}">${statusLabel(svc.status)}</div>
+        </div>
+        <div class="options-list">
+          ${svc.options.map((opt, i) => `
+            <div class="option ${i === 0 ? 'top' : ''}">
+              <div class="option-rank">${i + 1}</div>
+              <div class="option-name">${opt}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>`;
+    });
+
+    html += `</div></div>`;
+  });
+
+  if (totalShown === 0) {
+    html = `<div class="empty-state">לא נמצאו שירותים תואמים</div>`;
+  }
+
+  container.innerHTML = html;
+}
+
+// Bind filters
+document.querySelectorAll('#statusFilters .filter-pill').forEach(pill => {
+  pill.addEventListener('click', () => {
+    activeStatus = pill.dataset.status;
+    document.querySelectorAll('#statusFilters .filter-pill').forEach(p =>
+      p.classList.toggle('active', p === pill));
+    render();
+  });
+});
+
+document.getElementById('searchInput').addEventListener('input', e => {
+  searchTerm = e.target.value;
+  render();
+});
+
+renderStats();
+renderReadiness();
+render();
+</script>
+</body>
+</html>
