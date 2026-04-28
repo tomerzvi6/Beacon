@@ -1,0 +1,25 @@
+[project]
+name = "beacon-parser-api"
+version = "0.1.0"
+description = "Beacon — user-facing medical document parser API"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.0",
+    "sqlalchemy>=2.0",
+    "psycopg[binary]>=3.2",
+    "alembic>=1.13",
+    "anthropic>=0.40",
+    "boto3>=1.34",
+    "python-jose[cryptography]>=3.3",
+    "pytesseract>=0.3.13",
+    "pdf2image>=1.17",
+    "Pillow>=10.0",
+    "beacon-shared",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
