@@ -242,3 +242,31 @@ class TokenOut(BaseModel):
     access_token: str
     token_type: str = "bearer"
     expires_in: int = 3600
+
+
+# Apple Sign-In token exchange (POST /v1/auth/apple)
+
+
+class AppleFullName(BaseModel):
+    given_name: str | None = None
+    family_name: str | None = None
+
+
+class AppleAuthIn(BaseModel):
+    identity_token: str
+    nonce: str  # raw nonce, not hashed; backend hashes for comparison
+    full_name: AppleFullName | None = None  # only present on first sign-in
+
+
+class AppleAuthUserOut(BaseModel):
+    id: uuid.UUID
+    household_id: uuid.UUID
+    role: str  # patient|co_owner|caregiver
+    full_name: str
+
+
+class AppleAuthOut(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: AppleAuthUserOut
+    expires_in_seconds: int

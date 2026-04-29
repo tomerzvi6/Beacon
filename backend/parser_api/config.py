@@ -19,7 +19,8 @@ class Settings(BaseSettings):
     # Auth
     jwt_signing_key: str = Field(default_factory=lambda: os.environ.get("JWT_SIGNING_KEY", "dev-secret"))
     jwt_algorithm: Literal["HS256"] = "HS256"
-    jwt_expires_seconds: int = 3600
+    jwt_ttl_seconds: int = Field(default=60 * 60 * 24 * 30)  # 30 days
+    apple_bundle_id: str = Field(default="com.beacon.app")
 
     # OCR mode
     ocr_mode: Literal["textract", "tesseract"] = Field(default="tesseract")

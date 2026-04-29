@@ -32,6 +32,17 @@ def get_session(
         yield session
 
 
+def get_session_no_auth() -> Generator[Session, None, None]:
+    """Session WITHOUT RLS context — for endpoints that bootstrap auth (no
+    household yet, e.g. POST /v1/auth/apple). Relies on parser_api_role having
+    row_security=off; production must keep that role attribute or substitute a
+    SECURITY DEFINER lookup.
+    """
+    engine = get_engine()
+    with Session(engine) as session:
+        yield session
+
+
 def get_user_context(token: TokenPayload = Depends(verify_token)) -> TokenPayload:
     """Extract user context from JWT."""
     return token

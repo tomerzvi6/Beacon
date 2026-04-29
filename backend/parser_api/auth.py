@@ -12,21 +12,31 @@ security = HTTPBearer()
 
 
 class TokenPayload:
-    def __init__(self, household_id: str, user_id: str, apple_user_id: str):
+    def __init__(self, household_id: str, user_id: str, apple_user_id: str | None = None):
         self.household_id = household_id
         self.user_id = user_id
         self.apple_user_id = apple_user_id
 
 
-def create_token(household_id: str, user_id: str, apple_user_id: str) -> str:
-    """Create a JWT token. Called after Sign in with Apple verification."""
+def create_token(
+    household_id: str,
+    user_id: str,
+    apple_user_id: str,
+    ttl_seconds: int | None = None,
+) -> tuple[str, int]:
+    """Create a JWT token. Called after Sign in with Apple verification.
+
+    Returns (token, expires_in_seconds).
+    """
+    ttl = ttl_seconds if ttl_seconds is not None else settings.jwt_ttl_seconds
     payload = {
         "household_id": household_id,
         "user_id": user_id,
         "apple_user_id": apple_user_id,
-        "exp": datetime.now(tz=timezone.utc) + timedelta(seconds=settings.jwt_expires_seconds),
+        "exp": datetime.now(tz=timezone.utc) + timedelta(seconds=ttl),
     }
-    return jwt.encode(payload, settings.jwt_signing_key, algorithm=settings.jwt_algorithm)
+    token = jwt.encode(payload, settings.jwt_signing_key, algorithm=settings.jwt_algorithm)
+    return token, ttl
 
 
 def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> TokenPayload:
