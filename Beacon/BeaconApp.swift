@@ -24,6 +24,7 @@ struct BeaconApp: App {
         } catch {
             fatalError("Failed to create Beacon ModelContainer: \(error)")
         }
+        GoogleSignInService.configureIfNeeded()
     }
 
     var body: some Scene {
@@ -38,6 +39,10 @@ struct BeaconApp: App {
                     await environment.checkSession()
                 }
                 .onOpenURL { url in
+                    // Google Sign-In OAuth redirect — must run before
+                    // any other URL handler so the SDK can complete the
+                    // sign-in flow.
+                    if GoogleSignInService.handle(url: url) { return }
                     if let token = InviteService.parseInviteToken(from: url) {
                         Task { await environment.acceptInvite(token: token) }
                     }

@@ -50,10 +50,15 @@ class Household(Base):
 
 class User(Base):
     __tablename__ = "users"
-    __table_args__ = (UniqueConstraint("apple_user_id"),)
+    __table_args__ = (
+        UniqueConstraint("apple_user_id"),
+        UniqueConstraint("google_user_id"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
-    apple_user_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    # Exactly one of apple_user_id / google_user_id is set per user (Phase 9.1.5).
+    apple_user_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    google_user_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     display_name: Mapped[str] = mapped_column(String(120))
     # legacy role column — authoritative membership is in household_members
     role: Mapped[str] = mapped_column(String(30))

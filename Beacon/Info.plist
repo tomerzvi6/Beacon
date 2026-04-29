@@ -26,6 +26,14 @@
                 <string>beacon</string>
             </array>
         </dict>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>com.beacon.googlesignin</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>com.googleusercontent.apps.REPLACE_WITH_REVERSED_GOOGLE_CLIENT_ID</string>
+            </array>
+        </dict>
     </array>
     <key>UILaunchScreen</key>
     <dict>

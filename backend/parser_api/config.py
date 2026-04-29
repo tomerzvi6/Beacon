@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     jwt_algorithm: Literal["HS256"] = "HS256"
     jwt_ttl_seconds: int = Field(default=60 * 60 * 24 * 30)  # 30 days
     apple_bundle_id: str = Field(default="com.beacon.app")
+    # iOS OAuth 2.0 client ID from Google Cloud Console.
+    # If empty, /v1/auth/google returns 503 (auth provider not configured).
+    google_client_id: str = Field(default="")
 
     # OCR mode
     ocr_mode: Literal["textract", "tesseract"] = Field(default="tesseract")

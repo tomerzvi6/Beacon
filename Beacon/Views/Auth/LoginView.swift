@@ -48,6 +48,10 @@ struct LoginView: View {
                     .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.button, style: .continuous))
                     .accessibilityLabel("התחבר עם Apple")
 
+                    GoogleSignInRow(isWorking: isWorking) {
+                        Task { await handleGoogle() }
+                    }
+
                     Button {
                         showDevSheet = true
                     } label: {
@@ -108,6 +112,54 @@ struct LoginView: View {
                 environment.authErrorMessage = error.localizedDescription
             }
         }
+    }
+
+    @MainActor
+    private func handleGoogle() async {
+        isWorking = true
+        defer { isWorking = false }
+        await environment.signInWithGoogle()
+    }
+}
+
+// MARK: - Google Sign-In button
+
+/// Per Google's branding guidelines, the button uses a white background,
+/// the official "G" logo on the leading edge, and the text
+/// "Sign in with Google" — we keep the Hebrew label "המשך עם Google"
+/// alongside the SF Symbol fallback for the logo, accepting that a fully
+/// branded build needs the official PNG asset shipped from Google's
+/// branding kit (added in Phase 8 polish).
+private struct GoogleSignInRow: View {
+    let isWorking: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: Theme.Spacing.m) {
+                Image(systemName: "g.circle.fill")
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundStyle(Color(red: 0.26, green: 0.52, blue: 0.96))
+                Text("המשך עם Google")
+                    .font(Theme.Typography.bodyEmphasis)
+                    .foregroundStyle(.black.opacity(0.85))
+                Spacer()
+                if isWorking { ProgressView() }
+            }
+            .padding(.horizontal, Theme.Spacing.m)
+            .frame(maxWidth: .infinity, minHeight: 50)
+            .background(
+                RoundedRectangle(cornerRadius: Theme.CornerRadius.button, style: .continuous)
+                    .fill(Color.white)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.CornerRadius.button, style: .continuous)
+                    .strokeBorder(Color.black.opacity(0.08), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("המשך עם Google")
+        .disabled(isWorking)
     }
 }
 

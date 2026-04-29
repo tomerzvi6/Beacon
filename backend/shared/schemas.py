@@ -270,3 +270,18 @@ class AppleAuthOut(BaseModel):
     token_type: str = "bearer"
     user: AppleAuthUserOut
     expires_in_seconds: int
+
+
+# Google Sign-In token exchange (POST /v1/auth/google)
+
+
+class GoogleAuthIn(BaseModel):
+    id_token: str
+    nonce: str | None = None  # raw nonce; backend hashes for comparison if provided
+
+
+class GoogleAuthOut(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: AppleAuthUserOut  # response shape is identical across providers
+    expires_in_seconds: int

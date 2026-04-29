@@ -103,6 +103,51 @@ final class AppEnvironment {
         }
     }
 
+    /// Sign in with Google → exchange the Google id_token for a Beacon
+    /// JWT. Unlike Apple Sign-In, no parallel Supabase identity is
+    /// established here — Phase 9.1.5 ships Google as a backend-only
+    /// path. Successful sign-in routes straight to `.authenticated`.
+    @MainActor
+    func signInWithGoogle() async {
+        authErrorMessage = nil
+        backendAuthErrorMessage = nil
+        do {
+            let result = try await GoogleSignInService().signIn()
+            let response = try await backendAuthService.exchangeGoogleToken(
+                idToken: result.idToken,
+                nonce: result.nonce
+            )
+            self.backendUser = response.user
+            self.applyBackendUserToDisplay(response.user)
+            self.authState = .authenticated
+        } catch let error as APIError {
+            backendAuthErrorMessage = error.diagnosticDescription
+            authErrorMessage = error.userMessage
+        } catch let error as GoogleSignInError {
+            authErrorMessage = error.localizedDescription
+        } catch {
+            authErrorMessage = error.localizedDescription
+        }
+    }
+
+    /// Map a `BackendUser` onto the legacy `currentUser` / `patient`
+    /// fields so the existing UI keeps rendering until we replace those
+    /// data paths in later phases. Reused by both Apple and Google flows.
+    @MainActor
+    private func applyBackendUserToDisplay(_ user: BackendUser) {
+        self.supabaseUserId = user.id
+        let role: MemberRole = (user.role == "patient") ? .patient
+                              : (user.role == "co_owner") ? .admin
+                              : .defaultMember
+        self.currentUser = FamilyMember(
+            id: user.id.uuidString,
+            displayName: user.full_name.isEmpty ? "מטפל/ת" : user.full_name,
+            relation: "מטפל/ת ראשי/ת",
+            avatarSymbol: "person.crop.circle.fill",
+            role: role
+        )
+    }
+
     /// Exchange the Apple identity token for a Beacon backend JWT. Failures
     /// are NOT fatal — Supabase auth still drives the UI in Phase 9.1; the
     /// reason is stored on `backendAuthErrorMessage` for DiagnosticView.
@@ -175,14 +220,20 @@ final class AppEnvironment {
 
     @MainActor
     func signOut() async {
-        guard let authService else { return }
         authErrorMessage = nil
+        // Always clear backend + Google state, even in preview/mock mode.
+        TokenStore.clear()
+        GoogleSignInService.signOut()
+        self.backendUser = nil
+        self.backendAuthErrorMessage = nil
+        self.supabaseUserId = nil
+
+        guard let authService else {
+            self.authState = .unauthenticated
+            return
+        }
         do {
             try await authService.signOut()
-            TokenStore.clear()
-            self.backendUser = nil
-            self.backendAuthErrorMessage = nil
-            self.supabaseUserId = nil
             self.authState = .unauthenticated
         } catch {
             authErrorMessage = error.localizedDescription

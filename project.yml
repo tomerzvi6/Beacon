@@ -17,6 +17,9 @@ packages:
   Supabase:
     url: https://github.com/supabase/supabase-swift
     from: "2.5.0"
+  GoogleSignIn:
+    url: https://github.com/google/GoogleSignIn-iOS
+    from: "8.0.0"
 
 targets:
   Beacon:
@@ -35,6 +38,10 @@ targets:
     dependencies:
       - package: Supabase
         product: Supabase
+      - package: GoogleSignIn
+        product: GoogleSignIn
+      - package: GoogleSignIn
+        product: GoogleSignInSwift
     info:
       path: Beacon/Info.plist
       properties:
