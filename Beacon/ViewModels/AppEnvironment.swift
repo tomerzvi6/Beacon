@@ -23,6 +23,14 @@ final class AppEnvironment {
     private let authService: AuthService?
     private(set) var supabaseUserId: UUID? = nil
 
+    /// Beacon backend identity (issued by `POST /v1/auth/apple`). Populated
+    /// after Sign in with Apple succeeds. Nil in preview/mock mode and
+    /// nil if the backend exchange failed (in which case
+    /// `backendAuthErrorMessage` carries the reason).
+    private(set) var backendUser: BackendUser? = nil
+    var backendAuthErrorMessage: String? = nil
+    private let backendAuthService = BackendAuthService()
+
     // MARK: - Domain state (was previously hard-mocked)
     var currentUser: FamilyMember
     var patient: Patient
@@ -88,9 +96,41 @@ final class AppEnvironment {
         authErrorMessage = nil
         do {
             try await authService.signInWithApple(credential: credential, rawNonce: rawNonce)
+            await exchangeBackendToken(credential: credential, rawNonce: rawNonce)
             await loadUserContextAndRoute(using: authService)
         } catch {
             authErrorMessage = error.localizedDescription
+        }
+    }
+
+    /// Exchange the Apple identity token for a Beacon backend JWT. Failures
+    /// are NOT fatal — Supabase auth still drives the UI in Phase 9.1; the
+    /// reason is stored on `backendAuthErrorMessage` for DiagnosticView.
+    @MainActor
+    private func exchangeBackendToken(
+        credential: ASAuthorizationAppleIDCredential,
+        rawNonce: String
+    ) async {
+        backendAuthErrorMessage = nil
+        guard
+            let tokenData = credential.identityToken,
+            let idToken = String(data: tokenData, encoding: .utf8)
+        else {
+            backendAuthErrorMessage = "Apple credential missing identity token"
+            return
+        }
+        do {
+            let response = try await backendAuthService.exchangeAppleToken(
+                identityToken: idToken,
+                rawNonce: rawNonce,
+                givenName: credential.fullName?.givenName,
+                familyName: credential.fullName?.familyName
+            )
+            self.backendUser = response.user
+        } catch let error as APIError {
+            backendAuthErrorMessage = error.diagnosticDescription
+        } catch {
+            backendAuthErrorMessage = error.localizedDescription
         }
     }
 
@@ -139,6 +179,9 @@ final class AppEnvironment {
         authErrorMessage = nil
         do {
             try await authService.signOut()
+            TokenStore.clear()
+            self.backendUser = nil
+            self.backendAuthErrorMessage = nil
             self.supabaseUserId = nil
             self.authState = .unauthenticated
         } catch {

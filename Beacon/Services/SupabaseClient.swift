@@ -8,9 +8,7 @@ enum SupabaseManager {
         guard
             let url = SecretsLoader.string(for: "SUPABASE_URL"),
             let key = SecretsLoader.string(for: "SUPABASE_ANON_KEY"),
-            let supabaseURL = URL(string: url),
-            !url.contains("REPLACE_ME"),
-            !key.contains("REPLACE_ME")
+            let supabaseURL = URL(string: url)
         else {
             fatalError("""
             ⚠️ Supabase credentials missing.
@@ -24,19 +22,4 @@ enum SupabaseManager {
         }
         return SupabaseClient(supabaseURL: supabaseURL, supabaseKey: key)
     }()
-}
-
-// MARK: - Secrets loader
-
-private enum SecretsLoader {
-    static func string(for key: String) -> String? {
-        guard
-            let url = Bundle.main.url(forResource: "Secrets", withExtension: "plist"),
-            let data = try? Data(contentsOf: url),
-            let plist = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any]
-        else {
-            return nil
-        }
-        return plist[key] as? String
-    }
 }

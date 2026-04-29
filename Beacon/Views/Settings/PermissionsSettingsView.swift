@@ -141,6 +141,21 @@ struct PermissionsSettingsView: View {
 
     private var accountSection: some View {
         Section {
+            #if DEBUG
+            NavigationLink {
+                DiagnosticView()
+                    .environment(environment)
+            } label: {
+                HStack(spacing: Theme.Spacing.m) {
+                    Image(systemName: "stethoscope.circle")
+                        .font(.system(size: 18))
+                        .frame(width: 36, height: 36)
+                    Text("אבחון שרת")
+                        .font(Theme.Typography.bodyEmphasis)
+                }
+                .padding(.vertical, 4)
+            }
+            #endif
             Button(role: .destructive) {
                 Task { await environment.signOut() }
             } label: {
