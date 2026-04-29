@@ -54,6 +54,10 @@ python -m shared.seed
 source venv_parser/bin/activate
 export DATABASE_URL="postgresql+psycopg://beacon:beacon_dev@localhost:5432/beacon"
 export ANTHROPIC_API_KEY="sk-..."  # your actual key
+# Storage backend — local disk by default (Phase 8)
+export STORAGE_BACKEND=local          # or "s3" for production
+export LOCAL_UPLOAD_DIR=./uploads     # where local uploads are stored
+export LOCAL_API_BASE_URL=http://localhost:8000
 uvicorn parser_api.main:app --reload --port 8000
 ```
 
@@ -96,6 +100,45 @@ python -c "from agents.graphs import run_creative_weekly; run_creative_weekly()"
 
 - Kill each `venv` terminal with `Ctrl+C`.
 - To reset the DB: `dropdb beacon && createdb -O beacon beacon && alembic upgrade head && python -m shared.seed`.
+
+## Phase 8 — Document Upload API
+
+### New endpoints
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/v1/uploads/presign` | Generate upload URL. Body: `{mime_type, category?, is_private?, filename?}` |
+| `PUT` | `/v1/uploads/local/{document_id}` | Local-dev only — receive raw file bytes |
+| `POST` | `/v1/uploads/finalize` | Record SHA-256 hash; returns `409` on duplicate |
+| `POST` | `/v1/uploads/finalize/batch` | Finalize up to 15 documents at once |
+| `GET` | `/v1/documents/` | List documents (filters: category, date range, q, uploaded_by, cursor) |
+| `DELETE` | `/v1/documents/{id}` | Soft delete |
+| `GET` | `/v1/documents/trash` | Soft-deleted documents (patient/co_owner only) |
+| `POST` | `/v1/documents/{id}/restore` | Restore from trash |
+| `PATCH` | `/v1/documents/{id}` | Update category, is_private, filename |
+| `PATCH` | `/v1/tasks/{id}` | Edit task (audit trail in edit_history JSONB) |
+| `GET` | `/v1/households/members` | List household members |
+| `POST` | `/v1/households/invite/co-owner` | Create targeted co-owner invite |
+| `POST` | `/v1/households/invite/accept` | Accept co-owner invite with 6-digit code |
+| `POST` | `/v1/households/caregiver-invite` | Create open caregiver invite |
+| `POST` | `/v1/households/join` | Join as caregiver with 6-digit code |
+
+### Local upload flow (dev)
+
+```
+1. POST /v1/uploads/presign  →  { document_id, upload_url, expires_in_seconds }
+2. PUT  <upload_url>          →  raw file bytes (upload_url = http://localhost:8000/v1/uploads/local/{id})
+3. POST /v1/uploads/finalize  →  { document_id, status: "ok"|"conflict", ... }
+4. POST /v1/documents/{id}/parse
+```
+
+### Hard delete
+
+Documents soft-deleted for **30+ days** are permanently purged daily at **03:00** by the scheduler job `job_hard_delete`. Storage objects are deleted first.
+
+### Invite code TTL
+
+Default: 7 days (10 080 minutes). Override with `INVITE_CODE_TTL_MINUTES`.
 
 ## Notes
 

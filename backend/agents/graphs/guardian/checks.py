@@ -174,6 +174,95 @@ def probe_phi_table_access(engine) -> dict[str, bool]:
     return results
 
 
+# ---------------------------------------------------------------------------
+# Phase 8 checks: roles, flagged documents, co-owner promotion anomaly
+# ---------------------------------------------------------------------------
+
+
+# Actions that caregivers should never perform
+_CAREGIVER_FORBIDDEN_ACTIONS = {
+    "invite_co_owner",
+    "co_owner_joined",
+    "gdpr_erasure",
+    "restore_document",
+}
+
+
+def detect_unauthorized_role_actions(entries: list[dict]) -> list[dict]:
+    """
+    Flag audit entries where a caregiver (actor_type == "caregiver") attempted
+    a co-owner/patient-only action.  These are indicative of either a privilege
+    escalation bug or a misconfigured role.
+    """
+    flagged = []
+    for e in entries:
+        if e.get("actor_type") == "caregiver" and e.get("action") in _CAREGIVER_FORBIDDEN_ACTIONS:
+            flagged.append({
+                "finding": "unauthorized_role_action",
+                "severity": "high",
+                "actor_id": e["actor_id"],
+                "action": e["action"],
+                "audit_id": e["id"],
+                "created_at": e["created_at"].isoformat() if hasattr(e["created_at"], "isoformat") else str(e["created_at"]),
+            })
+    return flagged
+
+
+def detect_flagged_documents(engine) -> list[dict]:
+    """
+    Return documents with flagged_for_review=True that have not been deleted.
+    Only accesses non-PHI metadata columns (id, household_id, flag_reason, created_at).
+    """
+    with engine.connect() as conn:
+        rows = conn.execute(
+            text(
+                "SELECT id::text, household_id::text, flag_reason, created_at "
+                "FROM documents "
+                "WHERE flagged_for_review = TRUE AND deleted_at IS NULL "
+                "ORDER BY created_at DESC "
+                "LIMIT 50"
+            )
+        ).fetchall()
+
+    findings = []
+    for row in rows:
+        findings.append({
+            "finding": "document_flagged_for_review",
+            "severity": "medium",
+            "document_id": row.id,
+            "household_id": row.household_id,
+            "flag_reason": row.flag_reason,
+            "created_at": row.created_at.isoformat() if hasattr(row.created_at, "isoformat") else str(row.created_at),
+        })
+    return findings
+
+
+def detect_coowner_promotion_anomaly(entries: list[dict]) -> list[dict]:
+    """
+    Flag if more than one co_owner_joined event occurs within 24 hours for the
+    same household — indicates either a bug in the one-co-owner constraint or a
+    social-engineering attempt.
+    """
+    from collections import defaultdict
+
+    promotions: dict[str, list] = defaultdict(list)
+    for e in entries:
+        if e.get("action") == "co_owner_joined" and e.get("household_id"):
+            promotions[e["household_id"]].append(e)
+
+    flagged = []
+    for household_id, events in promotions.items():
+        if len(events) > 1:
+            flagged.append({
+                "finding": "coowner_promotion_anomaly",
+                "severity": "critical",
+                "household_id": household_id,
+                "promotion_count": len(events),
+                "actor_ids": [e["actor_id"] for e in events],
+            })
+    return flagged
+
+
 def probe_view_exposes_only_aggregates(engine) -> list[dict]:
     """Verify the agent-side views don't accidentally surface PHI text columns."""
     expected_columns = {

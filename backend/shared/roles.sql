@@ -23,6 +23,16 @@ TO parser_api_role;
 -- Bypass RLS so the app can set app.household_id and enforce isolation itself
 ALTER ROLE parser_api_role SET row_security = off;
 
+-- Phase 8 tables
+GRANT SELECT, INSERT, UPDATE, DELETE ON
+    household_members, household_invites
+TO parser_api_role;
+
+-- is_private enforcement note:
+--   RLS is bypassed for parser_api_role, so the application layer in
+--   routes/documents.py filters out is_private=TRUE documents for caregivers
+--   who are not the uploader.  Any change to that logic MUST preserve this filter.
+
 -- Sequence access (for audit_log bigserial)
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO parser_api_role;
 
@@ -44,6 +54,9 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON
     doc_chunks, audit_log
 TO agent_role;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO agent_role;
+
+-- Guardian needs read-only access to document metadata (non-PHI columns only)
+GRANT SELECT ON documents TO agent_role;
 
 -- ============================================================
 -- Read-only views for agents (aggregates only, no PHI text)

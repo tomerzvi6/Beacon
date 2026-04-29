@@ -14,6 +14,7 @@ from shared.models import (
     AgentRun,
     DoseEvent,
     Household,
+    HouseholdMember,
     Medication,
     Task,
     User,
@@ -41,6 +42,15 @@ def seed(database_url: str | None = None) -> None:
             locale="he_IL",
         )
         s.add(ronit)
+
+        # Authoritative membership record (Phase 8)
+        patient_member = HouseholdMember(
+            id=uuid.uuid4(),
+            household_id=household.id,
+            user_id=ronit.id,
+            role="patient",
+        )
+        s.add(patient_member)
 
         now = datetime.now(tz=timezone.utc)
 

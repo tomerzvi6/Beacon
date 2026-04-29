@@ -24,6 +24,14 @@ class Settings(BaseSettings):
     # OCR mode
     ocr_mode: Literal["textract", "tesseract"] = Field(default="tesseract")
 
+    # Storage
+    storage_backend: Literal["local", "s3"] = Field(default="local")
+    local_upload_dir: str = Field(default="./uploads")
+    local_api_base_url: str = Field(default="http://localhost:8000")
+
+    # Invites
+    invite_code_ttl_minutes: int = Field(default=10080)  # 7 days
+
     class Config:
         env_file = ".env"
         case_sensitive = False

@@ -83,6 +83,58 @@ def job_creative() -> None:
         log.exception("[Creative] Failed")
 
 
+def job_hard_delete() -> None:
+    """
+    Permanently delete documents that have been soft-deleted for 30+ days.
+    Also purges associated storage objects.
+    Runs daily at 03:00 during low-traffic window.
+    """
+    import sqlalchemy
+    from sqlalchemy import text
+
+    log.info("[HardDelete] Starting 30-day trash purge...")
+    try:
+        db_url = os.environ.get("DATABASE_URL")
+        if not db_url:
+            log.error("[HardDelete] DATABASE_URL not set — skipping")
+            return
+
+        engine = sqlalchemy.create_engine(db_url)
+        with engine.begin() as conn:
+            rows = conn.execute(
+                text(
+                    "SELECT id::text, storage_uri FROM documents "
+                    "WHERE deleted_at IS NOT NULL "
+                    "  AND deleted_at < now() - interval '30 days'"
+                )
+            ).fetchall()
+
+            if not rows:
+                log.info("[HardDelete] No documents to purge")
+                return
+
+            from parser_api.services.storage_service import get_storage_service
+            storage = get_storage_service()
+
+            purged = 0
+            for row in rows:
+                if row.storage_uri:
+                    try:
+                        storage.delete_object(row.storage_uri)
+                    except Exception as e:
+                        log.warning("[HardDelete] Storage delete failed for %s: %s", row.id, e)
+
+                conn.execute(
+                    text("DELETE FROM documents WHERE id = :doc_id::uuid"),
+                    {"doc_id": row.id},
+                )
+                purged += 1
+
+        log.info("[HardDelete] Purged %d documents", purged)
+    except Exception:
+        log.exception("[HardDelete] Failed")
+
+
 # ---------------------------------------------------------------------------
 # Scheduler setup
 # ---------------------------------------------------------------------------
@@ -120,13 +172,21 @@ def main() -> None:
         id="creative",
     )
 
+    # Hard delete — daily 03:00, purge docs soft-deleted 30+ days ago
+    scheduler.add_job(
+        job_hard_delete, "cron",
+        hour=3, minute=0,
+        id="hard_delete",
+    )
+
     log.info(
         "Scheduler started. Jobs: "
         "guardian (daily %02d:00), "
         "cs_proactive (daily %02d:00), "
         "cs_reactive (every 30m 08-20), "
         "product (Sun 08:00), "
-        "creative (Sun 10:00)",
+        "creative (Sun 10:00), "
+        "hard_delete (daily 03:00)",
         guardian_hour, cs_hour,
     )
     scheduler.start()

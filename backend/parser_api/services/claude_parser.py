@@ -1,10 +1,32 @@
-"""Claude Sonnet 4.6 integration for medical document parsing."""
-import json
+"""Claude Sonnet 4.6 / Haiku 4.5 — category-routed medical document parsing."""
+from typing import Optional
 
 from anthropic import Anthropic
 
 from parser_api.config import settings
+from parser_api.services.prompts import (
+    SYSTEM_BASE,
+    ADMIN_TOOL, ADMIN_USER_TMPL,
+    LAB_TOOL, LAB_USER_TMPL,
+    PRESCRIPTION_TOOL, PRESCRIPTION_USER_TMPL,
+    IMAGING_TOOL, IMAGING_USER_TMPL,
+    DEFAULT_TOOL, DEFAULT_USER_TMPL,
+)
 from shared.schemas import SuggestedTask
+
+_SONNET = "claude-sonnet-4-6"
+_HAIKU = "claude-haiku-4-5-20251001"
+
+# (model, tool_def, user_template, default_task_category)
+_ROUTE: dict[str, tuple[str, dict, str, str]] = {
+    "admin":        (_HAIKU,   ADMIN_TOOL,        ADMIN_USER_TMPL,        "admin"),
+    "lab":          (_SONNET,  LAB_TOOL,           LAB_USER_TMPL,          "test"),
+    "prescription": (_SONNET,  PRESCRIPTION_TOOL,  PRESCRIPTION_USER_TMPL, "medication"),
+    "imaging":      (_SONNET,  IMAGING_TOOL,       IMAGING_USER_TMPL,      "appointment"),
+    "consult":      (_SONNET,  IMAGING_TOOL,       IMAGING_USER_TMPL,      "appointment"),
+    "referral":     (_SONNET,  IMAGING_TOOL,       IMAGING_USER_TMPL,      "appointment"),
+}
+_DEFAULT_ROUTE = (_SONNET, DEFAULT_TOOL, DEFAULT_USER_TMPL, "admin")
 
 
 class ClaudeParser:
@@ -14,85 +36,36 @@ class ClaudeParser:
     def parse_medical_document(
         self,
         ocr_text: str,
+        category: Optional[str] = None,
         language: str = "he_IL",
-    ) -> tuple[str, str, list[SuggestedTask]]:
+    ) -> tuple[str, str, list[SuggestedTask], str]:
         """
-        Parse OCR'd medical document using Claude Sonnet 4.6 with structured output.
-        Returns: (full_summary_he, simple_summary_he, suggested_tasks)
+        Category-routed parse. Admin → Haiku; all others → Sonnet.
+
+        Returns: (full_summary_he, simple_summary_he, suggested_tasks, model_suggested_category)
         """
-
-        # System prompt with medical terminology context (cached for cost savings)
-        system_prompt = """אתה מומחה בפענוח מסמכים רפואיים בעברית.
-המטלה שלך:
-1. לסכם את המסמך הרפואי בעברית בצורה מובנת
-2. ליצור גרסה מפושטת עבור חולה/משפחה
-3. לחלץ משימות פעולה ספציפיות בפורמט JSON structured output
-
-דוגמאות משימות:
-- "לתאם בדיקת CT בבית החולים"
-- "לקחת זריקת Neulasta"
-- "לתזמן בדיקת דם"
-
-אל תכלול PHI (שמות חולים, מספרי רפואה) בסכומים."""
+        model, tool, user_tmpl, task_cat = _ROUTE.get(category or "", _DEFAULT_ROUTE)
 
         message = self.client.messages.create(
-            model="claude-sonnet-4-6",
+            model=model,
             max_tokens=2000,
             system=[
                 {
                     "type": "text",
-                    "text": system_prompt,
+                    "text": SYSTEM_BASE,
                     "cache_control": {"type": "ephemeral"},
                 }
             ],
-            tools=[
-                {
-                    "name": "parse_medical_doc",
-                    "description": "Extract summary and tasks from medical document",
-                    "input_schema": {
-                        "type": "object",
-                        "properties": {
-                            "full_summary_he": {
-                                "type": "string",
-                                "description": "Full medical summary in Hebrew",
-                            },
-                            "simple_summary_he": {
-                                "type": "string",
-                                "description": "Patient-friendly summary in simple Hebrew",
-                            },
-                            "tasks": {
-                                "type": "array",
-                                "items": {
-                                    "type": "object",
-                                    "properties": {
-                                        "title_he": {"type": "string"},
-                                        "category": {
-                                            "type": "string",
-                                            "enum": ["appointment", "medication", "test", "admin"],
-                                        },
-                                        "due_hint": {
-                                            "type": "string",
-                                            "description": "Natural language due date hint, e.g. 'תוך 3 ימים'",
-                                        },
-                                    },
-                                    "required": ["title_he", "category"],
-                                },
-                                "description": "Suggested action items",
-                            },
-                        },
-                        "required": ["full_summary_he", "simple_summary_he", "tasks"],
-                    },
-                }
-            ],
+            tools=[tool],
+            tool_choice={"type": "any"},
             messages=[
                 {
                     "role": "user",
-                    "content": f"פענח מסמך רפואי זה:\n\n{ocr_text[:5000]}",  # Limit OCR to 5k chars
+                    "content": user_tmpl.format(ocr_text=ocr_text[:5000]),
                 }
             ],
         )
 
-        # Extract tool use response
         tool_result = None
         for block in message.content:
             if hasattr(block, "type") and block.type == "tool_use":
@@ -102,17 +75,17 @@ class ClaudeParser:
         if not tool_result:
             raise ValueError("Claude did not return structured output")
 
-        full_summary = tool_result.get("full_summary_he", "")
-        simple_summary = tool_result.get("simple_summary_he", "")
-        tasks_raw = tool_result.get("tasks", [])
+        summary_he = tool_result.get("summary_he", "")
+        detected_category = tool_result.get("detected_category", category or "other")
 
+        raw_tasks = tool_result.get("suggested_tasks", [])
         suggested_tasks = [
             SuggestedTask(
                 title_he=t.get("title_he", ""),
-                category=t.get("category", "admin"),
-                due_hint=t.get("due_hint"),
+                category=task_cat,
+                due_hint=t.get("due_date") or t.get("due_hint"),
             )
-            for t in tasks_raw
+            for t in raw_tasks
         ]
 
-        return full_summary, simple_summary, suggested_tasks
+        return summary_he, summary_he, suggested_tasks, detected_category
