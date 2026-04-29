@@ -104,3 +104,17 @@ JOIN medications m ON m.id = de.medication_id
 GROUP BY 1, 2;
 
 GRANT SELECT ON v_dose_adherence_weekly TO agent_role;
+
+-- User engagement — household-level activity signal for Customer Success + Product agents
+-- No PHI text (no names, no medical content) — only aggregate timing/counts
+CREATE OR REPLACE VIEW v_user_engagement AS
+SELECT
+    u.household_id,
+    MAX(t.created_at)                                         AS last_task_activity,
+    COUNT(t.id)                                              AS total_tasks,
+    EXTRACT(EPOCH FROM (now() - MAX(t.created_at))) / 86400  AS days_since_activity
+FROM users u
+LEFT JOIN tasks t ON t.household_id = u.household_id
+GROUP BY u.household_id;
+
+GRANT SELECT ON v_user_engagement TO agent_role;

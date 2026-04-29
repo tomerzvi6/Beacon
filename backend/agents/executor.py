@@ -35,8 +35,17 @@ def execute_approved_run(run_id: str, approver_id: str, edited_draft: dict | Non
                 result = _send_push(draft["user_id"], draft["body_he"])
             elif draft_type == "support_reply":
                 result = _send_support_reply(draft["ticket_id"], draft["body_he"])
-            elif draft_type == "weekly_report":
+            elif draft_type in ("weekly_report", "product_report"):
+                # product_report supersedes weekly_report; keep old name for compat
                 result = _publish_report(run_id, draft["markdown"])
+            elif draft_type == "security_brief":
+                # Brief lives in output_draft.markdown; just ack it
+                result = _ack_brief(run_id, "security_brief", draft.get("markdown", ""))
+            elif draft_type == "content_draft":
+                result = _ack_brief(run_id, "content_draft", str(draft.get("pieces", [])))
+            elif draft_type == "cs_daily_brief":
+                result = _ack_brief(run_id, "cs_daily_brief",
+                                    draft.get("cohort_summary_he", ""))
             else:
                 raise ValueError(f"Unknown draft type: {draft_type}")
 
@@ -153,6 +162,30 @@ def _send_support_reply(ticket_id: str, body_he: str) -> dict:
 
     # Wire to email provider (SendGrid, Resend, etc.) here in production
     return {"replied": True, "ticket_id": ticket_id}
+
+
+def _ack_brief(run_id: str, brief_type: str, content_preview: str) -> dict:
+    """
+    For read-only draft types (security_brief, content_draft, cs_daily_brief):
+    approval just stores a snapshot and marks the run executed.
+    The full content already lives in agent_runs.output_draft.
+    """
+    from shared.models import AgentMetricsSnapshot
+
+    week_start = datetime.now(tz=timezone.utc).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+
+    with get_session() as session:
+        snap = AgentMetricsSnapshot(
+            week_starting=week_start,
+            report_markdown=content_preview[:2000],
+            metrics={"published_from_run": run_id, "brief_type": brief_type},
+        )
+        session.add(snap)
+        session.commit()
+
+    return {"acknowledged": True, "brief_type": brief_type, "run_id": run_id}
 
 
 def _publish_report(run_id: str, markdown: str) -> dict:

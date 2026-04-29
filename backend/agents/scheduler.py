@@ -1,61 +1,134 @@
 """
 APScheduler entry point — wires all agents to their cron triggers.
+
+Cadences (configurable via env vars):
+  GUARDIAN_CRON        default: daily 07:00
+  CS_PROACTIVE_CRON    default: daily 09:00
+  CS_REACTIVE_INTERVAL default: every 30 min (08:00–20:00)
+  PRODUCT_CRON         default: Sunday 08:00
+  CREATIVE_CRON        default: Sunday 10:00
+
 Run with: python agents/scheduler.py
 """
 import logging
+import os
 
 from apscheduler.schedulers.blocking import BlockingScheduler
 
-from agents.graphs.analyst import run_analyst
-from agents.graphs.nudger import run_nudger
-from agents.graphs.support import run_support
+from agents.graphs import (
+    run_creative_weekly,
+    run_customer_success_proactive,
+    run_customer_success_reactive,
+    run_guardian,
+    run_product,
+)
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 log = logging.getLogger("beacon.scheduler")
 
+_TZ = "Asia/Jerusalem"
 
-def job_nudger() -> None:
-    log.info("[Nudger] Starting run...")
+
+# ---------------------------------------------------------------------------
+# Job wrappers
+# ---------------------------------------------------------------------------
+
+
+def job_guardian() -> None:
+    log.info("[Guardian] Starting daily security scan...")
     try:
-        result = run_nudger()
-        run_id = result.get("run_id", "")
-        log.info(f"[Nudger] Done. run_id={run_id or 'no draft (no unclaimed tasks)'}")
+        result = run_guardian()
+        log.info("[Guardian] Done. run_id=%s findings=%s",
+                 result.get("run_id") or "no draft",
+                 len(result.get("findings", [])))
     except Exception:
-        log.exception("[Nudger] Failed")
+        log.exception("[Guardian] Failed")
 
 
-def job_support() -> None:
-    log.info("[Support] Starting run...")
+def job_cs_proactive() -> None:
+    log.info("[CustomerSuccess/proactive] Starting daily batch...")
     try:
-        result = run_support()
-        run_id = result.get("run_id", "")
-        log.info(f"[Support] Done. run_id={run_id or 'no draft (no new tickets)'}")
+        result = run_customer_success_proactive()
+        log.info("[CustomerSuccess/proactive] Done. run_id=%s",
+                 result.get("run_id") or "no draft")
     except Exception:
-        log.exception("[Support] Failed")
+        log.exception("[CustomerSuccess/proactive] Failed")
 
 
-def job_analyst() -> None:
-    log.info("[Analyst] Starting run...")
+def job_cs_reactive() -> None:
+    log.info("[CustomerSuccess/reactive] Checking for new tickets...")
     try:
-        result = run_analyst()
-        log.info(f"[Analyst] Done. run_id={result.get('run_id', '')}")
+        result = run_customer_success_reactive()
+        log.info("[CustomerSuccess/reactive] Done. run_id=%s",
+                 result.get("run_id") or "no tickets")
     except Exception:
-        log.exception("[Analyst] Failed")
+        log.exception("[CustomerSuccess/reactive] Failed")
+
+
+def job_product() -> None:
+    log.info("[Product] Starting weekly report...")
+    try:
+        result = run_product()
+        log.info("[Product] Done. run_id=%s", result.get("run_id", ""))
+    except Exception:
+        log.exception("[Product] Failed")
+
+
+def job_creative() -> None:
+    log.info("[Creative] Generating weekly content calendar...")
+    try:
+        result = run_creative_weekly()
+        log.info("[Creative] Done. run_id=%s", result.get("run_id", ""))
+    except Exception:
+        log.exception("[Creative] Failed")
+
+
+# ---------------------------------------------------------------------------
+# Scheduler setup
+# ---------------------------------------------------------------------------
 
 
 def main() -> None:
-    scheduler = BlockingScheduler(timezone="Asia/Jerusalem")
+    scheduler = BlockingScheduler(timezone=_TZ)
 
-    # Nudger: daily 09:00
-    scheduler.add_job(job_nudger, "cron", hour=9, minute=0, id="nudger")
+    # Guardian — daily 07:00 (security brief ready before business hours)
+    guardian_hour = int(os.environ.get("GUARDIAN_HOUR", "7"))
+    scheduler.add_job(job_guardian, "cron", hour=guardian_hour, minute=0, id="guardian")
 
-    # Support: every 30 minutes during business hours
-    scheduler.add_job(job_support, "cron", hour="8-20", minute="*/30", id="support")
+    # Customer Success / proactive — daily 09:00
+    cs_hour = int(os.environ.get("CS_PROACTIVE_HOUR", "9"))
+    scheduler.add_job(job_cs_proactive, "cron", hour=cs_hour, minute=0, id="cs_proactive")
 
-    # Analyst: every Sunday at 08:00
-    scheduler.add_job(job_analyst, "cron", day_of_week="sun", hour=8, minute=0, id="analyst")
+    # Customer Success / reactive — every 30 min, 08:00–20:00
+    scheduler.add_job(
+        job_cs_reactive, "cron",
+        hour="8-20", minute="*/30",
+        id="cs_reactive",
+    )
 
-    log.info("Scheduler started. Jobs: nudger (daily 09:00), support (every 30m), analyst (Sun 08:00)")
+    # Product — every Sunday 08:00
+    scheduler.add_job(
+        job_product, "cron",
+        day_of_week="sun", hour=8, minute=0,
+        id="product",
+    )
+
+    # Creative — every Sunday 10:00
+    scheduler.add_job(
+        job_creative, "cron",
+        day_of_week="sun", hour=10, minute=0,
+        id="creative",
+    )
+
+    log.info(
+        "Scheduler started. Jobs: "
+        "guardian (daily %02d:00), "
+        "cs_proactive (daily %02d:00), "
+        "cs_reactive (every 30m 08-20), "
+        "product (Sun 08:00), "
+        "creative (Sun 10:00)",
+        guardian_hour, cs_hour,
+    )
     scheduler.start()
 
 
