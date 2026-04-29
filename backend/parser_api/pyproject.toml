@@ -22,6 +22,9 @@ dependencies = [
     "beacon-shared",
 ]
 
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py311"

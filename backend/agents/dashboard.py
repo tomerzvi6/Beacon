@@ -132,19 +132,23 @@ with tab_activity:
     )
 
     where_clauses = []
+    params: dict = {}
     if agent_filter != "all":
-        where_clauses.append(f"agent_name = '{agent_filter}'")
+        where_clauses.append("agent_name = :agent_name")
+        params["agent_name"] = agent_filter
     if status_filter != "all":
-        where_clauses.append(f"status = '{status_filter}'")
+        where_clauses.append("status = :status")
+        params["status"] = status_filter
     where_sql = ("WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
 
     with engine.connect() as conn:
         rows = conn.execute(
             text(
-                f"SELECT id, agent_name, status, started_at, finished_at, "
-                f"input_summary, execution_result "
+                "SELECT id, agent_name, status, started_at, finished_at, "
+                "input_summary, execution_result "
                 f"FROM agent_runs {where_sql} ORDER BY started_at DESC LIMIT 100"
-            )
+            ),
+            params,
         ).fetchall()
 
     if not rows:

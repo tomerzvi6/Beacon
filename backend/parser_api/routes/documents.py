@@ -46,10 +46,11 @@ def parse_document(
         doc.status = "parsing"
         session.commit()
 
-        # Download from S3 (presigned URL was used for iOS upload)
-        storage_uri = f"s3://{doc.id}"  # Placeholder; in prod, track full S3 path
+        # Download from S3 using the URI recorded at upload time
+        if not doc.storage_uri:
+            raise ValueError("Document has no storage_uri — upload may not have completed")
         s3 = S3Service()
-        file_bytes = s3.get_object_bytes(storage_uri)
+        file_bytes = s3.get_object_bytes(doc.storage_uri)
 
         # OCR
         ocr = OCRService()
@@ -96,9 +97,11 @@ def parse_document(
         )
         session.commit()
 
-        # Delete raw document from S3 (TTL success)
+        # Delete raw document from S3 then null out storage_uri
         try:
-            s3.delete_object(storage_uri)
+            s3.delete_object(doc.storage_uri)
+            doc.storage_uri = None
+            session.commit()
         except Exception:
             pass  # Don't fail parsing if cleanup fails
 

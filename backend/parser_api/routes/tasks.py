@@ -22,7 +22,10 @@ def list_tasks(
     """List tasks for the user's household, filtered by status."""
     tasks = (
         session.query(Task)
-        .filter(Task.status == status_filter)
+        .filter(
+            Task.household_id == uuid.UUID(user.household_id),
+            Task.status == status_filter,
+        )
         .order_by(Task.created_at.desc())
         .all()
     )
