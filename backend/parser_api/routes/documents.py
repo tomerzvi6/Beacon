@@ -230,6 +230,35 @@ def restore_document(
 
 
 # ---------------------------------------------------------------------------
+# Get one — used by iOS to poll parse status
+# ---------------------------------------------------------------------------
+
+
+@router.get("/{document_id}", response_model=DocumentOut)
+def get_document(
+    document_id: str,
+    session: Session = Depends(get_session),
+    user: TokenPayload = Depends(get_user_context),
+) -> DocumentOut:
+    """Return a single document. Used by the iOS client to poll parse
+    progress (status transitions uploaded → parsing → parsed/failed).
+    Caregivers cannot read other users' private documents.
+    """
+    role = _caller_role(session, user)
+    doc = session.scalar(
+        select(Document).where(
+            Document.id == uuid.UUID(document_id),
+            Document.household_id == uuid.UUID(user.household_id),
+        )
+    )
+    if doc is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    if doc.is_private and role == "caregiver" and str(doc.uploaded_by) != user.user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot view private document")
+    return DocumentOut.model_validate(doc)
+
+
+# ---------------------------------------------------------------------------
 # Patch (category, is_private, filename)
 # ---------------------------------------------------------------------------
 
