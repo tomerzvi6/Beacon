@@ -136,6 +136,7 @@ class DocumentOut(_Base):
     is_private: bool
     flagged_for_review: bool
     flag_reason: str | None
+    parsed_summary_he: str | None
     parsed_summary_simple_he: str | None
     created_at: datetime
     parsed_at: datetime | None
