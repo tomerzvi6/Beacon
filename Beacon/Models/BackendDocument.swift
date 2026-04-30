@@ -69,6 +69,28 @@ struct PendingUploadFile: Identifiable {
     let sourceLabel: String  // "צילום" / "אלבום" / "קובץ"
 }
 
+/// Mirror of `SuggestedTask` from `shared/schemas.py`. Returned in the
+/// parse response body. The persisted `Task` row (Phase 4) carries
+/// more fields; this is just the pre-persist shape.
+struct BackendSuggestedTask: Decodable, Identifiable, Equatable {
+    var id: String { title_he }  // best-effort — backend doesn't issue an id pre-persist
+    let title_he: String
+    let category: String
+    let due_hint: String?
+}
+
+/// Mirror of `ParseResponse`. Returned synchronously today (OCR + Claude);
+/// the iOS side calls `fetch` afterwards to read the persisted state and
+/// drive any polling UI.
+struct BackendParseResponse: Decodable {
+    let document_id: UUID
+    let parsed_summary_he: String
+    let parsed_summary_simple_he: String
+    let suggested_tasks: [BackendSuggestedTask]
+    let model_suggested_category: String?
+    let flagged_for_review: Bool
+}
+
 /// Mirror of `DocumentOut` — full record returned by GET /v1/documents/.
 struct BackendDocument: Decodable, Identifiable, Equatable {
     let id: UUID
@@ -83,8 +105,25 @@ struct BackendDocument: Decodable, Identifiable, Equatable {
     let is_private: Bool
     let flagged_for_review: Bool
     let flag_reason: String?
+    let parsed_summary_he: String?
     let parsed_summary_simple_he: String?
     let created_at: Date
     let parsed_at: Date?
     let deleted_at: Date?
+}
+
+extension BackendDocument {
+    /// Convenience: bridge the backend's lowercase-snake category to the
+    /// strongly-typed enum without forcing a refresh-time crash if a new
+    /// category lands on the server before the app catches up.
+    var typedCategory: BackendDocumentCategory? {
+        category.flatMap(BackendDocumentCategory.init(rawValue:))
+    }
+
+    var isParsing: Bool {
+        status == "uploaded" || status == "finalized" || status == "parsing"
+    }
+
+    var isFailed: Bool { status == "failed" }
+    var isParsed: Bool { status == "parsed" }
 }

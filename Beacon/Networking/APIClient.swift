@@ -69,6 +69,12 @@ final class APIClient {
         try await sendWithBody(method: "POST", path: path, body: body, authenticated: authenticated)
     }
 
+    /// Body-less POST — used by FastAPI endpoints that take no request
+    /// body (e.g. POST /v1/documents/{id}/parse).
+    func post<R: Decodable>(_ path: String, authenticated: Bool = true) async throws -> R {
+        try await sendNoBody(method: "POST", path: path, authenticated: authenticated)
+    }
+
     func patch<B: Encodable, R: Decodable>(
         _ path: String,
         body: B,

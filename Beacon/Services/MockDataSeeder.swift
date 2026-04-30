@@ -116,37 +116,10 @@ enum MockDataSeeder {
             sourceHospital: "בי״ח שיבא"
         ))
 
-        // MARK: Medical documents
-        context.insert(MedicalDocument(
-            title: "סיכום ביקור אונקולוג",
-            sourceDescription: "ד״ר לוי, בי״ח שיבא",
-            documentDate: calendar.date(byAdding: .day, value: -11, to: today)!,
-            kind: .visitSummary,
-            fileType: .pdf,
-            fileSizeLabel: "1.1 MB",
-            hasAISummary: true,
-            aiSummaryKey: SampleAISummaries.oncologyVisit.id
-        ))
-        context.insert(MedicalDocument(
-            title: "תוצאות בדיקת דם מקיפה",
-            sourceDescription: "מעבדת מכבי, רמת גן",
-            documentDate: calendar.date(byAdding: .day, value: -13, to: today)!,
-            kind: .bloodTest,
-            fileType: .pdf,
-            fileSizeLabel: "2.4 MB",
-            hasAISummary: true,
-            aiSummaryKey: SampleAISummaries.bloodTest.id
-        ))
-        context.insert(MedicalDocument(
-            title: "צילום מרשם תרופות - אוקטובר",
-            sourceDescription: "תרופות למניעת בחילה ומשככי כאבים",
-            documentDate: calendar.date(byAdding: .day, value: -18, to: today)!,
-            kind: .prescription,
-            fileType: .image,
-            fileSizeLabel: nil,
-            hasAISummary: true,
-            aiSummaryKey: SampleAISummaries.prescriptionImage.id
-        ))
+        // Phase 9.3: medical documents are no longer seeded locally —
+        // they come from the Beacon backend (GET /v1/documents/).
+        // The Medical Vault renders an empty state on a fresh install
+        // until the user uploads or has a household with existing docs.
 
         // MARK: Feed posts
         let post1 = FeedPost(
@@ -191,7 +164,6 @@ enum MockDataSeeder {
         try? context.delete(model: MedicationDose.self)
         try? context.delete(model: Medication.self)
         try? context.delete(model: SymptomEntry.self)
-        try? context.delete(model: MedicalDocument.self)
         try? context.delete(model: HospitalSyncAlert.self)
         try? context.delete(model: FeedComment.self)
         try? context.delete(model: FeedPost.self)
@@ -205,7 +177,6 @@ enum MockDataSeeder {
             Medication.self,
             MedicationDose.self,
             SymptomEntry.self,
-            MedicalDocument.self,
             HospitalSyncAlert.self,
             FeedPost.self,
             FeedComment.self

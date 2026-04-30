@@ -7,13 +7,15 @@ struct BeaconApp: App {
     @State private var environment = AppEnvironment.live()
 
     init() {
+        // Phase 9.3: MedicalDocument removed — documents now read live
+        // from the Beacon backend. Tasks/medications/symptoms still live
+        // in SwiftData until phases 4–5 migrate them.
         let schema = Schema([
             ScheduleEvent.self,
             DailyTask.self,
             Medication.self,
             MedicationDose.self,
             SymptomEntry.self,
-            MedicalDocument.self,
             HospitalSyncAlert.self,
             FeedPost.self,
             FeedComment.self

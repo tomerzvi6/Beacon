@@ -7,7 +7,8 @@ struct MedicalVaultView: View {
     @Environment(\.modelContext) private var context
     @Environment(AppEnvironment.self) private var environment
     @State private var viewModel: MedicalVaultViewModel?
-    @State private var openedDocument: MedicalDocument?
+    @State private var openedDocument: BackendDocument?
+    @State private var searchDebounceTask: Task<Void, Never>? = nil
 
     // Upload-flow state
     private enum NextPicker { case camera, photos, files }
@@ -35,85 +36,52 @@ struct MedicalVaultView: View {
                             subtitle: "כל המסמכים והסיכומים של \(environment.patient.displayName), מסודרים וברורים."
                         )
 
-                        AISmartSummaryFeatureCard(
-                            summary: vm.featuredSummary,
-                            onReadFullSummary: {
-                                openedDocument = vm.documents.first {
-                                    $0.aiSummaryKey == vm.featuredSummary.id
-                                }
-                            },
-                            onAddSuggestedTasks: {
-                                let added = vm.addSuggestedTasksToCalendar(from: vm.featuredSummary)
-                                _ = added
-                            },
-                            importedTaskCount: vm.lastImportedTaskTitles.isEmpty ? nil : vm.lastImportedTaskTitles.count
-                        )
+                        if let featured = vm.featuredDocument {
+                            AISmartSummaryFeatureCard(
+                                document: featured,
+                                onReadFullSummary: { openedDocument = featured }
+                            )
+                        }
 
                         searchField(vm: vm)
-                        DocumentFilterChips(selection: Binding(
-                            get: { vm.selectedFilter },
-                            set: { vm.selectedFilter = $0 }
-                        ))
-
-                        if vm.filteredDocuments.isEmpty {
-                            BeaconCard {
-                                BeaconEmptyState(
-                                    systemImage: "doc.text.magnifyingglass",
-                                    title: vm.searchText.isEmpty ? "אין מסמכים בקטגוריה" : "לא נמצאו תוצאות",
-                                    message: vm.searchText.isEmpty
-                                        ? "מסמכים שיתקבלו מבית החולים יופיעו כאן אוטומטית."
-                                        : "נסו לחפש מילת מפתח אחרת או לבחור קטגוריה אחרת."
-                                )
-                            }
-                        } else {
-                            VStack(spacing: Theme.Spacing.m) {
-                                ForEach(vm.filteredDocuments) { doc in
-                                    DocumentCard(
-                                        document: doc,
-                                        summary: vm.summary(for: doc),
-                                        onOpen: { openedDocument = doc }
-                                    )
+                        DocumentFilterChips(
+                            selection: Binding(
+                                get: { vm.selectedCategory },
+                                set: { newValue in
+                                    vm.selectedCategory = newValue
+                                    Task { await vm.refresh() }
                                 }
-                            }
-                        }
+                            )
+                        )
+
+                        documentList(vm: vm)
                     }
                 }
                 .padding(Theme.Spacing.m)
-                .padding(.bottom, 96)  // leave room for the FAB
+                .padding(.bottom, 96)
             }
             .beaconScreenBackground()
+            .refreshable {
+                await viewModel?.refresh()
+            }
             .overlay(alignment: .bottomTrailing) {
-                uploadFAB
-                    .padding(Theme.Spacing.l)
+                uploadFAB.padding(Theme.Spacing.l)
             }
             .overlay(alignment: .center) {
                 uploadProgressOverlay
             }
             .navigationDestination(item: $openedDocument) { doc in
-                if let vm = viewModel {
-                    DocumentDetailView(
-                        document: doc,
-                        summary: vm.summary(for: doc),
-                        onAddSuggestedTasks: { _ in
-                            if let summary = vm.summary(for: doc) {
-                                _ = vm.addSuggestedTasksToCalendar(from: summary)
-                            }
-                        }
-                    )
-                }
+                DocumentDetailView(document: doc)
             }
         }
-        .onAppear {
+        .task {
+            // First-time setup — instantiate the view model and load
+            // the first page from the backend.
             if viewModel == nil {
                 viewModel = MedicalVaultViewModel(context: context)
-            } else {
-                viewModel?.refresh()
+                await viewModel?.refresh()
             }
         }
-        // 1. Action sheet (Camera / Photos / Files)
-        // Defer presenting the next picker until the action sheet has
-        // fully dismissed — SwiftUI ignores a second presentation while
-        // the first is still animating out.
         .sheet(isPresented: $showingActionSheet, onDismiss: {
             guard let next = pendingNextPicker else { return }
             pendingNextPicker = nil
@@ -129,7 +97,6 @@ struct MedicalVaultView: View {
                 onFiles:  { pendingNextPicker = .files;  showingActionSheet = false }
             )
         }
-        // 2a. Camera picker
         .fullScreenCover(isPresented: $showingCameraPicker) {
             CameraPicker(
                 onImage: { image in
@@ -147,7 +114,6 @@ struct MedicalVaultView: View {
             )
             .ignoresSafeArea()
         }
-        // 2b. Photos picker (modifier-based, presents the system sheet)
         .photosPicker(
             isPresented: photosPickerBinding,
             selection: $photosSelection,
@@ -157,7 +123,6 @@ struct MedicalVaultView: View {
             guard let newItem else { return }
             Task { await loadPhotosItem(newItem) }
         }
-        // 2c. File importer
         .fileImporter(
             isPresented: $showingFileImporter,
             allowedContentTypes: [.pdf, .image],
@@ -165,7 +130,6 @@ struct MedicalVaultView: View {
         ) { result in
             handleFileImport(result)
         }
-        // 3. Metadata sheet
         .sheet(item: $pendingFile) { file in
             UploadMetadataSheet(
                 filename: file.filename,
@@ -180,7 +144,6 @@ struct MedicalVaultView: View {
                 onCancel: { pendingFile = nil }
             )
         }
-        // 4. Result alert
         .alert(
             uploadAlertTitle,
             isPresented: uploadAlertIsPresented,
@@ -194,35 +157,47 @@ struct MedicalVaultView: View {
         }
     }
 
-    // MARK: - Alert plumbing
+    // MARK: - Document list (paginated)
 
-    private var uploadAlertTitle: String {
-        switch viewModel?.uploadAlert {
-        case .success:   return "הקובץ הועלה"
-        case .duplicate: return "המסמך כבר קיים בתיק"
-        case .failure:   return "ההעלאה נכשלה"
-        case .none:      return ""
-        }
-    }
-
-    private var uploadAlertIsPresented: Binding<Bool> {
-        Binding(
-            get: { viewModel?.uploadAlert != nil },
-            set: { newValue in
-                if !newValue { viewModel?.uploadAlert = nil }
+    @ViewBuilder
+    private func documentList(vm: MedicalVaultViewModel) -> some View {
+        if vm.documents.isEmpty && !vm.isLoading {
+            BeaconCard {
+                BeaconEmptyState(
+                    systemImage: "doc.text.magnifyingglass",
+                    title: vm.searchText.isEmpty ? "אין מסמכים בקטגוריה" : "לא נמצאו תוצאות",
+                    message: vm.searchText.isEmpty
+                        ? "הוסיפו את המסמך הראשון בעזרת כפתור ה-+ למטה."
+                        : "נסו לחפש מילת מפתח אחרת או לבחור קטגוריה אחרת."
+                )
             }
-        )
-    }
-
-    private static func uploadAlertMessage(_ alert: MedicalVaultViewModel.UploadAlert) -> String {
-        switch alert {
-        case .success(let filename, _):
-            return "\"\(filename)\" עלה בהצלחה לתיק הרפואי."
-        case .duplicate(let filename, let uploadedAt):
-            let when = uploadedAt.map(formatDate) ?? "תאריך לא ידוע"
-            return "\"\(filename)\" הועלה לתיק ב-\(when). לא נוצרה גרסה כפולה."
-        case .failure(let message):
-            return message
+        } else {
+            VStack(spacing: Theme.Spacing.m) {
+                ForEach(vm.documents) { doc in
+                    DocumentCard(
+                        document: doc,
+                        isPolling: vm.pollingDocumentIds.contains(doc.id),
+                        onOpen: { openedDocument = doc },
+                        onRetryParse: {
+                            Task { await vm.startParseAndPoll(documentId: doc.id) }
+                        }
+                    )
+                    .onAppear {
+                        if doc.id == vm.documents.last?.id, vm.hasMore {
+                            Task { await vm.loadMore() }
+                        }
+                    }
+                }
+                if vm.isLoading && !vm.documents.isEmpty {
+                    ProgressView().controlSize(.regular).padding(.vertical, Theme.Spacing.m)
+                }
+                if let msg = vm.loadErrorMessage {
+                    Text(msg)
+                        .font(Theme.Typography.caption)
+                        .foregroundStyle(Theme.Palette.coralAccent)
+                        .padding(Theme.Spacing.m)
+                }
+            }
         }
     }
 
@@ -268,6 +243,38 @@ struct MedicalVaultView: View {
         return nil
     }
 
+    // MARK: - Alert plumbing
+
+    private var uploadAlertTitle: String {
+        switch viewModel?.uploadAlert {
+        case .success:   return "הקובץ הועלה"
+        case .duplicate: return "המסמך כבר קיים בתיק"
+        case .failure:   return "ההעלאה נכשלה"
+        case .none:      return ""
+        }
+    }
+
+    private var uploadAlertIsPresented: Binding<Bool> {
+        Binding(
+            get: { viewModel?.uploadAlert != nil },
+            set: { newValue in
+                if !newValue { viewModel?.uploadAlert = nil }
+            }
+        )
+    }
+
+    private static func uploadAlertMessage(_ alert: MedicalVaultViewModel.UploadAlert) -> String {
+        switch alert {
+        case .success(let filename, _):
+            return "\"\(filename)\" עלה בהצלחה לתיק הרפואי. מעבדים אותו ברקע."
+        case .duplicate(let filename, let uploadedAt):
+            let when = uploadedAt.map(formatDate) ?? "תאריך לא ידוע"
+            return "\"\(filename)\" הועלה לתיק ב-\(when). לא נוצרה גרסה כפולה."
+        case .failure(let message):
+            return message
+        }
+    }
+
     // MARK: - Photos picker plumbing
 
     private var photosPickerBinding: Binding<Bool> {
@@ -281,8 +288,6 @@ struct MedicalVaultView: View {
     private func loadPhotosItem(_ item: PhotosPickerItem) async {
         defer { photosSelection = nil }
         guard let data = try? await item.loadTransferable(type: Data.self) else { return }
-        // Re-encode as JPEG so the backend ALLOWED_MIME_TYPES list accepts it
-        // even when the source was HEIC.
         let bytes: Data
         let mime: String
         if let image = UIImage(data: data), let jpeg = image.jpegBytes() {
@@ -349,10 +354,23 @@ struct MedicalVaultView: View {
         HStack(spacing: Theme.Spacing.s) {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(Theme.Palette.textSecondary)
-            TextField("חיפוש מסמך, תאריך או מילת מפתח...", text: Binding(
-                get: { vm.searchText },
-                set: { vm.searchText = $0 }
-            ))
+            TextField(
+                "חיפוש מסמך, תאריך או מילת מפתח...",
+                text: Binding(
+                    get: { vm.searchText },
+                    set: { newValue in
+                        vm.searchText = newValue
+                        // 400ms debounce so we don't fire a request per keystroke.
+                        searchDebounceTask?.cancel()
+                        searchDebounceTask = Task {
+                            try? await Task.sleep(nanoseconds: 400_000_000)
+                            if !Task.isCancelled {
+                                await vm.refresh()
+                            }
+                        }
+                    }
+                )
+            )
             .font(Theme.Typography.body)
             .foregroundStyle(Theme.Palette.textPrimary)
         }
@@ -365,13 +383,4 @@ struct MedicalVaultView: View {
                 .strokeBorder(Theme.Palette.textSecondary.opacity(0.15), lineWidth: 1)
         )
     }
-}
-
-#Preview("MedicalVaultView") {
-    let container = MockDataSeeder.makeInMemoryPreviewContainer()
-    return MedicalVaultView()
-        .modelContainer(container)
-        .environment(AppEnvironment())
-        .environment(\.locale, Locale(identifier: "he_IL"))
-        .environment(\.layoutDirection, .rightToLeft)
 }

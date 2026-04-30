@@ -24,6 +24,90 @@ struct BackendDocumentService {
         self.uploadSession = uploadSession
     }
 
+    // MARK: - List + fetch + parse (Phase 9.3)
+
+    /// Page of documents returned by GET /v1/documents/.
+    struct ListPage {
+        let documents: [BackendDocument]
+        let nextCursor: String?
+        var hasMore: Bool { nextCursor != nil }
+    }
+
+    /// List documents for the caller's household. The cursor scheme is
+    /// opaque base64(created_at, id) on the server; pass `nil` for the
+    /// first page and forward `nextCursor` from the previous response
+    /// to get the next.
+    func list(
+        category: BackendDocumentCategory? = nil,
+        fromDate: Date? = nil,
+        toDate: Date? = nil,
+        uploadedBy: UUID? = nil,
+        query: String? = nil,
+        cursor: String? = nil,
+        limit: Int = 20
+    ) async throws -> ListPage {
+        var items: [URLQueryItem] = [URLQueryItem(name: "limit", value: String(limit))]
+        if let category { items.append(URLQueryItem(name: "category", value: category.rawValue)) }
+        if let fromDate { items.append(URLQueryItem(name: "from_date", value: Self.iso8601(fromDate))) }
+        if let toDate   { items.append(URLQueryItem(name: "to_date",   value: Self.iso8601(toDate))) }
+        if let uploadedBy { items.append(URLQueryItem(name: "uploaded_by", value: uploadedBy.uuidString)) }
+        if let q = query?.trimmingCharacters(in: .whitespacesAndNewlines), !q.isEmpty {
+            items.append(URLQueryItem(name: "q", value: q))
+        }
+        if let cursor { items.append(URLQueryItem(name: "cursor", value: cursor)) }
+
+        let path = "/v1/documents/" + Self.queryString(items)
+        let docs: [BackendDocument] = try await client.get(path)
+        // The server doesn't echo the next cursor in the body — it's
+        // computed from the last row by the caller. We synthesize it
+        // here so the view model has a single state transition.
+        let next: String?
+        if docs.count == limit, let last = docs.last {
+            next = Self.encodeCursor(createdAt: last.created_at, id: last.id)
+        } else {
+            next = nil
+        }
+        return ListPage(documents: docs, nextCursor: next)
+    }
+
+    /// Fetch one document. Used by polling to watch parse-status
+    /// transitions (uploaded → parsing → parsed/failed).
+    func fetch(documentId: UUID) async throws -> BackendDocument {
+        try await client.get("/v1/documents/\(documentId.uuidString)")
+    }
+
+    /// Trigger backend parsing. The endpoint runs synchronously today
+    /// (OCR + Claude); the iOS side polls anyway in case another
+    /// client is parsing or the network drops mid-call.
+    @discardableResult
+    func parse(documentId: UUID) async throws -> BackendParseResponse {
+        try await client.post("/v1/documents/\(documentId.uuidString)/parse")
+    }
+
+    // MARK: - Internal helpers
+
+    private static func iso8601(_ date: Date) -> String {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f.string(from: date)
+    }
+
+    private static func queryString(_ items: [URLQueryItem]) -> String {
+        guard !items.isEmpty else { return "" }
+        var components = URLComponents()
+        components.queryItems = items
+        return "?" + (components.percentEncodedQuery ?? "")
+    }
+
+    /// Mirror of `_encode_cursor` in backend/parser_api/routes/documents.py:
+    /// base64(JSON([created_at_iso8601, doc_id])).
+    private static func encodeCursor(createdAt: Date, id: UUID) -> String {
+        let iso = iso8601(createdAt)
+        let arr: [Any] = [iso, id.uuidString]
+        guard let data = try? JSONSerialization.data(withJSONObject: arr) else { return "" }
+        return data.base64EncodedString()
+    }
+
     /// Upload `data` and finalize it as a Beacon document. Progress is
     /// reported in [0, 1]; the closure runs on the main actor.
     func upload(

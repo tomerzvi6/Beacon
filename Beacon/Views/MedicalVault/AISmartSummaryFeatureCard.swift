@@ -1,10 +1,12 @@
 import SwiftUI
 
+/// Hero card pinned to the top of the Medical Vault. Phase 9.3 swap:
+/// shows the most recently parsed document's simple Hebrew summary
+/// (`parsed_summary_simple_he`). Returns nil when nothing has parsed
+/// yet — the parent view conditionally hides it.
 struct AISmartSummaryFeatureCard: View {
-    var summary: AISummary
+    var document: BackendDocument
     var onReadFullSummary: () -> Void
-    var onAddSuggestedTasks: () -> Void
-    var importedTaskCount: Int?
 
     private let gradient = LinearGradient(
         colors: [
@@ -20,7 +22,7 @@ struct AISmartSummaryFeatureCard: View {
         VStack(alignment: .trailing, spacing: Theme.Spacing.m) {
             HStack {
                 BeaconAvatar(
-                    systemImage: "leaf.fill",
+                    systemImage: document.typedCategory?.iconSymbol ?? "leaf.fill",
                     diameter: 42,
                     tint: .white.opacity(0.2),
                     foreground: .white
@@ -30,17 +32,20 @@ struct AISmartSummaryFeatureCard: View {
 
             HStack(spacing: Theme.Spacing.s) {
                 BeaconBadge(text: "חדש", tone: .softBlue)
-                Text("סיכום AI חכם")
+                Text(headline)
                     .font(Theme.Typography.sectionTitle)
                     .foregroundStyle(.white)
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
 
-            Text(summary.summaryText)
-                .font(Theme.Typography.body)
-                .foregroundStyle(.white.opacity(0.9))
-                .multilineTextAlignment(.trailing)
-                .frame(maxWidth: .infinity, alignment: .trailing)
+            if let simple = document.parsed_summary_simple_he, !simple.isEmpty {
+                Text(simple)
+                    .font(Theme.Typography.body)
+                    .foregroundStyle(.white.opacity(0.9))
+                    .multilineTextAlignment(.trailing)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .lineLimit(6)
+            }
 
             Button(action: onReadFullSummary) {
                 HStack {
@@ -57,24 +62,6 @@ struct AISmartSummaryFeatureCard: View {
                 .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.chip, style: .continuous))
             }
             .buttonStyle(.plain)
-
-            HStack {
-                Spacer()
-                if let importedTaskCount, importedTaskCount > 0 {
-                    Label("נוספו \(importedTaskCount) משימות ליומן", systemImage: "checkmark.circle.fill")
-                        .font(Theme.Typography.captionEmphasis)
-                        .foregroundStyle(.white)
-                } else {
-                    Button(action: onAddSuggestedTasks) {
-                        Label("הוסף משימות מוצעות", systemImage: "calendar.badge.plus")
-                            .font(Theme.Typography.caption)
-                            .foregroundStyle(.white.opacity(0.85))
-                            .padding(.vertical, 8)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
         }
         .padding(Theme.Spacing.l)
         .frame(maxWidth: .infinity)
@@ -82,17 +69,11 @@ struct AISmartSummaryFeatureCard: View {
         .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.card, style: .continuous))
         .beaconCardShadow()
     }
-}
 
-#Preview("AISmartSummaryFeatureCard") {
-    AISmartSummaryFeatureCard(
-        summary: SampleAISummaries.oncologyVisit,
-        onReadFullSummary: { },
-        onAddSuggestedTasks: { },
-        importedTaskCount: nil
-    )
-    .padding()
-    .beaconScreenBackground()
-    .environment(\.locale, Locale(identifier: "he_IL"))
-    .environment(\.layoutDirection, .rightToLeft)
+    private var headline: String {
+        if let category = document.typedCategory {
+            return "סיכום AI — \(category.displayLabel)"
+        }
+        return "סיכום AI חכם"
+    }
 }

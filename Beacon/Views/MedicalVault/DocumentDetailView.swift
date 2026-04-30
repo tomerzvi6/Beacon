@@ -1,196 +1,222 @@
 import SwiftUI
 
+/// Full-page view for a parsed document. Phase 9.3 swap: consumes
+/// `BackendDocument` directly and surfaces:
+///  - The full Hebrew summary (`parsed_summary_he`)
+///  - The flagged-for-review banner if `flagged_for_review == true`
+///  - Metadata: category, upload date, privacy, status
+///
+/// Suggested-task auto-creation moved to Phase 4 — backend already
+/// persists suggested Tasks during parsing; the iOS surface for
+/// approving them lives in the dashboard.
 struct DocumentDetailView: View {
-    enum PreviewMode: String, CaseIterable, Identifiable {
-        case aiSummary
-        case original
+    var document: BackendDocument
 
-        var id: String { rawValue }
-
-        var displayLabel: String {
-            switch self {
-            case .aiSummary: return "סיכום AI מופשט"
-            case .original: return "מסמך מקורי"
-            }
-        }
-    }
-
-    var document: MedicalDocument
-    var summary: AISummary?
-    var onAddSuggestedTasks: ([String]) -> Void
-
-    @State private var mode: PreviewMode = .aiSummary
-    @State private var importedCount: Int?
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         ScrollView {
             VStack(alignment: .trailing, spacing: Theme.Spacing.l) {
                 header
-                Picker("תצוגה", selection: $mode) {
-                    ForEach(PreviewMode.allCases) { option in
-                        Text(option.displayLabel).tag(option)
-                    }
+                if document.flagged_for_review {
+                    flaggedBanner
                 }
-                .pickerStyle(.segmented)
-
-                if mode == .aiSummary {
-                    aiSummaryContent
-                } else {
-                    originalContent
-                }
+                summaryBlock
+                metadataBlock
             }
             .padding(Theme.Spacing.m)
         }
         .beaconScreenBackground()
-        .navigationTitle(document.title)
+        .navigationTitle(document.filename ?? "מסמך")
         .navigationBarTitleDisplayMode(.inline)
     }
 
+    // MARK: - Header
+
     private var header: some View {
         VStack(alignment: .trailing, spacing: Theme.Spacing.xs) {
-            Text(document.title)
+            Text(document.filename ?? "מסמך")
                 .font(Theme.Typography.screenTitle)
                 .foregroundStyle(Theme.Palette.textPrimary)
                 .multilineTextAlignment(.trailing)
-            Text(document.sourceDescription)
-                .font(Theme.Typography.body)
-                .foregroundStyle(Theme.Palette.textSecondary)
+            HStack(spacing: Theme.Spacing.s) {
+                if let category = document.typedCategory {
+                    HStack(spacing: 4) {
+                        Image(systemName: category.iconSymbol)
+                            .font(.system(size: 12, weight: .semibold))
+                        Text(category.displayLabel)
+                            .font(Theme.Typography.tag)
+                    }
+                    .padding(.vertical, 4)
+                    .padding(.horizontal, 10)
+                    .background(Theme.Palette.sage.opacity(0.4))
+                    .clipShape(Capsule())
+                }
+                if document.is_private {
+                    HStack(spacing: 4) {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 11, weight: .semibold))
+                        Text("פרטי")
+                            .font(Theme.Typography.tag)
+                    }
+                    .padding(.vertical, 4)
+                    .padding(.horizontal, 10)
+                    .background(Theme.Palette.softBlue.opacity(0.5))
+                    .clipShape(Capsule())
+                }
+            }
+            .foregroundStyle(Theme.Palette.textSecondary)
         }
         .frame(maxWidth: .infinity, alignment: .trailing)
     }
 
-    @ViewBuilder
-    private var aiSummaryContent: some View {
-        if let summary {
-            VStack(alignment: .trailing, spacing: Theme.Spacing.m) {
-                BeaconCard {
-                    VStack(alignment: .trailing, spacing: Theme.Spacing.s) {
-                        HStack(spacing: Theme.Spacing.s) {
-                            BeaconBadge(text: "AI", tone: .softBlue, leadingDot: true)
-                            Text(summary.headline)
-                                .font(Theme.Typography.cardTitle)
-                                .foregroundStyle(Theme.Palette.textPrimary)
-                        }
+    // MARK: - Flagged-for-review banner
+
+    private var flaggedBanner: some View {
+        HStack(alignment: .top, spacing: Theme.Spacing.s) {
+            Image(systemName: "exclamationmark.shield.fill")
+                .font(.system(size: 22))
+                .foregroundStyle(Theme.Palette.coralAccent)
+            VStack(alignment: .trailing, spacing: 4) {
+                Text("המסמך מכיל פרטים שלא תואמים את החולה הרשום")
+                    .font(Theme.Typography.bodyEmphasis)
+                    .foregroundStyle(Theme.Palette.textPrimary)
+                    .multilineTextAlignment(.trailing)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                Text("בדקו את המסמך לפני שמירה. ייתכן ששויך לחולה אחר בטעות.")
+                    .font(Theme.Typography.caption)
+                    .foregroundStyle(Theme.Palette.textSecondary)
+                    .multilineTextAlignment(.trailing)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                if let reason = document.flag_reason, !reason.isEmpty {
+                    Text("(\(reason))")
+                        .font(Theme.Typography.caption.monospaced())
+                        .foregroundStyle(Theme.Palette.textSecondary)
+                        .multilineTextAlignment(.trailing)
                         .frame(maxWidth: .infinity, alignment: .trailing)
-
-                        Text(summary.summaryText)
-                            .font(Theme.Typography.bodyLarge)
-                            .foregroundStyle(Theme.Palette.textPrimary)
-                            .multilineTextAlignment(.trailing)
-                            .frame(maxWidth: .infinity, alignment: .trailing)
-
-                        Divider()
-
-                        Text("נקודות עיקריות")
-                            .font(Theme.Typography.bodyEmphasis)
-                            .foregroundStyle(Theme.Palette.textPrimary)
-                            .frame(maxWidth: .infinity, alignment: .trailing)
-
-                        ForEach(summary.keyPoints, id: \.self) { point in
-                            HStack(alignment: .top, spacing: Theme.Spacing.s) {
-                                Text(point)
-                                    .font(Theme.Typography.body)
-                                    .foregroundStyle(Theme.Palette.textPrimary)
-                                    .multilineTextAlignment(.trailing)
-                                    .frame(maxWidth: .infinity, alignment: .trailing)
-                                Text("•")
-                                    .foregroundStyle(Theme.Palette.sageDark)
-                            }
-                        }
-
-                        if let recommendation = summary.recommendation {
-                            Divider()
-                            Text("המלצה: \(recommendation)")
-                                .font(Theme.Typography.bodyEmphasis)
-                                .foregroundStyle(Theme.Palette.sageDark)
-                                .multilineTextAlignment(.trailing)
-                                .frame(maxWidth: .infinity, alignment: .trailing)
-                        }
-                    }
                 }
+            }
+        }
+        .padding(Theme.Spacing.m)
+        .background(Theme.Palette.coralBackground)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.card, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.CornerRadius.card, style: .continuous)
+                .strokeBorder(Theme.Palette.coralAccent.opacity(0.4), lineWidth: 1)
+        )
+    }
 
-                if !summary.suggestedTasks.isEmpty {
-                    BeaconCard(style: .tinted(Theme.Palette.sage)) {
-                        VStack(alignment: .trailing, spacing: Theme.Spacing.s) {
-                            Text("משימות מוצעות להוסיף ליומן")
-                                .font(Theme.Typography.bodyEmphasis)
-                                .foregroundStyle(Theme.Palette.sageDark)
-                                .frame(maxWidth: .infinity, alignment: .trailing)
-                            ForEach(summary.suggestedTasks) { suggestion in
-                                VStack(alignment: .trailing, spacing: 2) {
-                                    Text("• \(suggestion.title)")
-                                        .font(Theme.Typography.body)
-                                        .foregroundStyle(Theme.Palette.textPrimary)
-                                    if let detail = suggestion.detail {
-                                        Text(detail)
-                                            .font(Theme.Typography.caption)
-                                            .foregroundStyle(Theme.Palette.textSecondary)
-                                    }
-                                }
-                                .frame(maxWidth: .infinity, alignment: .trailing)
-                            }
-                            BeaconPrimaryButton(
-                                title: importedCount != nil
-                                    ? "נוספו \(importedCount!) משימות ליומן ✓"
-                                    : "הוסף משימות מוצעות ליומן",
-                                systemImage: "calendar.badge.plus",
-                                isEnabled: importedCount == nil
-                            ) {
-                                onAddSuggestedTasks(summary.suggestedTasks.map(\.title))
-                                importedCount = summary.suggestedTasks.count
-                            }
-                        }
+    // MARK: - Summary block
+
+    @ViewBuilder
+    private var summaryBlock: some View {
+        if document.isFailed {
+            BeaconCard {
+                VStack(alignment: .trailing, spacing: Theme.Spacing.s) {
+                    HStack(spacing: Theme.Spacing.s) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(Theme.Palette.coralAccent)
+                        Text("פרסור נכשל")
+                            .font(Theme.Typography.cardTitle)
+                            .foregroundStyle(Theme.Palette.textPrimary)
                     }
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    Text("חזור למסך הראשי ונסה שוב להעלות או לפרסר את המסמך.")
+                        .font(Theme.Typography.body)
+                        .foregroundStyle(Theme.Palette.textSecondary)
+                        .multilineTextAlignment(.trailing)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+            }
+        } else if document.isParsing {
+            BeaconCard {
+                HStack(spacing: Theme.Spacing.s) {
+                    ProgressView().controlSize(.regular).tint(Theme.Palette.deepTeal)
+                    Text("מעבדים את המסמך…")
+                        .font(Theme.Typography.body)
+                        .foregroundStyle(Theme.Palette.textSecondary)
+                    Spacer()
+                }
+                .padding(Theme.Spacing.s)
+            }
+        } else if let full = document.parsed_summary_he, !full.isEmpty {
+            BeaconCard {
+                VStack(alignment: .trailing, spacing: Theme.Spacing.s) {
+                    HStack(spacing: Theme.Spacing.s) {
+                        BeaconBadge(text: "AI", tone: .softBlue, leadingDot: true)
+                        Text("סיכום מלא")
+                            .font(Theme.Typography.cardTitle)
+                            .foregroundStyle(Theme.Palette.textPrimary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+
+                    Text(full)
+                        .font(Theme.Typography.bodyLarge)
+                        .foregroundStyle(Theme.Palette.textPrimary)
+                        .multilineTextAlignment(.trailing)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
                 }
             }
         } else {
-            Text("אין סיכום AI למסמך זה.")
+            BeaconCard {
+                Text("אין סיכום AI למסמך זה.")
+                    .font(Theme.Typography.body)
+                    .foregroundStyle(Theme.Palette.textSecondary)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+        }
+    }
+
+    // MARK: - Metadata block
+
+    private var metadataBlock: some View {
+        BeaconCard {
+            VStack(alignment: .trailing, spacing: Theme.Spacing.s) {
+                metadataRow(label: "סוג קובץ", value: document.mime_type)
+                metadataRow(label: "סטטוס", value: statusLabel)
+                metadataRow(label: "הועלה", value: Self.dateString(document.created_at))
+                if let parsedAt = document.parsed_at {
+                    metadataRow(label: "פרסור הסתיים", value: Self.dateString(parsedAt))
+                }
+                if document.category_source == "user", let suggested = document.category_suggested {
+                    metadataRow(
+                        label: "המודל הציע קטגוריה",
+                        value: BackendDocumentCategory(rawValue: suggested)?.displayLabel ?? suggested
+                    )
+                }
+            }
+        }
+    }
+
+    private func metadataRow(label: String, value: String) -> some View {
+        HStack {
+            Text(value)
                 .font(Theme.Typography.body)
+                .foregroundStyle(Theme.Palette.textPrimary)
+                .multilineTextAlignment(.trailing)
+            Spacer()
+            Text(label)
+                .font(Theme.Typography.captionEmphasis)
                 .foregroundStyle(Theme.Palette.textSecondary)
         }
     }
 
-    private var originalContent: some View {
-        BeaconCard {
-            VStack(spacing: Theme.Spacing.m) {
-                Image(systemName: document.fileType == .image ? "photo.fill.on.rectangle.fill" : "doc.richtext.fill")
-                    .font(.system(size: 56, weight: .regular))
-                    .foregroundStyle(Theme.Palette.softBlue)
-                    .padding(Theme.Spacing.xl)
-                Text("זוהי תצוגה מדומה של המסמך המקורי.")
-                    .font(Theme.Typography.body)
-                    .foregroundStyle(Theme.Palette.textSecondary)
-                    .multilineTextAlignment(.center)
-                if let size = document.fileSizeLabel {
-                    Text("\(document.fileType.displayLabel) · \(size)")
-                        .font(Theme.Typography.captionEmphasis)
-                        .foregroundStyle(Theme.Palette.textSecondary)
-                }
-                BeaconSecondaryButton(title: "הורד / שתף", systemImage: "square.and.arrow.down") { }
-            }
-            .frame(maxWidth: .infinity)
+    private var statusLabel: String {
+        switch document.status {
+        case "uploaded":  return "הועלה"
+        case "finalized": return "ממתין לפרסור"
+        case "parsing":   return "מעבדים…"
+        case "parsed":    return "פורסר"
+        case "failed":    return "נכשל"
+        default:          return document.status
         }
     }
-}
 
-#Preview("DocumentDetailView") {
-    NavigationStack {
-        DocumentDetailView(
-            document: MedicalDocument(
-                title: "סיכום ביקור אונקולוג",
-                sourceDescription: "ד״ר לוי, בי״ח שיבא",
-                documentDate: Date(),
-                kind: .visitSummary,
-                fileType: .pdf,
-                fileSizeLabel: "1.1 MB",
-                hasAISummary: true,
-                aiSummaryKey: SampleAISummaries.oncologyVisit.id
-            ),
-            summary: SampleAISummaries.oncologyVisit,
-            onAddSuggestedTasks: { _ in }
-        )
+    private static func dateString(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "he_IL")
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
     }
-    .environment(\.locale, Locale(identifier: "he_IL"))
-    .environment(\.layoutDirection, .rightToLeft)
 }
