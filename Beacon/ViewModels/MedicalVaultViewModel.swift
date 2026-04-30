@@ -5,6 +5,7 @@ import SwiftData
 @Observable
 final class MedicalVaultViewModel {
     private let context: ModelContext
+    private let uploadService: BackendDocumentService
 
     var alert: HospitalSyncAlert?
     var documents: [MedicalDocument] = []
@@ -12,8 +13,31 @@ final class MedicalVaultViewModel {
     var selectedFilter: MedicalDocumentKind = .all
     var lastImportedTaskTitles: [String] = []
 
-    init(context: ModelContext) {
+    // Phase 9.2 — upload flow state
+    enum UploadPhase: Equatable {
+        case idle
+        case uploading(progress: Double)
+    }
+    var uploadPhase: UploadPhase = .idle
+    var uploadAlert: UploadAlert? = nil
+
+    enum UploadAlert: Identifiable, Equatable {
+        case success(filename: String, documentId: UUID)
+        case duplicate(filename: String, uploadedAt: Date?)
+        case failure(message: String)
+
+        var id: String {
+            switch self {
+            case .success(_, let id):  return "success-\(id.uuidString)"
+            case .duplicate(let f, _): return "duplicate-\(f)"
+            case .failure(let m):      return "failure-\(m.hashValue)"
+            }
+        }
+    }
+
+    init(context: ModelContext, uploadService: BackendDocumentService = BackendDocumentService()) {
         self.context = context
+        self.uploadService = uploadService
         refresh()
     }
 
@@ -58,6 +82,40 @@ final class MedicalVaultViewModel {
     func summary(for document: MedicalDocument) -> AISummary? {
         guard let key = document.aiSummaryKey else { return nil }
         return SampleAISummaries.summary(for: key)
+    }
+
+    // MARK: - Upload (Phase 9.2)
+
+    @MainActor
+    func upload(
+        _ file: PendingUploadFile,
+        category: BackendDocumentCategory?,
+        isPrivate: Bool
+    ) async {
+        uploadPhase = .uploading(progress: 0)
+        do {
+            let outcome = try await uploadService.upload(
+                data: file.data,
+                filename: file.filename,
+                mimeType: file.mimeType,
+                category: category,
+                isPrivate: isPrivate,
+                onProgress: { [weak self] fraction in
+                    self?.uploadPhase = .uploading(progress: fraction)
+                }
+            )
+            switch outcome {
+            case .success(let documentId):
+                uploadAlert = .success(filename: file.filename, documentId: documentId)
+            case .duplicate(_, let uploadedAt):
+                uploadAlert = .duplicate(filename: file.filename, uploadedAt: uploadedAt)
+            }
+        } catch let error as APIError {
+            uploadAlert = .failure(message: error.userMessage)
+        } catch {
+            uploadAlert = .failure(message: error.localizedDescription)
+        }
+        uploadPhase = .idle
     }
 
     @discardableResult

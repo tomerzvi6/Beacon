@@ -39,6 +39,7 @@ enum Theme {
     enum CornerRadius {
         static let chip: CGFloat = 16
         static let card: CGFloat = 20
+        static let button: CGFloat = 14   // rectangular CTA buttons (Apple/Google sign-in)
         static let buttonPill: CGFloat = 24
     }
 
