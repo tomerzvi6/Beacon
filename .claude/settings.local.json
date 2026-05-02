@@ -7,7 +7,13 @@
       "Bash(git push *)",
       "Bash(git fetch *)",
       "Bash(git merge *)",
-      "Bash(git stash *)"
+      "Bash(git stash *)",
+      "Bash(mkdir -p ~/.claude/skills)",
+      "Bash(cp -r /tmp/caveman/caveman ~/.claude/skills/caveman)",
+      "Read(//c/Users/idote/.claude/**)",
+      "Bash(read dir *)",
+      "Bash([ ! -f \"$dir/__init__.py\" ])",
+      "Bash(python3 -c \"import parser_api.main; print\\('parser_api.main imported successfully'\\)\")"
     ]
   }
 }

@@ -19,6 +19,7 @@ struct MedicalVaultView: View {
     @State private var showingFileImporter = false
     @State private var photosSelection: PhotosPickerItem? = nil
     @State private var pendingFile: PendingUploadFile? = nil
+    @State private var showingBackendAuthAlert = false
 
     var body: some View {
         NavigationStack {
@@ -155,6 +156,11 @@ struct MedicalVaultView: View {
         } message: { alert in
             Text(Self.uploadAlertMessage(alert))
         }
+        .alert("Backend sign-in required", isPresented: $showingBackendAuthAlert) {
+            Button("Close", role: .cancel) {}
+        } message: {
+            Text("To upload a PDF or image, sign in with Apple or Google so Beacon can get a backend token.")
+        }
     }
 
     // MARK: - Document list (paginated)
@@ -205,7 +211,11 @@ struct MedicalVaultView: View {
 
     private var uploadFAB: some View {
         Button {
-            showingActionSheet = true
+            if TokenStore.read() == nil {
+                showingBackendAuthAlert = true
+            } else {
+                showingActionSheet = true
+            }
         } label: {
             Image(systemName: "plus")
                 .font(.system(size: 22, weight: .semibold))

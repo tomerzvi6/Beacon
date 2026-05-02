@@ -55,12 +55,22 @@ def patched_jwks(keypair):
 
 @pytest.fixture
 def configured_client_id():
-    """Force settings.google_client_id non-empty for route tests."""
+    """Force settings.google_client_id non-empty AND opt into the
+    dev-only unsigned-nonce escape hatch so the existing test suite
+    can keep passing nonce=None. Tests that exercise the production
+    nonce-required path override these explicitly.
+    """
     from parser_api.config import settings as parser_settings
-    original = parser_settings.google_client_id
+    original_client = parser_settings.google_client_id
+    original_env = parser_settings.environment
+    original_bypass = parser_settings.allow_unsigned_google_nonce
     parser_settings.google_client_id = CLIENT_ID
+    parser_settings.environment = "development"
+    parser_settings.allow_unsigned_google_nonce = True
     yield CLIENT_ID
-    parser_settings.google_client_id = original
+    parser_settings.google_client_id = original_client
+    parser_settings.environment = original_env
+    parser_settings.allow_unsigned_google_nonce = original_bypass
 
 
 def _make_token(keypair, claims, kid="google-test-kid"):
@@ -282,3 +292,103 @@ def test_route_returns_jwt_we_can_verify(keypair, patched_jwks, configured_clien
     assert decoded["google_user_id"] == "round-trip-google"
     assert "apple_user_id" not in decoded
     assert decoded["household_id"] == str(response.user.household_id)
+
+
+# ---------------------------------------------------------------------------
+# Phase 9.4 — nonce enforcement
+# ---------------------------------------------------------------------------
+
+
+def test_route_requires_nonce_in_production(keypair, patched_jwks):
+    """Production environment with no client nonce → 401 before token verify."""
+    from parser_api.config import settings as parser_settings
+    from parser_api.routes.auth import exchange_google_token
+    from shared.schemas import GoogleAuthIn
+
+    original_client = parser_settings.google_client_id
+    original_env = parser_settings.environment
+    original_bypass = parser_settings.allow_unsigned_google_nonce
+    parser_settings.google_client_id = CLIENT_ID
+    parser_settings.environment = "production"
+    parser_settings.allow_unsigned_google_nonce = True  # ignored outside dev
+    try:
+        token_jwt = _make_token(keypair, _valid_claims())
+        body = GoogleAuthIn(id_token=token_jwt, nonce=None)
+        with pytest.raises(HTTPException) as exc:
+            exchange_google_token(body, session=MagicMock())
+        assert exc.value.status_code == 401
+        assert "nonce" in str(exc.value.detail).lower()
+    finally:
+        parser_settings.google_client_id = original_client
+        parser_settings.environment = original_env
+        parser_settings.allow_unsigned_google_nonce = original_bypass
+
+
+def test_route_accepts_nonce_in_production(keypair, patched_jwks):
+    """Production environment with a matching client nonce → success."""
+    from parser_api.config import settings as parser_settings
+    from parser_api.routes.auth import exchange_google_token
+    from shared.schemas import GoogleAuthIn
+
+    original_client = parser_settings.google_client_id
+    original_env = parser_settings.environment
+    parser_settings.google_client_id = CLIENT_ID
+    parser_settings.environment = "production"
+    try:
+        nonce = "prod-nonce"
+        token_jwt = _make_token(keypair, _valid_claims(nonce_raw=nonce))
+        body = GoogleAuthIn(id_token=token_jwt, nonce=nonce)
+        session = _new_user_session()
+        response = exchange_google_token(body, session=session)
+        assert response.access_token
+    finally:
+        parser_settings.google_client_id = original_client
+        parser_settings.environment = original_env
+
+
+def test_route_rejects_unsigned_nonce_in_dev_without_flag(keypair, patched_jwks):
+    """ENVIRONMENT=development but ALLOW_UNSIGNED_GOOGLE_NONCE=false → 401."""
+    from parser_api.config import settings as parser_settings
+    from parser_api.routes.auth import exchange_google_token
+    from shared.schemas import GoogleAuthIn
+
+    original_client = parser_settings.google_client_id
+    original_env = parser_settings.environment
+    original_bypass = parser_settings.allow_unsigned_google_nonce
+    parser_settings.google_client_id = CLIENT_ID
+    parser_settings.environment = "development"
+    parser_settings.allow_unsigned_google_nonce = False
+    try:
+        token_jwt = _make_token(keypair, _valid_claims())
+        body = GoogleAuthIn(id_token=token_jwt, nonce=None)
+        with pytest.raises(HTTPException) as exc:
+            exchange_google_token(body, session=MagicMock())
+        assert exc.value.status_code == 401
+    finally:
+        parser_settings.google_client_id = original_client
+        parser_settings.environment = original_env
+        parser_settings.allow_unsigned_google_nonce = original_bypass
+
+
+def test_route_allows_unsigned_nonce_in_dev_with_explicit_flag(keypair, patched_jwks):
+    """The dev escape hatch must be explicitly enabled."""
+    from parser_api.config import settings as parser_settings
+    from parser_api.routes.auth import exchange_google_token
+    from shared.schemas import GoogleAuthIn
+
+    original_client = parser_settings.google_client_id
+    original_env = parser_settings.environment
+    original_bypass = parser_settings.allow_unsigned_google_nonce
+    parser_settings.google_client_id = CLIENT_ID
+    parser_settings.environment = "development"
+    parser_settings.allow_unsigned_google_nonce = True
+    try:
+        token_jwt = _make_token(keypair, _valid_claims())
+        body = GoogleAuthIn(id_token=token_jwt, nonce=None)
+        session = _new_user_session()
+        response = exchange_google_token(body, session=session)
+        assert response.access_token
+    finally:
+        parser_settings.google_client_id = original_client
+        parser_settings.environment = original_env
+        parser_settings.allow_unsigned_google_nonce = original_bypass

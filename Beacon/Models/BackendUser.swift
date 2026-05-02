@@ -2,7 +2,7 @@ import Foundation
 
 /// Mirror of `AppleAuthUserOut` from the backend (`shared/schemas.py`).
 /// Keep the property names aligned with Pydantic's snake_case output.
-struct BackendUser: Decodable, Equatable {
+struct BackendUser: Codable, Equatable {
     let id: UUID
     let household_id: UUID
     let role: String          // "patient" | "co_owner" | "caregiver"
@@ -10,7 +10,7 @@ struct BackendUser: Decodable, Equatable {
 }
 
 /// Mirror of `HouseholdMemberOut` from the backend.
-struct BackendHouseholdMember: Decodable, Identifiable, Equatable {
+struct BackendHouseholdMember: Codable, Identifiable, Equatable {
     let id: UUID
     let user_id: UUID
     let household_id: UUID

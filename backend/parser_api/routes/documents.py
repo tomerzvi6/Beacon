@@ -145,8 +145,14 @@ def delete_document(
     )
     if doc is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
-    if doc.is_private and role == "caregiver" and str(doc.uploaded_by) != user.user_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot delete private document")
+    # Phase 9.4: caregivers can only soft-delete documents they uploaded
+    # themselves. Patient + co_owner can delete anything in the
+    # household; the existing trash/restore flow lets them recover.
+    if role == "caregiver" and str(doc.uploaded_by) != user.user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Caregivers may only delete documents they uploaded",
+        )
 
     doc.deleted_at = datetime.now(tz=timezone.utc)
     doc.deleted_by = uuid.UUID(user.user_id)

@@ -4,6 +4,10 @@ import AuthenticationServices
 
 @Observable
 final class AppEnvironment {
+    private enum BackendSessionCache {
+        static let key = "beacon.cachedBackendUser.v1"
+    }
+
     enum Viewer: String, CaseIterable, Identifiable {
         case caregiver
         case patient
@@ -83,6 +87,10 @@ final class AppEnvironment {
         }
 
         if await authService.currentSession() == nil {
+            if restoreBackendOnlySession() {
+                self.authState = .authenticated
+                return
+            }
             self.authState = .unauthenticated
             return
         }
@@ -118,6 +126,7 @@ final class AppEnvironment {
                 nonce: result.nonce
             )
             self.backendUser = response.user
+            cacheBackendUser(response.user)
             self.applyBackendUserToDisplay(response.user)
             self.authState = .authenticated
         } catch let error as APIError {
@@ -172,6 +181,7 @@ final class AppEnvironment {
                 familyName: credential.fullName?.familyName
             )
             self.backendUser = response.user
+            cacheBackendUser(response.user)
         } catch let error as APIError {
             backendAuthErrorMessage = error.diagnosticDescription
         } catch {
@@ -227,6 +237,7 @@ final class AppEnvironment {
         self.backendUser = nil
         self.backendAuthErrorMessage = nil
         self.supabaseUserId = nil
+        clearCachedBackendUser()
 
         guard let authService else {
             self.authState = .unauthenticated
@@ -361,5 +372,30 @@ final class AppEnvironment {
 
     private var effectiveUser: FamilyMember {
         isPatientView ? .patient : currentUser
+    }
+
+    @MainActor
+    private func restoreBackendOnlySession() -> Bool {
+        guard TokenStore.read() != nil else { return false }
+        guard let user = cachedBackendUser() else { return false }
+        backendUser = user
+        applyBackendUserToDisplay(user)
+        return true
+    }
+
+    private func cacheBackendUser(_ user: BackendUser) {
+        guard let data = try? JSONEncoder().encode(user) else { return }
+        UserDefaults.standard.set(data, forKey: BackendSessionCache.key)
+    }
+
+    private func cachedBackendUser() -> BackendUser? {
+        guard let data = UserDefaults.standard.data(forKey: BackendSessionCache.key) else {
+            return nil
+        }
+        return try? JSONDecoder().decode(BackendUser.self, from: data)
+    }
+
+    private func clearCachedBackendUser() {
+        UserDefaults.standard.removeObject(forKey: BackendSessionCache.key)
     }
 }

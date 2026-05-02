@@ -16,6 +16,11 @@ class Settings(BaseSettings):
     aws_region: str = Field(default="eu-central-1")
     s3_upload_bucket: str = Field(default_factory=lambda: os.environ.get("S3_UPLOAD_BUCKET", "beacon-uploads-dev"))
 
+    # Deployment environment — gates several security checks (JWT key
+    # default, Google-nonce enforcement, etc.). Set ENVIRONMENT=production
+    # in real deployments.
+    environment: Literal["development", "staging", "production"] = Field(default="development")
+
     # Auth
     jwt_signing_key: str = Field(default_factory=lambda: os.environ.get("JWT_SIGNING_KEY", "dev-secret"))
     jwt_algorithm: Literal["HS256"] = "HS256"
@@ -24,6 +29,11 @@ class Settings(BaseSettings):
     # iOS OAuth 2.0 client ID from Google Cloud Console.
     # If empty, /v1/auth/google returns 503 (auth provider not configured).
     google_client_id: str = Field(default="")
+    # Local-only escape hatch for testing the Google sign-in route without a
+    # client-supplied nonce. Default-on in development so simulator/device
+    # QA does not get blocked by GoogleSignIn's nonce limitation.
+    # Ignored outside development.
+    allow_unsigned_google_nonce: bool = Field(default=True)
 
     # OCR mode
     ocr_mode: Literal["textract", "tesseract"] = Field(default="tesseract")

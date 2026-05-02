@@ -176,6 +176,24 @@ def exchange_google_token(
             detail="Google auth not configured (GOOGLE_CLIENT_ID is empty)",
         )
 
+    # Phase 9.4: nonce is required outside development. The escape hatch
+    # is only honored when ENVIRONMENT=development AND the explicit flag
+    # ALLOW_UNSIGNED_GOOGLE_NONCE=1 is set, so production cannot
+    # accidentally accept replay-prone tokens.
+    nonce_bypass_allowed = (
+        settings.environment == "development"
+        and settings.allow_unsigned_google_nonce
+    )
+    if body.nonce is None and not nonce_bypass_allowed:
+        logger.warning(
+            "google_token_rejected",
+            extra={"reason": "nonce_required", "environment": settings.environment},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Google token verification failed: nonce required",
+        )
+
     try:
         claims = verify_id_token(
             id_token=body.id_token,
