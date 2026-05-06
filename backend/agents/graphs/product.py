@@ -13,6 +13,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from agents.db import get_engine
+from agents.graphs._pending_tasks import process_pending_tasks_for_agent
 from shared.models import AgentRun
 
 
@@ -180,12 +181,19 @@ def propose(state: ProductState) -> ProductState:
     return state
 
 
+def _process_pending(state: ProductState) -> ProductState:
+    process_pending_tasks_for_agent("product")
+    return state
+
+
 def build_product_graph() -> StateGraph:
     g = StateGraph(ProductState)
+    g.add_node("process_pending_tasks", _process_pending)
     g.add_node("gather", gather)
     g.add_node("analyze", analyze)
     g.add_node("propose", propose)
-    g.set_entry_point("gather")
+    g.set_entry_point("process_pending_tasks")
+    g.add_edge("process_pending_tasks", "gather")
     g.add_edge("gather", "analyze")
     g.add_edge("analyze", "propose")
     g.add_edge("propose", END)

@@ -46,6 +46,13 @@ class Settings(BaseSettings):
     # Invites
     invite_code_ttl_minutes: int = Field(default=10080)  # 7 days
 
+    # Chief Agent (Phase 9.5)
+    chief_agent_hour: int = Field(default=11)
+    embedding_provider: Literal["voyage", "openai"] = Field(default="voyage")
+    embedding_model: str = Field(default="voyage-2")
+    voyage_api_key: str = Field(default="")
+    chief_brief_max_drafts: int = Field(default=50)
+
     class Config:
         env_file = ".env"
         case_sensitive = False

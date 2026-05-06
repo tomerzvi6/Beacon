@@ -15,6 +15,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from agents.db import get_engine
+from agents.graphs._pending_tasks import process_pending_tasks_for_agent
 from shared.models import AgentRun, SupportTicket
 
 # ---------------------------------------------------------------------------
@@ -188,14 +189,21 @@ def _propose_proactive(state: ProactiveState) -> ProactiveState:
     return state
 
 
+def _process_pending_proactive(state: ProactiveState) -> ProactiveState:
+    process_pending_tasks_for_agent("customer_success")
+    return state
+
+
 def build_proactive_graph() -> StateGraph:
     g = StateGraph(ProactiveState)
+    g.add_node("process_pending_tasks", _process_pending_proactive)
     g.add_node("gather", _gather_proactive)
     g.add_node("prioritize", _prioritize)
     g.add_node("draft_nudge", _draft_nudge)
     g.add_node("draft_cohort_summary", _draft_cohort_summary)
     g.add_node("propose", _propose_proactive)
-    g.set_entry_point("gather")
+    g.set_entry_point("process_pending_tasks")
+    g.add_edge("process_pending_tasks", "gather")
     g.add_edge("gather", "prioritize")
     g.add_edge("prioritize", "draft_nudge")
     g.add_edge("draft_nudge", "draft_cohort_summary")
@@ -351,13 +359,21 @@ def _propose_reply(state: ReactiveState) -> ReactiveState:
     return state
 
 
+def _process_pending_reactive(state: ReactiveState) -> ReactiveState:
+    # Reactive runs every 30 min — only process pending tasks on this cadence too
+    process_pending_tasks_for_agent("customer_success")
+    return state
+
+
 def build_reactive_graph() -> StateGraph:
     g = StateGraph(ReactiveState)
+    g.add_node("process_pending_tasks", _process_pending_reactive)
     g.add_node("gather_tickets", _gather_tickets)
     g.add_node("rag_retrieve", _rag_retrieve)
     g.add_node("draft_reply", _draft_reply)
     g.add_node("propose_reply", _propose_reply)
-    g.set_entry_point("gather_tickets")
+    g.set_entry_point("process_pending_tasks")
+    g.add_edge("process_pending_tasks", "gather_tickets")
     g.add_edge("gather_tickets", "rag_retrieve")
     g.add_edge("rag_retrieve", "draft_reply")
     g.add_edge("draft_reply", "propose_reply")

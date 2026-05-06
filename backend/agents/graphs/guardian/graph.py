@@ -11,6 +11,7 @@ from langgraph.graph import END, StateGraph
 from sqlalchemy.orm import Session
 
 from agents.db import get_engine
+from agents.graphs._pending_tasks import process_pending_tasks_for_agent
 from agents.graphs.guardian.checks import (
     detect_cross_household_anomalies,
     detect_offhours_access,
@@ -29,6 +30,12 @@ class GuardianState(TypedDict):
     rls_results: dict[str, bool]
     brief_markdown: str
     run_id: str
+
+
+def process_pending_tasks(state: GuardianState) -> GuardianState:
+    """Pick up and execute tasks queued for this agent by the Chief Agent."""
+    process_pending_tasks_for_agent("guardian")
+    return state
 
 
 def gather(state: GuardianState) -> GuardianState:
@@ -146,11 +153,13 @@ def propose(state: GuardianState) -> GuardianState:
 
 def build_guardian_graph() -> StateGraph:
     g = StateGraph(GuardianState)
+    g.add_node("process_pending_tasks", process_pending_tasks)
     g.add_node("gather", gather)
     g.add_node("check", check)
     g.add_node("analyze", analyze)
     g.add_node("propose", propose)
-    g.set_entry_point("gather")
+    g.set_entry_point("process_pending_tasks")
+    g.add_edge("process_pending_tasks", "gather")
     g.add_edge("gather", "check")
     g.add_edge("check", "analyze")
     g.add_edge("analyze", "propose")

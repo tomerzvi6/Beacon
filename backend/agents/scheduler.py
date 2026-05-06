@@ -2,11 +2,12 @@
 APScheduler entry point — wires all agents to their cron triggers.
 
 Cadences (configurable via env vars):
-  GUARDIAN_CRON        default: daily 07:00
-  CS_PROACTIVE_CRON    default: daily 09:00
+  GUARDIAN_HOUR        default: 7  (daily 07:00)
+  CS_PROACTIVE_HOUR    default: 9  (daily 09:00)
   CS_REACTIVE_INTERVAL default: every 30 min (08:00–20:00)
   PRODUCT_CRON         default: Sunday 08:00
   CREATIVE_CRON        default: Sunday 10:00
+  CHIEF_AGENT_HOUR     default: 11 (daily 11:00, after all 4 operational agents)
 
 Run with: python agents/scheduler.py
 """
@@ -16,6 +17,7 @@ import os
 from apscheduler.schedulers.blocking import BlockingScheduler
 
 from agents.graphs import (
+    generate_daily_brief,
     run_creative_weekly,
     run_customer_success_proactive,
     run_customer_success_reactive,
@@ -81,6 +83,20 @@ def job_creative() -> None:
         log.info("[Creative] Done. run_id=%s", result.get("run_id", ""))
     except Exception:
         log.exception("[Creative] Failed")
+
+
+def job_chief_brief() -> None:
+    log.info("[Chief] Generating daily brief...")
+    try:
+        result = generate_daily_brief()
+        log.info(
+            "[Chief] Done. brief_date=%s citations=%s grounding_ok=%s",
+            result.get("brief_date"),
+            result.get("citations_count"),
+            result.get("grounding_ok"),
+        )
+    except Exception:
+        log.exception("[Chief] Failed")
 
 
 def job_hard_delete() -> None:
@@ -179,6 +195,14 @@ def main() -> None:
         id="hard_delete",
     )
 
+    # Chief Agent brief — daily 11:00, AFTER all 4 operational agents have run
+    chief_hour = int(os.environ.get("CHIEF_AGENT_HOUR", "11"))
+    scheduler.add_job(
+        job_chief_brief, "cron",
+        hour=chief_hour, minute=0,
+        id="chief_brief",
+    )
+
     log.info(
         "Scheduler started. Jobs: "
         "guardian (daily %02d:00), "
@@ -186,8 +210,9 @@ def main() -> None:
         "cs_reactive (every 30m 08-20), "
         "product (Sun 08:00), "
         "creative (Sun 10:00), "
-        "hard_delete (daily 03:00)",
-        guardian_hour, cs_hour,
+        "hard_delete (daily 03:00), "
+        "chief_brief (daily %02d:00)",
+        guardian_hour, cs_hour, chief_hour,
     )
     scheduler.start()
 

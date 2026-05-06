@@ -1,4 +1,5 @@
 """Public API for all agent graphs."""
+from agents.graphs.chief import generate_daily_brief, handle_chat_turn
 from agents.graphs.creative.graph import run_creative_on_demand, run_creative_weekly
 from agents.graphs.customer_success import (
     run_customer_success_proactive,
@@ -14,4 +15,6 @@ __all__ = [
     "run_product",
     "run_creative_weekly",
     "run_creative_on_demand",
+    "generate_daily_brief",
+    "handle_chat_turn",
 ]

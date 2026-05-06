@@ -140,6 +140,113 @@ Documents soft-deleted for **30+ days** are permanently purged daily at **03:00*
 
 Default: 7 days (10 080 minutes). Override with `INVITE_CODE_TTL_MINUTES`.
 
+## Phase 9.5 — Chief Agent (Beacon Brain)
+
+### What it is
+
+The Chief Agent is a meta-orchestrator that sits above the four operational agents.
+It synthesises their outputs into a daily brief and provides a conversational chat
+interface for the founder. PHI isolation is the same as the four operational agents —
+the Chief never reads `tasks.title_he`, `documents.parsed_summary_he`, or
+`symptom_reports.note_he`.
+
+### New scheduler job
+
+`job_chief_brief` runs daily at **11:00** (after all four operational agents).
+Override: `export CHIEF_AGENT_HOUR=11`
+
+### Running the chief brief manually
+
+```bash
+source venv_agents/bin/activate
+export DATABASE_URL="postgresql+psycopg://beacon:beacon_dev@localhost:5432/beacon"
+export ANTHROPIC_API_KEY="sk-..."
+# Optional — defaults to Voyage AI
+export EMBEDDING_PROVIDER=voyage       # or "openai"
+export VOYAGE_API_KEY="pa-..."         # if using Voyage
+python -c "from agents.graphs.chief.briefs import generate_daily_brief; print(generate_daily_brief())"
+```
+
+The Chief tab in the Streamlit dashboard also has a "Generate now" button.
+
+### Backfilling embeddings
+
+After running migration 005, embed all existing `agent_runs` rows:
+
+```bash
+source venv_agents/bin/activate
+export DATABASE_URL="..."
+export ANTHROPIC_API_KEY="sk-..."
+export EMBEDDING_PROVIDER=voyage       # or openai
+export VOYAGE_API_KEY="pa-..."
+
+# Dry run first
+python -m agents.tools.backfill_embeddings --dry-run
+
+# Full backfill (batch of 20 rows at a time)
+python -m agents.tools.backfill_embeddings --batch-size 20
+
+# Backfill only the first 100 rows
+python -m agents.tools.backfill_embeddings --limit 100
+```
+
+### How task routing works
+
+The Chief Agent can queue tasks for operational agents via the `route_task_to_agent`
+tool. This writes a row to `pending_agent_tasks`. On the next scheduled run, each
+agent's `process_pending_tasks` entry node picks up the row, runs a focused Claude
+call, creates an `AgentRun` with the result, and marks the task `completed`.
+
+Flow:
+```
+Chief writes pending_agent_tasks row
+    ↓
+Agent's next scheduled run starts
+    ↓
+process_pending_tasks node picks up row, marks picked_up_at
+    ↓
+Claude generates focused output (creates AgentRun)
+    ↓
+Task marked completed with result_draft_id
+    ↓
+Founder reviews AgentRun in HITL dashboard (Inbox tab)
+```
+
+### Testing PHI isolation
+
+The Chief Agent's tool whitelist prevents any access to PHI columns. To verify:
+
+```bash
+python -c "
+from agents.graphs.chief.tools import _query_aggregate_view
+# This must return an error — 'tasks' is not in the approved view whitelist
+result = _query_aggregate_view('tasks')
+assert 'error' in result, f'PHI isolation FAILED: {result}'
+print('PHI isolation OK:', result)
+"
+```
+
+### Embedding provider config
+
+| Env var | Default | Description |
+|---|---|---|
+| `EMBEDDING_PROVIDER` | `voyage` | `voyage` or `openai` |
+| `EMBEDDING_MODEL` | `voyage-2` | Model name |
+| `VOYAGE_API_KEY` | _(empty)_ | Voyage AI API key |
+| `OPENAI_API_KEY` | _(empty)_ | OpenAI API key (fallback) |
+| `CHIEF_BRIEF_MAX_DRAFTS` | `50` | Max drafts to include in brief |
+| `CHIEF_AGENT_HOUR` | `11` | Hour (0-23) for daily brief cron |
+
+### Agents table (updated)
+
+| Agent | File | Cadence | Draft type |
+|---|---|---|---|
+| **Chief** | `agents/graphs/chief/` | Daily 11:00 | `chief_brief` in DB |
+| Guardian | `agents/graphs/guardian/graph.py` | Daily 07:00 | `security_brief` |
+| Customer Success | `agents/graphs/customer_success.py` | Daily 09:00 (proactive) + 30 min (reactive) | `push`, `support_reply`, `cs_daily_brief` |
+| Product | `agents/graphs/product.py` | Sunday 08:00 | `product_report` |
+| Creative | `agents/graphs/creative/graph.py` | Sunday 10:00 + on-demand | `content_draft` |
+
 ## Notes
 
 - Set `DATABASE_URL` to match your local Postgres credentials.

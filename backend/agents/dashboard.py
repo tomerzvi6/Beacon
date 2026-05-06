@@ -1,4 +1,4 @@
-"""Beacon Control Room — Streamlit HITL dashboard (Phase 7, 4-agent redesign)."""
+"""Beacon Control Room — Streamlit HITL dashboard (Phase 9.5, Chief Agent redesign)."""
 import os
 import uuid
 
@@ -81,6 +81,12 @@ def _draft_summary(draft: dict) -> str:
         return "\n".join(lines)
     elif t == "cs_daily_brief":
         return f"💼 CS Daily Brief\n\n{draft.get('cohort_summary_he', '')}"
+    elif t == "chief_task_result":
+        return (
+            f"🧠 Chief Task: **{draft.get('task_type', '?')}**\n\n"
+            f"> {draft.get('description_he', '')}\n\n"
+            f"{draft.get('result_he', '')}"
+        )
     return str(draft)[:300]
 
 
@@ -199,75 +205,211 @@ def _render_activity(rows: list) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Chief Agent helpers
+# ---------------------------------------------------------------------------
+
+
+def _fetch_today_brief() -> dict | None:
+    try:
+        with engine.connect() as conn:
+            row = conn.execute(
+                text(
+                    "SELECT content_he, citations, generated_at, model "
+                    "FROM chief_briefs WHERE brief_date = CURRENT_DATE"
+                )
+            ).fetchone()
+        if not row:
+            return None
+        return {
+            "content_he": row.content_he,
+            "citations": row.citations or [],
+            "generated_at": row.generated_at,
+            "model": row.model,
+        }
+    except Exception:
+        return None
+
+
+def _fetch_conversations() -> list:
+    try:
+        with engine.connect() as conn:
+            rows = conn.execute(
+                text(
+                    "SELECT DISTINCT ON (conversation_id) "
+                    "conversation_id::text, LEFT(content_he, 60) AS preview, created_at "
+                    "FROM chief_conversations "
+                    "ORDER BY conversation_id, created_at DESC "
+                    "LIMIT 20"
+                )
+            ).fetchall()
+        return [{"conversation_id": r.conversation_id, "preview": r.preview,
+                 "created_at": r.created_at} for r in rows]
+    except Exception:
+        return []
+
+
+def _fetch_conversation_messages(conversation_id: str) -> list:
+    try:
+        with engine.connect() as conn:
+            rows = conn.execute(
+                text(
+                    "SELECT role, content_he, citations, created_at "
+                    "FROM chief_conversations "
+                    "WHERE conversation_id = :cid "
+                    "ORDER BY created_at ASC"
+                ),
+                {"cid": conversation_id},
+            ).fetchall()
+        return [
+            {
+                "role": r.role,
+                "content_he": r.content_he,
+                "citations": r.citations or [],
+                "created_at": r.created_at,
+            }
+            for r in rows
+        ]
+    except Exception:
+        return []
+
+
+def _fetch_open_initiatives() -> list:
+    try:
+        with engine.connect() as conn:
+            rows = conn.execute(
+                text(
+                    "SELECT id::text, target_agent, title_he, status, last_check_at "
+                    "FROM initiatives "
+                    "WHERE status NOT IN ('completed', 'cancelled') "
+                    "ORDER BY created_at DESC LIMIT 30"
+                )
+            ).fetchall()
+        return [dict(r._mapping) for r in rows]
+    except Exception:
+        return []
+
+
+def _render_citations(citations: list) -> None:
+    if not citations:
+        return
+    with st.expander(f"📎 {len(citations)} ציטוטים", expanded=False):
+        for c in citations:
+            agent = c.get("source_agent", "?")
+            draft_id = c.get("draft_id", "?")
+            st.markdown(f"- **{agent}** · `{draft_id[:12]}…`")
+
+
+# ---------------------------------------------------------------------------
 # Tabs
 # ---------------------------------------------------------------------------
 
-tab_digest, tab_guardian, tab_cs, tab_product, tab_creative = st.tabs([
-    "🗞️ Digest",
+tab_chief, tab_guardian, tab_cs, tab_product, tab_creative = st.tabs([
+    "🧠 Chief Agent",
     "🛡️ Guardian",
     "💼 Customer Success",
     "📊 Product",
     "✨ Creative",
 ])
 
-# ---- DIGEST ----------------------------------------------------------------
-with tab_digest:
-    st.subheader("Global Digest")
+# ---- CHIEF AGENT -----------------------------------------------------------
+with tab_chief:
+    col_main, col_right = st.columns([3, 1])
 
-    # Pending counts per agent
-    with engine.connect() as conn:
-        pending_counts = conn.execute(
-            text(
-                "SELECT agent_name, COUNT(*) AS cnt "
-                "FROM agent_runs WHERE status = 'awaiting_approval' "
-                "GROUP BY agent_name"
+    with col_right:
+        # ── Initiatives side panel ──
+        st.subheader("📌 יוזמות פתוחות")
+        initiatives = _fetch_open_initiatives()
+        if not initiatives:
+            st.info("אין יוזמות פתוחות.")
+        else:
+            status_emoji = {
+                "open": "🔵", "in_progress": "🟡",
+                "waiting_on_agent": "🟠", "completed": "✅", "cancelled": "🔴",
+            }
+            for init in initiatives:
+                emoji = status_emoji.get(init["status"], "⚪")
+                st.markdown(
+                    f"{emoji} **{init['title_he']}**  \n"
+                    f"_{init['target_agent']}_ · {init['status']}"
+                )
+                st.divider()
+
+    with col_main:
+        # ── Daily brief at top ──
+        st.subheader("📋 בריף יומי")
+        brief = _fetch_today_brief()
+        if brief:
+            st.caption(
+                f"נוצר: {brief['generated_at'].strftime('%H:%M')} · מודל: {brief.get('model', '?')}"
             )
-        ).fetchall()
+            st.markdown(brief["content_he"])
+            _render_citations(brief["citations"])
+        else:
+            st.info("הבריף היומי טרם נוצר.")
+            if st.button("⚡ צור בריף עכשיו", type="primary"):
+                with st.spinner("מייצר בריף…"):
+                    try:
+                        from agents.graphs.chief.briefs import generate_daily_brief
+                        result = generate_daily_brief()
+                        st.success(
+                            f"בריף נוצר — {result['citations_count']} ציטוטים, "
+                            f"grounding={'✅' if result['grounding_ok'] else '⚠️'}"
+                        )
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"שגיאה: {e}")
 
-    pending_map = {r.agent_name: r.cnt for r in pending_counts}
-    total_pending = sum(pending_map.values())
+        st.divider()
 
-    if total_pending:
-        st.warning(f"**{total_pending} draft(s) awaiting approval**")
-    else:
-        st.success("All clear — no pending approvals.")
+        # ── Chat interface ──
+        st.subheader("💬 שיחה עם ה-Chief")
 
-    cols = st.columns(len(AGENTS))
-    for col, (agent_name, meta) in zip(cols, AGENTS.items()):
-        last = _last_run(agent_name)
-        with col:
-            st.metric(
-                label=f"{meta['icon']} {meta['label']}",
-                value=f"{pending_map.get(agent_name, 0)} pending",
-                delta=f"Last: {last.started_at.strftime('%m-%d %H:%M')}" if last else "Never run",
-            )
+        # Conversation selector
+        conversations = _fetch_conversations()
+        conv_options = ["➕ שיחה חדשה"] + [
+            f"{c['created_at'].strftime('%m-%d %H:%M')} — {c['preview']}"
+            for c in conversations
+        ]
+        selected_idx = st.selectbox("שיחות קודמות", range(len(conv_options)),
+                                    format_func=lambda i: conv_options[i])
 
-    st.divider()
+        if selected_idx == 0:
+            # New conversation
+            if "chief_conv_id" not in st.session_state or st.session_state.get("_new_conv"):
+                st.session_state["chief_conv_id"] = str(uuid.uuid4())
+                st.session_state["_new_conv"] = False
+            conversation_id = st.session_state["chief_conv_id"]
+            messages = []
+        else:
+            conversation_id = conversations[selected_idx - 1]["conversation_id"]
+            messages = _fetch_conversation_messages(conversation_id)
 
-    # Today's guardian brief (if any)
-    st.subheader("Latest Security Brief")
-    with engine.connect() as conn:
-        brief_row = conn.execute(
-            text(
-                "SELECT output_draft, started_at FROM agent_runs "
-                "WHERE agent_name = 'guardian' "
-                "ORDER BY started_at DESC LIMIT 1"
-            )
-        ).fetchone()
+        # Render history
+        for msg in messages:
+            with st.chat_message("user" if msg["role"] == "user" else "assistant"):
+                st.markdown(msg["content_he"])
+                _render_citations(msg["citations"])
 
-    if brief_row:
-        brief_md = brief_row.output_draft.get("markdown", "")
-        st.caption(f"Run: {brief_row.started_at.strftime('%Y-%m-%d %H:%M')}")
-        st.markdown(brief_md or "_No brief generated._")
-    else:
-        st.info("Guardian hasn't run yet.")
+        # Input
+        user_input = st.chat_input("שאל את ה-Chief…")
+        if user_input and user_input.strip():
+            with st.chat_message("user"):
+                st.markdown(user_input)
 
-    st.divider()
-
-    # All pending drafts in one view
-    st.subheader("📥 All Pending Approvals")
-    all_pending = _fetch_pending()
-    _render_inbox(all_pending)
+            with st.chat_message("assistant"):
+                with st.spinner("ה-Chief חושב…"):
+                    try:
+                        from agents.graphs.chief.chat import handle_chat_turn
+                        result = handle_chat_turn(conversation_id, user_input.strip())
+                        reply = result["reply_he"]
+                        citations = result["citations"]
+                        st.markdown(reply)
+                        _render_citations(citations)
+                        if not result["grounding_ok"]:
+                            st.warning("⚠️ חלק מהטענות ללא ציטוט — תוצאות ייתכן שאינן מעוגנות.")
+                    except Exception as e:
+                        st.error(f"שגיאה: {e}")
+            st.rerun()
 
 
 # ---- GUARDIAN --------------------------------------------------------------
@@ -284,7 +426,6 @@ with tab_guardian:
         rows = _fetch_recent("guardian")
         _render_activity(rows)
 
-        # Expandable: latest full security brief
         if rows:
             latest = rows[0]
             with engine.connect() as conn:
@@ -329,7 +470,7 @@ with tab_product:
                 text(
                     "SELECT week_starting, report_markdown, metrics, created_at "
                     "FROM agent_metrics_snapshots "
-                    "WHERE metrics->>'brief_type' IS NULL "  # exclude security/content acks
+                    "WHERE metrics->>'brief_type' IS NULL "
                     "ORDER BY week_starting DESC LIMIT 10"
                 )
             ).fetchall()

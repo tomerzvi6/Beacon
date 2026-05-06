@@ -1,11 +1,14 @@
 """SQLAlchemy 2.0 ORM models — both Track A (PHI) and Track B (agents)."""
 import uuid
 from datetime import datetime
+from typing import Optional
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
+    ARRAY,
     BigInteger,
     Boolean,
+    Date,
     DateTime,
     ForeignKey,
     Integer,
@@ -291,3 +294,67 @@ class DocChunk(Base):
     content: Mapped[str] = mapped_column(Text)
     embedding: Mapped[list[float]] = mapped_column(Vector(1536))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+# ---------------------------------------------------------------------------
+# Track B — Chief Agent tables (no PHI; Phase 9.5)
+# ---------------------------------------------------------------------------
+
+
+class Initiative(Base):
+    """Founder-initiated cross-agent threads tracked by the Chief Agent."""
+    __tablename__ = "initiatives"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    target_agent: Mapped[str] = mapped_column(String(30), nullable=False)
+    title_he: Mapped[str] = mapped_column(Text, nullable=False)
+    description_he: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="open")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    last_check_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    related_draft_ids: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+
+
+class ChiefBrief(Base):
+    """Daily synthesised brief with citations from all 4 agents."""
+    __tablename__ = "chief_briefs"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    brief_date: Mapped[datetime] = mapped_column(Date, nullable=False, unique=True)
+    content_he: Mapped[str] = mapped_column(Text, nullable=False)
+    citations: Mapped[list] = mapped_column(JSONB, default=list)
+    generated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    model: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    tokens_used: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+
+class ChiefConversation(Base):
+    """Chat message in a Chief Agent ↔ founder conversation."""
+    __tablename__ = "chief_conversations"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    conversation_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    role: Mapped[str] = mapped_column(String(10), nullable=False)  # user|chief
+    content_he: Mapped[str] = mapped_column(Text, nullable=False)
+    citations: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    tools_used: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class PendingAgentTask(Base):
+    """Chief Agent's instructions queued for operational agents to pick up."""
+    __tablename__ = "pending_agent_tasks"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    target_agent: Mapped[str] = mapped_column(String(30), nullable=False)
+    task_type: Mapped[str] = mapped_column(String(80), nullable=False)
+    description_he: Mapped[str] = mapped_column(Text, nullable=False)
+    payload: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="pending")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    requested_by: Mapped[str] = mapped_column(String(80), default="chief_agent")
+    picked_up_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    result_draft_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)

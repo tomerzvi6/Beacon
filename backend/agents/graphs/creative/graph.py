@@ -14,6 +14,7 @@ from langgraph.graph import END, StateGraph
 from sqlalchemy.orm import Session
 
 from agents.db import get_engine
+from agents.graphs._pending_tasks import process_pending_tasks_for_agent
 from shared.models import AgentRun
 
 _BRAND_VOICE_PATH = Path(__file__).parent / "brand_voice.md"
@@ -192,12 +193,19 @@ def propose(state: CreativeState) -> CreativeState:
 # ---------------------------------------------------------------------------
 
 
+def _process_pending(state: CreativeState) -> CreativeState:
+    process_pending_tasks_for_agent("creative")
+    return state
+
+
 def build_creative_graph() -> StateGraph:
     g = StateGraph(CreativeState)
+    g.add_node("process_pending_tasks", _process_pending)
     g.add_node("gather_context", gather_context)
     g.add_node("draft_content", draft_content)
     g.add_node("propose", propose)
-    g.set_entry_point("gather_context")
+    g.set_entry_point("process_pending_tasks")
+    g.add_edge("process_pending_tasks", "gather_context")
     g.add_edge("gather_context", "draft_content")
     g.add_edge("draft_content", "propose")
     g.add_edge("propose", END)
