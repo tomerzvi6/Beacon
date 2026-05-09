@@ -18,7 +18,7 @@ final class CircleOfTrustViewModel {
         refresh()
     }
 
-    var canCompose: Bool { environment.currentUser.isAdmin }
+    var canCompose: Bool { environment.canWrite(.feed) }
 
     func refresh() {
         let descriptor = FetchDescriptor<FeedPost>(
@@ -30,12 +30,10 @@ final class CircleOfTrustViewModel {
     func publishComposer() {
         let body = composerText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !body.isEmpty else { return }
-        let displayBody = composerAsPatient
-            ? "\"\(body)\"\n— \(environment.patient.displayName)"
-            : body
+        let shouldPublishAsPatient = composerAsPatient && environment.currentUser.hasFullAccess
         let post = FeedPost(
-            authorMemberId: environment.currentUser.id,
-            body: displayBody,
+            authorMemberId: shouldPublishAsPatient ? environment.patient.id : environment.currentUser.id,
+            body: body,
             status: composerStatus,
             postedAt: Date(),
             audience: .familyOnly

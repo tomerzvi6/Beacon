@@ -15,12 +15,13 @@ struct BeaconSectionHeader: View {
         HStack(spacing: Theme.Spacing.s) {
             if let systemImage {
                 Image(systemName: systemImage)
-                    .font(.system(size: 20, weight: .semibold))
+                    .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(Theme.Palette.deepTeal)
             }
             Text(title)
                 .font(Theme.Typography.sectionTitle)
                 .foregroundStyle(Theme.Palette.textPrimary)
+                .beaconHorizontalText(minScale: 0.72)
             Spacer(minLength: Theme.Spacing.s)
             accessory
         }

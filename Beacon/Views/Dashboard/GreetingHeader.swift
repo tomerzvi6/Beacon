@@ -10,9 +10,13 @@ struct GreetingHeader: View {
             Text("\(greeting), \(name)")
                 .font(Theme.Typography.screenTitle)
                 .foregroundStyle(Theme.Palette.textPrimary)
+                .multilineTextAlignment(.trailing)
+                .lineLimit(2)
+                .minimumScaleFactor(0.82)
             Text("\(dateString) | סקירה יומית")
                 .font(Theme.Typography.body)
                 .foregroundStyle(Theme.Palette.textSecondary)
+                .beaconHorizontalText(minScale: 0.74)
         }
         .frame(maxWidth: .infinity, alignment: .trailing)
     }

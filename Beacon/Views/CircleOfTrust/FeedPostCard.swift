@@ -42,7 +42,7 @@ struct FeedPostCard: View {
                     heartCount: post.heartCount,
                     hugCount: post.hugCount,
                     commentCount: post.comments.count,
-                    canReplyWithText: currentUser.isAdmin,
+                    canReplyWithText: currentUser.hasFullAccess,
                     onReact: onReact
                 )
 
@@ -55,7 +55,7 @@ struct FeedPostCard: View {
                     .padding(.top, Theme.Spacing.s)
                 }
 
-                if let onAddComment, currentUser.isAdmin {
+                if let onAddComment, currentUser.hasFullAccess {
                     HStack(spacing: Theme.Spacing.s) {
                         Button {
                             let body = commentDraft
@@ -102,18 +102,22 @@ struct FeedPostCard: View {
                 Text(authorDisplay)
                     .font(Theme.Typography.cardTitle)
                     .foregroundStyle(Theme.Palette.textPrimary)
+                    .beaconHorizontalText(minScale: 0.68)
                 HStack(spacing: Theme.Spacing.xs) {
                     Text(audienceLabel)
                         .font(Theme.Typography.caption)
                         .foregroundStyle(Theme.Palette.textSecondary)
+                        .beaconHorizontalText(minScale: 0.68)
                     Image(systemName: "lock.fill")
                         .font(.system(size: 11))
                         .foregroundStyle(Theme.Palette.textSecondary)
                     Text("•")
                         .foregroundStyle(Theme.Palette.textSecondary)
+                        .beaconHorizontalText()
                     Text(relativeTime)
                         .font(Theme.Typography.caption)
                         .foregroundStyle(Theme.Palette.textSecondary)
+                        .beaconHorizontalText(minScale: 0.62)
                 }
             }
             Button { } label: {
@@ -128,6 +132,9 @@ struct FeedPostCard: View {
 
     private var authorDisplay: String {
         guard let author = post.author else { return "עדכון משפחתי" }
+        if author.isPatient {
+            return "\(author.displayName) (מטופל/ת)"
+        }
         if author.isAdmin {
             return "\(author.displayName) (מטפל/ת ראשי/ת)"
         }
@@ -158,6 +165,7 @@ private struct CommentRow: View {
                 Text(comment.author?.displayName ?? "חבר משפחה")
                     .font(Theme.Typography.captionEmphasis)
                     .foregroundStyle(Theme.Palette.textPrimary)
+                    .beaconHorizontalText(minScale: 0.68)
                 Text(comment.body)
                     .font(Theme.Typography.caption)
                     .foregroundStyle(Theme.Palette.textSecondary)

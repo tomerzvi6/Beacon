@@ -10,11 +10,13 @@ struct ComposePostCard: View {
 
     @State private var showingStatusPicker = false
 
+    private var canPublishAsPatient: Bool { currentUser.hasFullAccess }
+    private var isPublishingAsPatient: Bool { publishAsPatient && canPublishAsPatient }
     private var effectiveAvatar: String {
-        publishAsPatient ? patient.avatarSymbol : currentUser.avatarSymbol
+        isPublishingAsPatient ? patient.avatarSymbol : currentUser.avatarSymbol
     }
     private var effectivePlaceholder: String {
-        publishAsPatient
+        isPublishingAsPatient
             ? "כתבי את העדכון בשם \(patient.displayName)..."
             : "שתפי עדכון חדש עם המשפחה..."
     }
@@ -26,8 +28,8 @@ struct ComposePostCard: View {
                     BeaconAvatar(
                         systemImage: effectiveAvatar,
                         diameter: 40,
-                        tint: publishAsPatient ? Theme.Palette.softBlue : Theme.Palette.sage,
-                        foreground: publishAsPatient ? Theme.Palette.deepTeal : Theme.Palette.sageDark
+                        tint: isPublishingAsPatient ? Theme.Palette.softBlue : Theme.Palette.sage,
+                        foreground: isPublishingAsPatient ? Theme.Palette.deepTeal : Theme.Palette.sageDark
                     )
                     TextField(effectivePlaceholder, text: $text, axis: .vertical)
                         .font(Theme.Typography.body)
@@ -38,17 +40,20 @@ struct ComposePostCard: View {
                         .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.chip, style: .continuous))
                 }
 
-                Toggle(isOn: $publishAsPatient.animation(.spring(response: 0.3, dampingFraction: 0.8))) {
-                    HStack(spacing: Theme.Spacing.xs) {
-                        Image(systemName: "quote.bubble.fill")
-                            .font(.system(size: 13))
-                            .foregroundStyle(Theme.Palette.deepTeal)
-                        Text("פרסמי בשם \(patient.displayName)")
-                            .font(Theme.Typography.captionEmphasis)
-                            .foregroundStyle(Theme.Palette.textPrimary)
+                if canPublishAsPatient {
+                    Toggle(isOn: $publishAsPatient.animation(.spring(response: 0.3, dampingFraction: 0.8))) {
+                        HStack(spacing: Theme.Spacing.xs) {
+                            Image(systemName: "quote.bubble.fill")
+                                .font(.system(size: 13))
+                                .foregroundStyle(Theme.Palette.deepTeal)
+                            Text("פרסמי בשם \(patient.displayName)")
+                                .font(Theme.Typography.captionEmphasis)
+                                .foregroundStyle(Theme.Palette.textPrimary)
+                                .beaconHorizontalText(minScale: 0.65)
+                        }
                     }
+                    .tint(Theme.Palette.deepTeal)
                 }
-                .tint(Theme.Palette.deepTeal)
 
                 if let status {
                     HStack {
@@ -69,6 +74,7 @@ struct ComposePostCard: View {
                                 .font(.system(size: 14, weight: .semibold))
                             Text("פרסם")
                                 .font(Theme.Typography.bodyEmphasis)
+                                .beaconHorizontalText()
                         }
                         .foregroundStyle(.white)
                         .padding(.vertical, 12)
@@ -85,6 +91,7 @@ struct ComposePostCard: View {
                         Text("גלוי למשפחה בלבד")
                             .font(Theme.Typography.caption)
                             .foregroundStyle(Theme.Palette.textSecondary)
+                            .beaconHorizontalText(minScale: 0.65)
                         Image(systemName: "lock.fill")
                             .font(.system(size: 11))
                             .foregroundStyle(Theme.Palette.textSecondary)
@@ -98,6 +105,7 @@ struct ComposePostCard: View {
                                 .font(.system(size: 13, weight: .semibold))
                             Text("סטטוס")
                                 .font(Theme.Typography.captionEmphasis)
+                                .beaconHorizontalText()
                         }
                         .foregroundStyle(Theme.Palette.sageDark)
                         .padding(.vertical, 10)

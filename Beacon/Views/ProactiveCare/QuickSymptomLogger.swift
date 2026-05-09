@@ -23,10 +23,11 @@ struct QuickSymptomLogger: View {
                         .font(.system(size: 16, weight: .semibold))
                     Text("הוסף מדד חדש")
                         .font(Theme.Typography.bodyEmphasis)
+                        .beaconHorizontalText()
                 }
                 .foregroundStyle(Theme.Palette.sageDark)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
+                .padding(.vertical, Theme.Layout.prominentControlVerticalPadding)
                 .background(Theme.Palette.sage)
                 .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.chip, style: .continuous))
             }
@@ -50,6 +51,7 @@ struct QuickSymptomLogger: View {
                 Text(symptom.displayLabel)
                     .font(Theme.Typography.bodyEmphasis)
                     .foregroundStyle(Theme.Palette.textPrimary)
+                    .beaconHorizontalText(minScale: 0.62)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, Theme.Spacing.m)

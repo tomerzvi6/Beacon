@@ -11,57 +11,159 @@ struct RootTabView: View {
     }
 
     @State private var selection: Tab = .dashboard
-    @State private var showingPermissions = false
 
     init() {
-        let appearance = UITabBarAppearance()
-        appearance.configureWithOpaqueBackground()
-        appearance.backgroundColor = UIColor(named: "BeaconCardBackground") ?? .white
-        UITabBar.appearance().standardAppearance = appearance
-        UITabBar.appearance().scrollEdgeAppearance = appearance
+        UITabBar.appearance().isHidden = true
     }
 
     var body: some View {
-        TabView(selection: $selection) {
-            // Dashboard — always visible (schedule + tasks gated inside)
-            DashboardView()
-                .tabItem { Label("לוח בקרה", systemImage: "square.grid.2x2.fill") }
-                .tag(Tab.dashboard)
-
-            // Medical Vault — gated by .medicalVault read
-            if environment.canRead(.medicalVault) {
-                MedicalVaultView()
-                    .tabItem { Label("תיק רפואי", systemImage: "briefcase.fill") }
-                    .tag(Tab.medicalVault)
-            }
-
-            // Proactive Care — gated by .medications read
-            if environment.canRead(.medications) {
-                ProactiveCareView()
-                    .tabItem { Label("מעקב טיפול", systemImage: "cross.case.fill") }
-                    .tag(Tab.proactiveCare)
-            }
-
-            // Circle of Trust — gated by .feed read
-            if environment.canRead(.feed) {
-                CircleOfTrustView()
-                    .tabItem { Label("מעגל תמיכה", systemImage: "bubble.left.and.bubble.right.fill") }
-                    .tag(Tab.circleOfTrust)
-            }
+        ZStack {
+            Theme.Palette.background.ignoresSafeArea()
+            selectedContent
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            BeaconEdgeTopBar()
+                .padding(.bottom, -Theme.Layout.edgeBarHalfCentimeterOffset)
+                .offset(y: -Theme.Layout.edgeBarHalfCentimeterOffset)
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            BeaconBottomTabBar(selection: $selection, tabs: availableTabs)
+                .padding(.horizontal, Theme.Layout.bottomTabBarHorizontalInset)
+                .padding(.bottom, Theme.Layout.bottomTabBarBottomInset)
+                .padding(.top, -Theme.Layout.edgeBarHalfCentimeterOffset)
+                .offset(y: Theme.Layout.edgeBarHalfCentimeterOffset)
         }
         .tint(Theme.Palette.deepTeal)
-        .sheet(isPresented: $showingPermissions) {
-            PermissionsSettingsView()
-                .environment(environment)
+    }
+
+    private var availableTabs: [Tab] {
+        [.dashboard, .medicalVault, .proactiveCare, .circleOfTrust]
+    }
+
+    @ViewBuilder
+    private var selectedContent: some View {
+        switch selection {
+        case .dashboard:
+            DashboardView()
+        case .medicalVault:
+            if environment.canRead(.medicalVault) {
+                MedicalVaultView()
+            } else {
+                AccessDeniedView(module: .medicalVault)
+            }
+        case .proactiveCare:
+            if environment.canRead(.medications) {
+                ProactiveCareView()
+            } else {
+                AccessDeniedView(module: .medications)
+            }
+        case .circleOfTrust:
+            if environment.canRead(.feed) {
+                CircleOfTrustView()
+            } else {
+                AccessDeniedView(module: .feed)
+            }
         }
-        .onChange(of: environment.canRead(.medicalVault)) { _, canRead in
-            if !canRead && selection == .medicalVault { selection = .dashboard }
+    }
+}
+
+private struct AccessDeniedView: View {
+    @Environment(AppEnvironment.self) private var environment
+    let module: AppModule
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .trailing, spacing: Theme.Spacing.m) {
+                BeaconScreenHeader(
+                    title: module.displayLabel,
+                    subtitle: "המידע הזה מוגן לפי הרשאות המשפחה."
+                )
+
+                BeaconCard {
+                    BeaconEmptyState(
+                        systemImage: "lock.shield.fill",
+                        title: title,
+                        message: message
+                    )
+                }
+            }
+            .padding(.horizontal, Theme.Spacing.m)
+            .padding(.bottom, Theme.Spacing.m)
         }
-        .onChange(of: environment.canRead(.medications)) { _, canRead in
-            if !canRead && selection == .proactiveCare { selection = .dashboard }
+        .beaconScreenBackground()
+    }
+
+    private var title: String {
+        if environment.patientAuthorizationStatus == .pendingPatientConsent {
+            return "התיק ממתין לאישור המטופל"
         }
-        .onChange(of: environment.canRead(.feed)) { _, canRead in
-            if !canRead && selection == .circleOfTrust { selection = .dashboard }
+        return "אין לך הרשאה למסך הזה"
+    }
+
+    private var message: String {
+        if environment.patientAuthorizationStatus == .pendingPatientConsent {
+            return "אחרי אימות מייל וצילום תעודת זהות, המטופל יאשר מי רשאי לראות או לערוך את המידע."
+        }
+        return "אפשר לבקש ממנהל/ת הגישה או מהמטופל/ת לעדכן הרשאות עבור \(module.displayLabel)."
+    }
+}
+
+private struct BeaconBottomTabBar: View {
+    @Binding var selection: RootTabView.Tab
+    let tabs: [RootTabView.Tab]
+
+    var body: some View {
+        HStack(spacing: Theme.Spacing.s) {
+            ForEach(tabs, id: \.self) { tab in
+                Button {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
+                        selection = tab
+                    }
+                } label: {
+                    VStack(spacing: Theme.Spacing.xs) {
+                        Image(systemName: tab.systemImage)
+                            .font(.system(size: 21, weight: .semibold))
+                            .frame(height: Theme.Layout.bottomTabIconHeight)
+                        Text(tab.title)
+                            .font(Theme.Typography.tag)
+                            .multilineTextAlignment(.center)
+                            .beaconHorizontalText(minScale: Theme.Layout.bottomTabLabelMinScale)
+                    }
+                    .foregroundStyle(selection == tab ? Theme.Palette.deepTeal : Theme.Palette.textSecondary)
+                    .frame(maxWidth: .infinity)
+                    .frame(minHeight: Theme.Layout.bottomTabItemMinHeight)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(tab.title)
+                .accessibilityAddTraits(selection == tab ? .isSelected : [])
+            }
+        }
+        .padding(.horizontal, Theme.Layout.bottomTabBarHorizontalPadding)
+        .padding(.vertical, Theme.Layout.bottomTabBarVerticalPadding)
+        .background(Theme.Palette.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.card, style: .continuous))
+        .beaconCardShadow()
+    }
+}
+
+private extension RootTabView.Tab {
+    var title: String {
+        switch self {
+        case .dashboard: return "לוח בקרה"
+        case .medicalVault: return "תיק רפואי"
+        case .proactiveCare: return "מעקב טיפול"
+        case .circleOfTrust: return "מעגל תמיכה"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .dashboard: return "square.grid.2x2.fill"
+        case .medicalVault: return "briefcase.fill"
+        case .proactiveCare: return "cross.case.fill"
+        case .circleOfTrust: return "bubble.left.and.bubble.right.fill"
         }
     }
 }

@@ -8,67 +8,68 @@ struct CircleOfTrustView: View {
     @State private var toastMessage: String?
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .trailing, spacing: Theme.Spacing.l) {
-                PatientStatusStrip()
-
-                if let vm = viewModel {
-                    BeaconScreenHeader(
-                        title: "מעגל תמיכה",
-                        subtitle: "עדכונים על \(environment.patient.displayName) וחיזוקים מהמשפחה."
-                    )
-
-                    if vm.canCompose {
-                        ComposePostCard(
-                            text: Binding(get: { vm.composerText }, set: { vm.composerText = $0 }),
-                            status: Binding(get: { vm.composerStatus }, set: { vm.composerStatus = $0 }),
-                            currentUser: environment.currentUser,
-                            patient: environment.patient,
-                            onPublish: {
-                                let hadText = !vm.composerText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                                let asPatient = vm.composerAsPatient
-                                vm.publishComposer()
-                                if hadText {
-                                    toastMessage = asPatient
-                                        ? "העדכון פורסם בשם \(environment.patient.displayName) ✓"
-                                        : "העדכון פורסם ✓"
-                                }
-                            },
-                            publishAsPatient: Binding(get: { vm.composerAsPatient }, set: { vm.composerAsPatient = $0 })
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(alignment: .trailing, spacing: Theme.Spacing.m) {
+                    if let vm = viewModel {
+                        BeaconScreenHeader(
+                            title: "מעגל תמיכה",
+                            subtitle: "עדכונים על \(environment.patient.displayName) וחיזוקים מהמשפחה."
                         )
-                    }
 
-                    if vm.posts.isEmpty {
-                        BeaconCard {
-                            BeaconEmptyState(
-                                systemImage: "bubble.left.and.bubble.right",
-                                title: "אין עדכונים עדיין",
-                                message: vm.canCompose
-                                    ? "פרסמו עדכון ראשון כדי לעדכן את המשפחה."
-                                    : "כשיתקבל עדכון מהמטפל/ת הוא יופיע כאן."
+                        if vm.canCompose {
+                            ComposePostCard(
+                                text: Binding(get: { vm.composerText }, set: { vm.composerText = $0 }),
+                                status: Binding(get: { vm.composerStatus }, set: { vm.composerStatus = $0 }),
+                                currentUser: environment.currentUser,
+                                patient: environment.patient,
+                                onPublish: {
+                                    let hadText = !vm.composerText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                                    let asPatient = vm.composerAsPatient && environment.currentUser.hasFullAccess
+                                    vm.publishComposer()
+                                    if hadText {
+                                        toastMessage = asPatient
+                                            ? "העדכון פורסם בשם \(environment.patient.displayName) ✓"
+                                            : "העדכון פורסם ✓"
+                                    }
+                                },
+                                publishAsPatient: Binding(get: { vm.composerAsPatient }, set: { vm.composerAsPatient = $0 })
                             )
                         }
-                    } else {
-                        VStack(spacing: Theme.Spacing.m) {
-                            ForEach(vm.posts) { post in
-                                FeedPostCard(
-                                    post: post,
-                                    currentUser: environment.currentUser,
-                                    onReact: { reaction in
-                                        vm.incrementReaction(reaction, on: post)
-                                        toastMessage = reaction == .heart ? "❤ נשלח" : "🤗 נשלח"
-                                    },
-                                    onAddComment: { body in
-                                        vm.addComment(body, to: post)
-                                        toastMessage = "תגובה נשלחה ✓"
-                                    }
+
+                        if vm.posts.isEmpty {
+                            BeaconCard {
+                                BeaconEmptyState(
+                                    systemImage: "bubble.left.and.bubble.right",
+                                    title: "אין עדכונים עדיין",
+                                    message: vm.canCompose
+                                        ? "פרסמו עדכון ראשון כדי לעדכן את המשפחה."
+                                        : "כשיתקבל עדכון מהמטפל/ת הוא יופיע כאן."
                                 )
+                            }
+                        } else {
+                            VStack(spacing: Theme.Spacing.m) {
+                                ForEach(vm.posts) { post in
+                                    FeedPostCard(
+                                        post: post,
+                                        currentUser: environment.currentUser,
+                                        onReact: { reaction in
+                                            vm.incrementReaction(reaction, on: post)
+                                            toastMessage = reaction == .heart ? "❤ נשלח" : "🤗 נשלח"
+                                        },
+                                        onAddComment: { body in
+                                            vm.addComment(body, to: post)
+                                            toastMessage = "תגובה נשלחה ✓"
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
                 }
+                .padding(.horizontal, Theme.Spacing.m)
+                .padding(.bottom, Theme.Spacing.m)
             }
-            .padding(Theme.Spacing.m)
         }
         .beaconScreenBackground()
         .overlay(alignment: .bottom) {

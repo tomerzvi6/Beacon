@@ -4,11 +4,33 @@ struct OnboardingView: View {
     @Environment(AppEnvironment.self) private var environment
     @State private var step = 0
     @State private var patientName = ""
+    @State private var patientAge = ""
+    @State private var primaryHospital = ""
+    @State private var primaryDoctor = ""
+    @State private var bloodType = ""
+    @State private var allergies = ""
+    @State private var emergencyContactName = ""
+    @State private var emergencyContactPhone = ""
+    @State private var patientVerificationEmail = ""
+    @State private var hasIdPhotoForVerification = false
     @State private var caregiverName = ""
     @State private var isWorking = false
     @FocusState private var focusedField: Field?
 
-    enum Field { case patient, caregiver }
+    private let totalSteps = 4
+
+    enum Field {
+        case patientName
+        case patientAge
+        case primaryHospital
+        case primaryDoctor
+        case bloodType
+        case allergies
+        case emergencyContactName
+        case emergencyContactPhone
+        case patientVerificationEmail
+        case caregiverName
+    }
 
     var body: some View {
         ZStack {
@@ -20,7 +42,9 @@ struct OnboardingView: View {
 
                 TabView(selection: $step) {
                     patientStep.tag(0)
-                    caregiverStep.tag(1)
+                    medicalInfoStep.tag(1)
+                    verificationStep.tag(2)
+                    caregiverStep.tag(3)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .animation(.easeInOut, value: step)
@@ -37,132 +61,369 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: - Progress
-
     private var progressDots: some View {
         HStack(spacing: Theme.Spacing.s) {
-            ForEach(0..<2) { i in
+            ForEach(0..<totalSteps, id: \.self) { index in
                 Capsule()
-                    .fill(step >= i ? Theme.Palette.deepTeal : Theme.Palette.softBlue)
-                    .frame(width: step == i ? 28 : 10, height: 8)
+                    .fill(step >= index ? Theme.Palette.deepTeal : Theme.Palette.softBlue)
+                    .frame(
+                        width: step == index ? Theme.Spacing.l + Theme.Spacing.xs : Theme.Spacing.s + Theme.Spacing.xs,
+                        height: Theme.Spacing.s
+                    )
                     .animation(.spring(duration: 0.3), value: step)
             }
         }
     }
 
-    // MARK: - Step 1
-
     private var patientStep: some View {
-        VStack(alignment: .trailing, spacing: Theme.Spacing.l) {
-            Spacer()
+        ScrollView {
+            VStack(alignment: .trailing, spacing: Theme.Spacing.l) {
+                Spacer(minLength: Theme.Spacing.xl)
 
-            Image(systemName: "heart.fill")
-                .font(.system(size: 56))
-                .foregroundStyle(Theme.Palette.coralAccent)
-                .frame(maxWidth: .infinity)
+                stepIcon("heart.fill", tint: Theme.Palette.coralAccent)
 
-            VStack(alignment: .trailing, spacing: Theme.Spacing.s) {
-                Text("את מי אנחנו מלווים?")
-                    .font(Theme.Typography.sectionTitle)
-                    .foregroundStyle(Theme.Palette.textPrimary)
-                Text("שם המטופל יוצג בכל מקום שהמשפחה תיגש לתיק שלו.")
-                    .font(Theme.Typography.body)
-                    .foregroundStyle(Theme.Palette.textSecondary)
-                    .multilineTextAlignment(.trailing)
+                stepHeader(
+                    title: "יצירת פרופיל חולה",
+                    subtitle: "ב-POC ננהל חולה אחד. את הפרטים האלה נוכל להחליף בהמשך ב-backend מלא."
+                )
+
+                inputField(
+                    title: "שם המטופל/ת",
+                    text: $patientName,
+                    prompt: "לדוגמה: יוסף כהן",
+                    field: .patientName,
+                    contentType: .name,
+                    submitLabel: .next
+                ) {
+                    focusedField = .patientAge
+                }
+
+                inputField(
+                    title: "גיל",
+                    text: $patientAge,
+                    prompt: "לדוגמה: 71",
+                    field: .patientAge,
+                    keyboard: .numberPad,
+                    submitLabel: .next
+                ) {
+                    advanceFromPatient()
+                }
+
+                BeaconPrimaryButton(
+                    title: "המשך לפרטים רפואיים",
+                    systemImage: "arrow.left.circle.fill",
+                    isEnabled: !trimmed(patientName).isEmpty
+                ) {
+                    advanceFromPatient()
+                }
+
+                Spacer(minLength: Theme.Spacing.xl)
             }
-
-            TextField("שם המטופל", text: $patientName)
-                .textContentType(.name)
-                .font(Theme.Typography.body)
-                .padding(Theme.Spacing.m)
-                .background(Theme.Palette.cardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.chip))
-                .focused($focusedField, equals: .patient)
-                .submitLabel(.next)
-                .onSubmit { advance() }
-
-            BeaconPrimaryButton(
-                title: "המשך",
-                systemImage: "arrow.left.circle.fill",
-                isEnabled: !patientName.trimmingCharacters(in: .whitespaces).isEmpty
-            ) {
-                advance()
-            }
-
-            Spacer()
+            .padding(.horizontal, Theme.Spacing.l)
         }
-        .padding(.horizontal, Theme.Spacing.l)
-        .onAppear { focusedField = .patient }
+        .onAppear { focusedField = .patientName }
     }
 
-    // MARK: - Step 2
+    private var medicalInfoStep: some View {
+        ScrollView {
+            VStack(alignment: .trailing, spacing: Theme.Spacing.l) {
+                Spacer(minLength: Theme.Spacing.xl)
+
+                stepIcon("cross.case.fill", tint: Theme.Palette.deepTeal)
+
+                stepHeader(
+                    title: "מידע שימושי לטיפול",
+                    subtitle: "לא נוסיף אבחנה בשלב הזה. נשמור רק פרטים שעוזרים למשפחה לפעול מהר."
+                )
+
+                inputField(
+                    title: "בית חולים",
+                    text: $primaryHospital,
+                    prompt: "לדוגמה: שיבא",
+                    field: .primaryHospital,
+                    submitLabel: .next
+                ) {
+                    focusedField = .primaryDoctor
+                }
+
+                inputField(
+                    title: "רופא/ה ראשי/ת",
+                    text: $primaryDoctor,
+                    prompt: "לדוגמה: ד״ר לוי",
+                    field: .primaryDoctor,
+                    submitLabel: .next
+                ) {
+                    focusedField = .bloodType
+                }
+
+                inputField(
+                    title: "סוג דם",
+                    text: $bloodType,
+                    prompt: "לדוגמה: A+",
+                    field: .bloodType,
+                    submitLabel: .next
+                ) {
+                    focusedField = .allergies
+                }
+
+                inputField(
+                    title: "אלרגיות",
+                    text: $allergies,
+                    prompt: "להפריד בפסיקים, אם יש",
+                    field: .allergies,
+                    submitLabel: .next
+                ) {
+                    focusedField = .emergencyContactName
+                }
+
+                inputField(
+                    title: "איש קשר לחירום",
+                    text: $emergencyContactName,
+                    prompt: "שם מלא",
+                    field: .emergencyContactName,
+                    contentType: .name,
+                    submitLabel: .next
+                ) {
+                    focusedField = .emergencyContactPhone
+                }
+
+                inputField(
+                    title: "טלפון חירום",
+                    text: $emergencyContactPhone,
+                    prompt: "050-0000000",
+                    field: .emergencyContactPhone,
+                    contentType: .telephoneNumber,
+                    keyboard: .phonePad,
+                    submitLabel: .next
+                ) {
+                    withAnimation { step = 2 }
+                }
+
+                HStack(spacing: Theme.Spacing.m) {
+                    BeaconSecondaryButton(title: "חזור") {
+                        withAnimation { step = 0 }
+                    }
+                    BeaconPrimaryButton(title: "המשך", systemImage: "arrow.left.circle.fill") {
+                        withAnimation { step = 2 }
+                    }
+                }
+
+                Spacer(minLength: Theme.Spacing.xl)
+            }
+            .padding(.horizontal, Theme.Spacing.l)
+        }
+        .onChange(of: step) { _, newValue in
+            if newValue == 1 { focusedField = .primaryHospital }
+        }
+    }
 
     private var caregiverStep: some View {
-        VStack(alignment: .trailing, spacing: Theme.Spacing.l) {
-            Spacer()
+        ScrollView {
+            VStack(alignment: .trailing, spacing: Theme.Spacing.l) {
+                Spacer(minLength: Theme.Spacing.xl)
 
-            Image(systemName: "person.fill")
-                .font(.system(size: 56))
-                .foregroundStyle(Theme.Palette.deepTeal)
-                .frame(maxWidth: .infinity)
+                stepIcon("person.fill", tint: Theme.Palette.sageDark)
 
-            VStack(alignment: .trailing, spacing: Theme.Spacing.s) {
-                Text("ומה השם שלך?")
-                    .font(Theme.Typography.sectionTitle)
-                    .foregroundStyle(Theme.Palette.textPrimary)
-                Text("ככה בני המשפחה יראו אותך באפליקציה.")
-                    .font(Theme.Typography.body)
+                stepHeader(
+                    title: "ומי מנהל/ת את הטיפול?",
+                    subtitle: "עד שהמטופל יאשר, התיק יוגדר כתיק ממתין ולא יפתח מידע רפואי רגיש."
+                )
+
+                inputField(
+                    title: "השם שלך",
+                    text: $caregiverName,
+                    prompt: "לדוגמה: רונית",
+                    field: .caregiverName,
+                    contentType: .name,
+                    submitLabel: .go
+                ) {
+                    Task { await submit() }
+                }
+
+                BeaconPrimaryButton(
+                    title: isWorking ? "יוצר פרופיל חולה..." : "צור פרופיל חולה והמשך",
+                    systemImage: "checkmark.circle.fill",
+                    isEnabled: !trimmed(caregiverName).isEmpty && isVerificationReady && !isWorking
+                ) {
+                    Task { await submit() }
+                }
+
+                Button("חזור") { withAnimation { step = 2 } }
+                    .font(Theme.Typography.captionEmphasis)
                     .foregroundStyle(Theme.Palette.textSecondary)
-                    .multilineTextAlignment(.trailing)
+                    .frame(maxWidth: .infinity)
+
+                Spacer(minLength: Theme.Spacing.xl)
             }
-
-            TextField("השם שלך", text: $caregiverName)
-                .textContentType(.name)
-                .font(Theme.Typography.body)
-                .padding(Theme.Spacing.m)
-                .background(Theme.Palette.cardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.chip))
-                .focused($focusedField, equals: .caregiver)
-                .submitLabel(.go)
-                .onSubmit { Task { await submit() } }
-
-            BeaconPrimaryButton(
-                title: isWorking ? "יוצר משפחה..." : "צור משפחה והמשך",
-                systemImage: "checkmark.circle.fill"
-            ) {
-                Task { await submit() }
-            }
-            .disabled(caregiverName.trimmingCharacters(in: .whitespaces).isEmpty || isWorking)
-            .opacity((caregiverName.trimmingCharacters(in: .whitespaces).isEmpty || isWorking) ? 0.5 : 1.0)
-
-            Button("חזור") { withAnimation { step = 0 } }
-                .font(Theme.Typography.captionEmphasis)
-                .foregroundStyle(Theme.Palette.textSecondary)
-                .frame(maxWidth: .infinity)
-
-            Spacer()
+            .padding(.horizontal, Theme.Spacing.l)
         }
-        .padding(.horizontal, Theme.Spacing.l)
         .onChange(of: step) { _, newValue in
-            if newValue == 1 { focusedField = .caregiver }
+            if newValue == 3 { focusedField = .caregiverName }
         }
     }
 
-    // MARK: - Actions
+    private var verificationStep: some View {
+        ScrollView {
+            VStack(alignment: .trailing, spacing: Theme.Spacing.l) {
+                Spacer(minLength: Theme.Spacing.xl)
 
-    private func advance() {
-        guard !patientName.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+                stepIcon("checkmark.shield.fill", tint: Theme.Palette.deepTeal)
+
+                stepHeader(
+                    title: "אישור המטופל",
+                    subtitle: "כדי לשמור על סודיות רפואית, נאסוף מייל לאימות ואישור שקיים צילום תעודת זהות. בשלב הבא המטופל יאשר בעלות על התיק."
+                )
+
+                inputField(
+                    title: "מייל המטופל/ת לאימות",
+                    text: $patientVerificationEmail,
+                    prompt: "patient@example.com",
+                    field: .patientVerificationEmail,
+                    contentType: .emailAddress,
+                    keyboard: .emailAddress,
+                    submitLabel: .next
+                ) {
+                    focusedField = .caregiverName
+                }
+
+                Button {
+                    hasIdPhotoForVerification.toggle()
+                } label: {
+                    HStack(spacing: Theme.Spacing.m) {
+                        Image(systemName: hasIdPhotoForVerification ? "checkmark.circle.fill" : "camera.viewfinder")
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundStyle(hasIdPhotoForVerification ? Theme.Palette.deepTeal : Theme.Palette.textSecondary)
+                            .frame(width: Theme.Layout.statusStripIconSize, height: Theme.Layout.statusStripIconSize)
+                            .background(Theme.Palette.softBlue.opacity(0.4))
+                            .clipShape(Circle())
+                        VStack(alignment: .trailing, spacing: Theme.Spacing.xs) {
+                            Text(hasIdPhotoForVerification ? "צילום תעודת זהות סומן" : "סמן שקיים צילום תעודת זהות")
+                                .font(Theme.Typography.bodyEmphasis)
+                                .foregroundStyle(Theme.Palette.textPrimary)
+                            Text("ב-MVP זה סימון מקומי בלבד; בהמשך זה יהיה העלאה מאובטחת.")
+                                .font(Theme.Typography.caption)
+                                .foregroundStyle(Theme.Palette.textSecondary)
+                        }
+                        Spacer()
+                    }
+                    .padding(Theme.Spacing.m)
+                    .background(Theme.Palette.cardBackground)
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.chip))
+                }
+                .buttonStyle(.plain)
+
+                HStack(spacing: Theme.Spacing.m) {
+                    BeaconSecondaryButton(title: "חזור") {
+                        withAnimation { step = 1 }
+                    }
+                    BeaconPrimaryButton(
+                        title: "המשך",
+                        systemImage: "arrow.left.circle.fill",
+                        isEnabled: isVerificationReady
+                    ) {
+                        withAnimation { step = 3 }
+                    }
+                }
+
+                Spacer(minLength: Theme.Spacing.xl)
+            }
+            .padding(.horizontal, Theme.Spacing.l)
+        }
+        .onChange(of: step) { _, newValue in
+            if newValue == 2 { focusedField = .patientVerificationEmail }
+        }
+    }
+
+    private func stepIcon(_ systemName: String, tint: Color) -> some View {
+        Image(systemName: systemName)
+            .font(.system(size: 56))
+            .foregroundStyle(tint)
+            .frame(maxWidth: .infinity)
+    }
+
+    private func stepHeader(title: String, subtitle: String) -> some View {
+        VStack(alignment: .trailing, spacing: Theme.Spacing.s) {
+            Text(title)
+                .font(Theme.Typography.sectionTitle)
+                .foregroundStyle(Theme.Palette.textPrimary)
+                .multilineTextAlignment(.trailing)
+            Text(subtitle)
+                .font(Theme.Typography.body)
+                .foregroundStyle(Theme.Palette.textSecondary)
+                .multilineTextAlignment(.trailing)
+        }
+        .frame(maxWidth: .infinity, alignment: .trailing)
+    }
+
+    private func inputField(
+        title: String,
+        text: Binding<String>,
+        prompt: String,
+        field: Field,
+        contentType: UITextContentType? = nil,
+        keyboard: UIKeyboardType = .default,
+        submitLabel: SubmitLabel = .next,
+        onSubmit: @escaping () -> Void
+    ) -> some View {
+        VStack(alignment: .trailing, spacing: Theme.Spacing.xs) {
+            Text(title)
+                .font(Theme.Typography.captionEmphasis)
+                .foregroundStyle(Theme.Palette.textSecondary)
+            TextField(prompt, text: text)
+                .textContentType(contentType)
+                .keyboardType(keyboard)
+                .textInputAutocapitalization(.never)
+                .font(Theme.Typography.body)
+                .multilineTextAlignment(.trailing)
+                .padding(Theme.Spacing.m)
+                .background(Theme.Palette.cardBackground)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.chip))
+                .focused($focusedField, equals: field)
+                .submitLabel(submitLabel)
+                .onSubmit(onSubmit)
+        }
+    }
+
+    private func advanceFromPatient() {
+        guard !trimmed(patientName).isEmpty else { return }
         withAnimation { step = 1 }
+    }
+
+    private var isVerificationReady: Bool {
+        trimmed(patientVerificationEmail).contains("@") && hasIdPhotoForVerification
     }
 
     @MainActor
     private func submit() async {
-        let p = patientName.trimmingCharacters(in: .whitespaces)
-        let c = caregiverName.trimmingCharacters(in: .whitespaces)
-        guard !p.isEmpty, !c.isEmpty else { return }
+        let patient = trimmed(patientName)
+        let caregiver = trimmed(caregiverName)
+        guard !patient.isEmpty, !caregiver.isEmpty, isVerificationReady else { return }
         isWorking = true
         defer { isWorking = false }
-        await environment.createFamily(patientName: p, caregiverName: c)
+        await environment.createFamily(
+            patientProfile: PatientProfileDraft(
+                displayName: patient,
+                age: Int(trimmed(patientAge)),
+                primaryDoctor: trimmed(primaryDoctor),
+                primaryHospital: trimmed(primaryHospital),
+                bloodType: trimmed(bloodType),
+                allergies: allergies
+                    .split(separator: ",")
+                    .map { trimmed(String($0)) }
+                    .filter { !$0.isEmpty },
+                emergencyContactName: trimmed(emergencyContactName),
+                emergencyContactPhone: trimmed(emergencyContactPhone)
+            ),
+            caregiverName: caregiver,
+            approvalDraft: PatientApprovalDraft(
+                verificationEmail: trimmed(patientVerificationEmail),
+                hasIdPhotoForVerification: hasIdPhotoForVerification
+            )
+        )
+    }
+
+    private func trimmed(_ value: String) -> String {
+        value.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 

@@ -26,6 +26,11 @@ final class MedicalVaultViewModel {
     var searchText: String = ""
     var selectedCategory: BackendDocumentCategory? = nil
 
+    // Marketing-demo AI summary: intentionally static until the real
+    // AI service is wired in.
+    var featuredSummary: AISummary { SampleAISummaries.dashboardFeatured }
+    var lastImportedTaskTitles: [String] = []
+
     // MARK: - Upload flow state (Phase 9.2)
     enum UploadPhase: Equatable {
         case idle
@@ -71,6 +76,31 @@ final class MedicalVaultViewModel {
             .filter { $0.isParsed && $0.parsed_summary_simple_he?.isEmpty == false }
             .sorted { ($0.parsed_at ?? .distantPast) > ($1.parsed_at ?? .distantPast) }
             .first
+    }
+
+    @discardableResult
+    func addSuggestedTasksToCalendar(from summary: AISummary) -> [String] {
+        var added: [String] = []
+        for suggestion in summary.suggestedTasks {
+            let targetTitle = suggestion.title
+            let predicate = #Predicate<DailyTask> { task in
+                task.title == targetTitle
+            }
+            let existing = (try? context.fetch(FetchDescriptor<DailyTask>(predicate: predicate))) ?? []
+            guard existing.isEmpty else { continue }
+
+            let task = DailyTask(
+                title: suggestion.title,
+                detail: suggestion.detail,
+                kind: .medical,
+                origin: .aiSuggestion
+            )
+            context.insert(task)
+            added.append(suggestion.title)
+        }
+        try? context.save()
+        lastImportedTaskTitles = added
+        return added
     }
 
     /// Fetch the first page from scratch — also called by pull-to-refresh

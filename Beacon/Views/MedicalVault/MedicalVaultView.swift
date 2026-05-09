@@ -8,6 +8,7 @@ struct MedicalVaultView: View {
     @Environment(AppEnvironment.self) private var environment
     @State private var viewModel: MedicalVaultViewModel?
     @State private var openedDocument: BackendDocument?
+    @State private var openedSummary: AISummary?
     @State private var searchDebounceTask: Task<Void, Never>? = nil
 
     // Upload-flow state
@@ -23,48 +24,55 @@ struct MedicalVaultView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .trailing, spacing: Theme.Spacing.l) {
-                    PatientStatusStrip()
+            VStack(spacing: 0) {
+                ScrollView {
+                    VStack(alignment: .trailing, spacing: Theme.Spacing.m) {
+                        if let vm = viewModel {
+                            if let alert = vm.alert {
+                                HospitalSyncAlertCard(alert: alert, onDismiss: { vm.dismissAlert() })
+                            }
 
-                    if let vm = viewModel {
-                        if let alert = vm.alert {
-                            HospitalSyncAlertCard(alert: alert, onDismiss: { vm.dismissAlert() })
-                        }
+                            BeaconScreenHeader(
+                                title: "תיק רפואי",
+                                subtitle: "כל המסמכים והסיכומים של \(environment.patient.displayName), מסודרים וברורים."
+                            )
 
-                        BeaconScreenHeader(
-                            title: "תיק רפואי",
-                            subtitle: "כל המסמכים והסיכומים של \(environment.patient.displayName), מסודרים וברורים."
-                        )
-
-                        if let featured = vm.featuredDocument {
                             AISmartSummaryFeatureCard(
-                                document: featured,
-                                onReadFullSummary: { openedDocument = featured }
+                                summary: vm.featuredSummary,
+                                onReadFullSummary: { openedSummary = vm.featuredSummary },
+                                onAddSuggestedTasks: {
+                                    _ = vm.addSuggestedTasksToCalendar(from: vm.featuredSummary)
+                                },
+                                importedTaskCount: vm.lastImportedTaskTitles.isEmpty
+                                    ? nil
+                                    : vm.lastImportedTaskTitles.count
                             )
+
+                            if shouldShowDocumentControls(vm) {
+                                searchField(vm: vm)
+                                DocumentFilterChips(
+                                    selection: Binding(
+                                        get: { vm.selectedCategory },
+                                        set: { newValue in
+                                            vm.selectedCategory = newValue
+                                            Task { await vm.refresh() }
+                                        }
+                                    )
+                                )
+                            }
+
+                            documentList(vm: vm)
                         }
-
-                        searchField(vm: vm)
-                        DocumentFilterChips(
-                            selection: Binding(
-                                get: { vm.selectedCategory },
-                                set: { newValue in
-                                    vm.selectedCategory = newValue
-                                    Task { await vm.refresh() }
-                                }
-                            )
-                        )
-
-                        documentList(vm: vm)
                     }
+                    .padding(.horizontal, Theme.Spacing.m)
+                    .padding(.bottom, Theme.Layout.medicalVaultBottomContentInset)
                 }
-                .padding(Theme.Spacing.m)
-                .padding(.bottom, 96)
+                .refreshable {
+                    await viewModel?.refresh()
+                }
             }
+            .toolbar(.hidden, for: .navigationBar)
             .beaconScreenBackground()
-            .refreshable {
-                await viewModel?.refresh()
-            }
             .overlay(alignment: .bottomTrailing) {
                 uploadFAB.padding(Theme.Spacing.l)
             }
@@ -73,6 +81,14 @@ struct MedicalVaultView: View {
             }
             .navigationDestination(item: $openedDocument) { doc in
                 DocumentDetailView(document: doc)
+            }
+            .navigationDestination(item: $openedSummary) { summary in
+                AISummaryDetailView(
+                    summary: summary,
+                    onAddSuggestedTasks: { _ in
+                        _ = viewModel?.addSuggestedTasksToCalendar(from: summary)
+                    }
+                )
             }
         }
         .task {
@@ -156,25 +172,31 @@ struct MedicalVaultView: View {
         } message: { alert in
             Text(Self.uploadAlertMessage(alert))
         }
-        .alert("Backend sign-in required", isPresented: $showingBackendAuthAlert) {
-            Button("Close", role: .cancel) {}
+        .alert("נדרשת התחברות מלאה", isPresented: $showingBackendAuthAlert) {
+            Button("סגור", role: .cancel) {}
         } message: {
-            Text("To upload a PDF or image, sign in with Apple or Google so Beacon can get a backend token.")
+            Text("כדי להעלות PDF או תמונה, התחבר/י עם Apple או Google כדי ש-Beacon יקבל הרשאת backend.")
         }
     }
 
     // MARK: - Document list (paginated)
+
+    private func shouldShowDocumentControls(_ vm: MedicalVaultViewModel) -> Bool {
+        !vm.documents.isEmpty || !vm.searchText.isEmpty || vm.selectedCategory != nil
+    }
 
     @ViewBuilder
     private func documentList(vm: MedicalVaultViewModel) -> some View {
         if vm.documents.isEmpty && !vm.isLoading {
             BeaconCard {
                 BeaconEmptyState(
-                    systemImage: "doc.text.magnifyingglass",
+                    systemImage: "doc.badge.plus",
                     title: vm.searchText.isEmpty ? "אין מסמכים בקטגוריה" : "לא נמצאו תוצאות",
                     message: vm.searchText.isEmpty
-                        ? "הוסיפו את המסמך הראשון בעזרת כפתור ה-+ למטה."
-                        : "נסו לחפש מילת מפתח אחרת או לבחור קטגוריה אחרת."
+                        ? "העלה מסמך ראשון כדי ש-Beacon יוכל לסכם אותו, לזהות משימות ולהציע תרופות לבדיקה."
+                        : "נסו לחפש מילת מפתח אחרת או לבחור קטגוריה אחרת.",
+                    actionTitle: vm.searchText.isEmpty ? "העלה מסמך ראשון" : nil,
+                    action: vm.searchText.isEmpty ? beginUploadFlow : nil
                 )
             }
         } else {
@@ -209,18 +231,22 @@ struct MedicalVaultView: View {
 
     // MARK: - FAB + progress overlay
 
+    private func beginUploadFlow() {
+        if TokenStore.read() == nil {
+            showingBackendAuthAlert = true
+        } else {
+            showingActionSheet = true
+        }
+    }
+
     private var uploadFAB: some View {
         Button {
-            if TokenStore.read() == nil {
-                showingBackendAuthAlert = true
-            } else {
-                showingActionSheet = true
-            }
+            beginUploadFlow()
         } label: {
             Image(systemName: "plus")
                 .font(.system(size: 22, weight: .semibold))
                 .foregroundStyle(.white)
-                .frame(width: 56, height: 56)
+                .frame(width: Theme.Layout.floatingActionButtonSize, height: Theme.Layout.floatingActionButtonSize)
                 .background(Theme.Palette.deepTeal, in: Circle())
                 .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 4)
         }
@@ -384,7 +410,7 @@ struct MedicalVaultView: View {
             .font(Theme.Typography.body)
             .foregroundStyle(Theme.Palette.textPrimary)
         }
-        .padding(.vertical, 12)
+        .padding(.vertical, Theme.Layout.controlVerticalPadding)
         .padding(.horizontal, Theme.Spacing.m)
         .background(Theme.Palette.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.chip, style: .continuous))

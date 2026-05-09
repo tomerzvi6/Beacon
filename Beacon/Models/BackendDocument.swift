@@ -92,7 +92,7 @@ struct BackendParseResponse: Decodable {
 }
 
 /// Mirror of `DocumentOut` — full record returned by GET /v1/documents/.
-struct BackendDocument: Decodable, Identifiable, Equatable {
+struct BackendDocument: Decodable, Identifiable, Equatable, Hashable {
     let id: UUID
     let household_id: UUID
     let uploaded_by: UUID

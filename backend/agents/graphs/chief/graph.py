@@ -134,7 +134,7 @@ def synthesize_or_answer(state: ChiefState) -> ChiefState:
             open_initiatives_summary=open_initiatives_summary,
         )
     else:
-        conv_history = state.get("conversation_history", [])  # type: ignore[typeddict-item]
+        conv_history = state.get("conversation_history", [])
         history_text = "\n".join(
             f"{m['role']}: {m['content_he']}"
             for m in (conv_history[-6:] if len(conv_history) > 6 else conv_history)

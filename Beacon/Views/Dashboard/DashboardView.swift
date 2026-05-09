@@ -9,40 +9,45 @@ struct DashboardView: View {
     @State private var toastMessage: String?
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .trailing, spacing: Theme.Spacing.l) {
-                PatientStatusStrip()
-
-                if let vm = viewModel {
-                    GreetingHeader(
-                        greeting: environment.greetingForCurrentHour,
-                        name: environment.greetingName,
-                        dateString: environment.todayHebrewDate
-                    )
-
-                    if environment.canRead(.schedule) {
-                        FamilyScheduleCard(events: vm.events)
-                    }
-
-                    if environment.canRead(.tasks) {
-                        TodayTasksCard(
-                            tasks: vm.tasks.filter { !$0.isCompleted } + vm.tasks.filter { $0.isCompleted },
-                            currentUser: environment.currentUser,
-                            canWrite: environment.canWrite(.tasks),
-                            onClaim: {
-                                vm.claim($0)
-                                toastMessage = "המשימה שויכה אליך ✓"
-                            },
-                            onRelease: {
-                                vm.release($0)
-                                toastMessage = "המשימה שוחררה."
-                            },
-                            onToggleComplete: { vm.toggleCompletion($0) }
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(alignment: .trailing, spacing: Theme.Spacing.m) {
+                    if let vm = viewModel {
+                        GreetingHeader(
+                            greeting: environment.greetingForCurrentHour,
+                            name: environment.greetingName,
+                            dateString: environment.todayHebrewDate
                         )
+
+                        if environment.canRead(.schedule) {
+                            FamilyScheduleCard(events: vm.events)
+                        } else {
+                            PermissionNoticeCard(module: .schedule)
+                        }
+
+                        if environment.canRead(.tasks) {
+                            TodayTasksCard(
+                                tasks: vm.tasks.filter { !$0.isCompleted } + vm.tasks.filter { $0.isCompleted },
+                                currentUser: environment.currentUser,
+                                canWrite: environment.canWrite(.tasks),
+                                onClaim: {
+                                    vm.claim($0)
+                                    toastMessage = "המשימה שויכה אליך ✓"
+                                },
+                                onRelease: {
+                                    vm.release($0)
+                                    toastMessage = "המשימה שוחררה."
+                                },
+                                onToggleComplete: { vm.toggleCompletion($0) }
+                            )
+                        } else {
+                            PermissionNoticeCard(module: .tasks)
+                        }
                     }
                 }
+                .padding(.horizontal, Theme.Spacing.m)
+                .padding(.bottom, Theme.Spacing.m)
             }
-            .padding(Theme.Spacing.m)
         }
         .beaconScreenBackground()
         .overlay(alignment: .bottom) {
@@ -70,6 +75,32 @@ struct DashboardView: View {
                 viewModel = DashboardViewModel(context: context, environment: environment)
             } else {
                 viewModel?.refresh()
+            }
+        }
+    }
+}
+
+private struct PermissionNoticeCard: View {
+    let module: AppModule
+
+    var body: some View {
+        BeaconCard {
+            HStack(spacing: Theme.Spacing.m) {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(Theme.Palette.textSecondary)
+                    .frame(width: Theme.Layout.statusStripIconSize, height: Theme.Layout.statusStripIconSize)
+                    .background(Theme.Palette.softBlue.opacity(0.35))
+                    .clipShape(Circle())
+                VStack(alignment: .trailing, spacing: Theme.Spacing.xs) {
+                    Text("אין הרשאה ל\(module.displayLabel)")
+                        .font(Theme.Typography.bodyEmphasis)
+                        .foregroundStyle(Theme.Palette.textPrimary)
+                    Text("המטופל/ת או מנהל/ת הגישה יכולים לפתוח לך גישה.")
+                        .font(Theme.Typography.caption)
+                        .foregroundStyle(Theme.Palette.textSecondary)
+                }
+                Spacer()
             }
         }
     }

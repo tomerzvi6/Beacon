@@ -13,8 +13,11 @@ passthrough node that mutates the DB as a side-effect).
 """
 import json
 import logging
+import os
 import uuid
 from datetime import datetime, timezone
+
+_MODEL = os.environ.get("PENDING_TASKS_MODEL", "claude-sonnet-4-6")
 
 from anthropic import Anthropic
 from sqlalchemy import text
@@ -67,7 +70,7 @@ def process_pending_tasks_for_agent(agent_name: str) -> int:
 
             # Ask Claude to handle the focused task within the agent's domain
             resp = client.messages.create(
-                model="claude-sonnet-4-6",
+                model=_MODEL,
                 max_tokens=800,
                 system=[{
                     "type": "text",

@@ -18,10 +18,14 @@ struct HospitalSyncAlertCard: View {
                     .font(Theme.Typography.bodyEmphasis)
                     .foregroundStyle(Theme.Palette.sageDark)
                     .multilineTextAlignment(.trailing)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.75)
                 Text(alert.body)
                     .font(Theme.Typography.caption)
                     .foregroundStyle(Theme.Palette.textSecondary)
                     .multilineTextAlignment(.trailing)
+                    .lineLimit(3)
+                    .minimumScaleFactor(0.75)
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
 

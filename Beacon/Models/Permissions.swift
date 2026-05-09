@@ -65,13 +65,21 @@ enum MemberRole: Codable, Equatable {
 
     var isAdmin: Bool {
         if case .admin = self { return true }
-        if case .patient = self { return true }
         return false
     }
 
     var isPatient: Bool {
         if case .patient = self { return true }
         return false
+    }
+
+    var isAccessOwner: Bool {
+        if case .patient = self { return true }
+        return false
+    }
+
+    var hasFullAccess: Bool {
+        isPatient || isAdmin
     }
 
     func accessLevel(for module: AppModule) -> AccessLevel {

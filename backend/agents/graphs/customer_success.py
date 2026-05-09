@@ -9,10 +9,14 @@ Reactive (every 30 min):
 """
 from typing import TypedDict
 
+import os
+
 from anthropic import Anthropic
 from langgraph.graph import END, StateGraph
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+
+_MODEL = os.environ.get("CS_AGENT_MODEL", "claude-sonnet-4-6")
 
 from agents.db import get_engine
 from agents.graphs._pending_tasks import process_pending_tasks_for_agent
@@ -87,7 +91,7 @@ def _draft_nudge(state: ProactiveState) -> ProactiveState:
     task = state["top_task"]
     client = Anthropic()
     message = client.messages.create(
-        model="claude-sonnet-4-6",
+        model=_MODEL,
         max_tokens=200,
         system=[{"type": "text", "text": _CS_SYSTEM, "cache_control": {"type": "ephemeral"}}],
         tools=[{
@@ -125,7 +129,7 @@ def _draft_cohort_summary(state: ProactiveState) -> ProactiveState:
 
     client = Anthropic()
     message = client.messages.create(
-        model="claude-sonnet-4-6",
+        model=_MODEL,
         max_tokens=400,
         system=[{"type": "text", "text": _CS_SYSTEM, "cache_control": {"type": "ephemeral"}}],
         tools=[{
@@ -276,7 +280,7 @@ def _draft_reply(state: ReactiveState) -> ReactiveState:
 
     client = Anthropic()
     message = client.messages.create(
-        model="claude-sonnet-4-6",
+        model=_MODEL,
         max_tokens=600,
         system=[{"type": "text", "text": _CS_SYSTEM, "cache_control": {"type": "ephemeral"}}],
         tools=[{

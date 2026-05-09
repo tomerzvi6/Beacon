@@ -20,6 +20,7 @@ enum AuthError: LocalizedError {
     case signOutFailed(String)
     case familyCreationFailed(String)
     case profileLoadFailed(String)
+    case networkTimeout
 
     var errorDescription: String? {
         switch self {
@@ -37,6 +38,8 @@ enum AuthError: LocalizedError {
             return "יצירת המשפחה נכשלה: \(msg)"
         case .profileLoadFailed(let msg):
             return "טעינת הפרופיל נכשלה: \(msg)"
+        case .networkTimeout:
+            return "הבקשה נמשכה יותר מדי זמן. בדוק חיבור רשת ונסה שוב."
         }
     }
 }
@@ -117,17 +120,68 @@ struct AuthService {
 
     func signInWithEmail(email: String, password: String) async throws {
         do {
-            try await client.auth.signIn(email: email, password: password)
+            try await withTimeout(seconds: 15) {
+                try await client.auth.signIn(email: email, password: password)
+            }
         } catch {
-            throw AuthError.signInFailed(error.localizedDescription)
+            throw mapEmailAuthError(error)
         }
     }
 
     func signUpWithEmail(email: String, password: String) async throws {
         do {
-            try await client.auth.signUp(email: email, password: password)
+            try await withTimeout(seconds: 15) {
+                try await client.auth.signUp(email: email, password: password)
+            }
         } catch {
-            throw AuthError.signInFailed(error.localizedDescription)
+            throw mapEmailAuthError(error)
+        }
+    }
+
+    private func mapEmailAuthError(_ error: Error) -> AuthError {
+        if error is TimeoutError {
+            return .networkTimeout
+        }
+        // Supabase-specific messages (localizedDescription contains the raw message)
+        let msg = error.localizedDescription.lowercased()
+        if msg.contains("invalid login credentials") || msg.contains("invalid_credentials") {
+            return .signInFailed("מייל או סיסמה שגויים. נסה/י שוב.")
+        }
+        if msg.contains("user already registered") {
+            return .signInFailed("כתובת מייל זו כבר רשומה. נסה/י להתחבר במקום להירשם.")
+        }
+        let nsError = error as NSError
+        if nsError.domain == NSURLErrorDomain {
+            switch nsError.code {
+            case NSURLErrorCannotFindHost:
+                let host = URL(string: SecretsLoader.string(for: "SUPABASE_URL") ?? "")?.host ?? "לא ידוע"
+                return .signInFailed("לא נמצא שם מארח ל-Supabase (\(host)). בדוק SUPABASE_URL וחיבור רשת/VPN.")
+            case NSURLErrorNotConnectedToInternet:
+                return .signInFailed("אין חיבור לאינטרנט. בדוק רשת ונסה שוב.")
+            default:
+                break
+            }
+        }
+        return .signInFailed(error.localizedDescription)
+    }
+
+    private struct TimeoutError: Error {}
+
+    private func withTimeout<T>(
+        seconds: UInt64,
+        operation: @escaping () async throws -> T
+    ) async throws -> T {
+        try await withThrowingTaskGroup(of: T.self) { group in
+            group.addTask { try await operation() }
+            group.addTask {
+                try await Task.sleep(nanoseconds: seconds * 1_000_000_000)
+                throw TimeoutError()
+            }
+            guard let result = try await group.next() else {
+                throw TimeoutError()
+            }
+            group.cancelAll()
+            return result
         }
     }
 
@@ -143,7 +197,7 @@ struct AuthService {
         do {
             // Profile (may be empty if user just signed in for the first time)
             let profileRows: [ProfileRow] = try await client
-                .from("profiles")
+                .from("users")
                 .select("display_name")
                 .eq("id", value: userId)
                 .limit(1)
@@ -222,7 +276,7 @@ struct AuthService {
 // MARK: - DTOs
 
 private struct ProfileRow: Decodable {
-    let display_name: String
+    let display_name: String?
 }
 
 private struct FamilyRef: Decodable {

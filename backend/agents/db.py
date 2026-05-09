@@ -4,10 +4,14 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
+_engine = None
+
 
 def get_engine():
-    url = os.environ["DATABASE_URL"]
-    return create_engine(url, pool_pre_ping=True)
+    global _engine
+    if _engine is None:
+        _engine = create_engine(os.environ["DATABASE_URL"], pool_pre_ping=True)
+    return _engine
 
 
 def get_session() -> Session:

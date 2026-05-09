@@ -41,26 +41,26 @@ struct DocumentDetailView: View {
                 .multilineTextAlignment(.trailing)
             HStack(spacing: Theme.Spacing.s) {
                 if let category = document.typedCategory {
-                    HStack(spacing: 4) {
+                    HStack(spacing: Theme.Spacing.xs) {
                         Image(systemName: category.iconSymbol)
                             .font(.system(size: 12, weight: .semibold))
                         Text(category.displayLabel)
                             .font(Theme.Typography.tag)
                     }
-                    .padding(.vertical, 4)
-                    .padding(.horizontal, 10)
+                    .padding(.vertical, Theme.Spacing.xs)
+                    .padding(.horizontal, Theme.Layout.chipVerticalPadding)
                     .background(Theme.Palette.sage.opacity(0.4))
                     .clipShape(Capsule())
                 }
                 if document.is_private {
-                    HStack(spacing: 4) {
+                    HStack(spacing: Theme.Spacing.xs) {
                         Image(systemName: "lock.fill")
                             .font(.system(size: 11, weight: .semibold))
                         Text("פרטי")
                             .font(Theme.Typography.tag)
                     }
-                    .padding(.vertical, 4)
-                    .padding(.horizontal, 10)
+                    .padding(.vertical, Theme.Spacing.xs)
+                    .padding(.horizontal, Theme.Layout.chipVerticalPadding)
                     .background(Theme.Palette.softBlue.opacity(0.5))
                     .clipShape(Capsule())
                 }
@@ -77,7 +77,7 @@ struct DocumentDetailView: View {
             Image(systemName: "exclamationmark.shield.fill")
                 .font(.system(size: 22))
                 .foregroundStyle(Theme.Palette.coralAccent)
-            VStack(alignment: .trailing, spacing: 4) {
+            VStack(alignment: .trailing, spacing: Theme.Spacing.xs) {
                 Text("המסמך מכיל פרטים שלא תואמים את החולה הרשום")
                     .font(Theme.Typography.bodyEmphasis)
                     .foregroundStyle(Theme.Palette.textPrimary)

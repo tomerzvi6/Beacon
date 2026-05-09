@@ -10,10 +10,10 @@ struct BeaconEmptyState: View {
     var body: some View {
         VStack(spacing: Theme.Spacing.m) {
             Image(systemName: systemImage)
-                .font(.system(size: 36, weight: .light))
-                .foregroundStyle(Theme.Palette.softBlue)
-                .frame(width: 72, height: 72)
-                .background(Theme.Palette.softBlue.opacity(0.25))
+                .font(.system(size: 30, weight: .light))
+                .foregroundStyle(Theme.Palette.deepTeal)
+                .frame(width: 60, height: 60)
+                .background(Theme.Palette.softBlue.opacity(0.3))
                 .clipShape(Circle())
 
             VStack(spacing: Theme.Spacing.xs) {

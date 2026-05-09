@@ -39,6 +39,7 @@ struct BeaconBadge: View {
             }
             Text(text)
                 .font(Theme.Typography.tag)
+                .beaconHorizontalText(minScale: 0.68)
         }
         .foregroundStyle(tone.foreground)
         .padding(.vertical, 6)

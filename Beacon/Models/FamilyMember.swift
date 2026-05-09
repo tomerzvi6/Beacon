@@ -6,9 +6,13 @@ struct FamilyMember: Identifiable, Hashable, Codable {
     let relation: String
     let avatarSymbol: String
     var role: MemberRole
+    var approvalStatus: MemberApprovalStatus = .approved
 
     var isAdmin: Bool { role.isAdmin }
     var isPatient: Bool { role.isPatient }
+    var isAccessOwner: Bool { role.isAccessOwner }
+    var hasFullAccess: Bool { role.hasFullAccess }
+    var isPendingApproval: Bool { approvalStatus == .pendingPatientApproval }
 
     func canRead(_ module: AppModule) -> Bool {
         role.accessLevel(for: module) >= .read
@@ -84,5 +88,17 @@ struct FamilyMember: Identifiable, Hashable, Codable {
 
     static func find(id: String) -> FamilyMember? {
         all.first { $0.id == id }
+    }
+}
+
+enum MemberApprovalStatus: String, Codable, Hashable {
+    case approved
+    case pendingPatientApproval
+
+    var displayLabel: String {
+        switch self {
+        case .approved: return "מאושר"
+        case .pendingPatientApproval: return "ממתין לאישור מטופל"
+        }
     }
 }

@@ -10,7 +10,7 @@ struct LoginView: View {
     var body: some View {
         ZStack {
             LinearGradient(
-                colors: [Theme.Palette.deepTeal, Color(hex: "#0F2F3D")],
+                colors: [Theme.Palette.deepTeal, Theme.Palette.deepTealDark],
                 startPoint: .top,
                 endPoint: .bottom
             )
@@ -78,6 +78,16 @@ struct LoginView: View {
                         .background(.white.opacity(0.95), in: RoundedRectangle(cornerRadius: Theme.CornerRadius.chip))
                 }
 
+                if let msg = environment.signUpSuccessMessage {
+                    Text(msg)
+                        .font(Theme.Typography.captionEmphasis)
+                        .foregroundStyle(Theme.Palette.sageDark)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, Theme.Spacing.l)
+                        .padding(.vertical, Theme.Spacing.s)
+                        .background(.white.opacity(0.95), in: RoundedRectangle(cornerRadius: Theme.CornerRadius.chip))
+                }
+
                 Text("בעצם ההתחברות אתה מסכים לתנאי השימוש ומדיניות הפרטיות.")
                     .font(.system(size: 11))
                     .foregroundStyle(.white.opacity(0.5))
@@ -139,7 +149,7 @@ private struct GoogleSignInRow: View {
             HStack(spacing: Theme.Spacing.m) {
                 Image(systemName: "g.circle.fill")
                     .font(.system(size: 22, weight: .bold))
-                    .foregroundStyle(Color(red: 0.26, green: 0.52, blue: 0.96))
+                    .foregroundStyle(Theme.Palette.googleBlue)
                 Text("המשך עם Google")
                     .font(Theme.Typography.bodyEmphasis)
                     .foregroundStyle(.black.opacity(0.85))
@@ -225,8 +235,18 @@ private struct DevEmailSignInSheet: View {
                             .foregroundStyle(Theme.Palette.coralAccent)
                     }
                 }
-            } footer: {
-                Text("מסך זה מיועד לפיתוח ובדיקה בלבד. בייצור — Apple Sign-In בלבד.")
+                if let msg = environment.signUpSuccessMessage {
+                    Section {
+                        Text(msg)
+                            .font(.caption)
+                            .foregroundStyle(Theme.Palette.sageDark)
+                    }
+                }
+                Section {
+                    Text("מסך זה מיועד לפיתוח ובדיקה בלבד. בייצור — Apple Sign-In בלבד.")
+                        .font(.footnote)
+                        .foregroundStyle(Theme.Palette.textSecondary)
+                }
             }
             .navigationTitle("התחברות פיתוח")
             .navigationBarTitleDisplayMode(.inline)
@@ -249,25 +269,10 @@ private struct DevEmailSignInSheet: View {
         case .signUp:
             await environment.signUpWithEmail(email: email, password: password)
         }
-        if environment.authErrorMessage == nil {
+        // Keep the sheet open when Supabase requires email confirmation.
+        if environment.authErrorMessage == nil && environment.signUpSuccessMessage == nil {
             dismiss()
         }
-    }
-}
-
-// MARK: - Color hex helper (used by gradient)
-
-private extension Color {
-    init(hex: String) {
-        let hex = hex.trimmingCharacters(in: .alphanumerics.inverted)
-        var int: UInt64 = 0
-        Scanner(string: hex).scanHexInt64(&int)
-        let r, g, b: UInt64
-        switch hex.count {
-        case 6: (r, g, b) = ((int >> 16) & 0xff, (int >> 8) & 0xff, int & 0xff)
-        default: (r, g, b) = (0, 0, 0)
-        }
-        self.init(red: Double(r) / 255, green: Double(g) / 255, blue: Double(b) / 255)
     }
 }
 

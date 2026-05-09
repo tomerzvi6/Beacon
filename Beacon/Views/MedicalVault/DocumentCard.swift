@@ -31,26 +31,31 @@ struct DocumentCard: View {
                 foreground: Theme.Palette.sageDark
             )
             Spacer()
-            VStack(alignment: .trailing, spacing: 2) {
+            VStack(alignment: .trailing, spacing: Theme.Spacing.xxs) {
                 Text(document.filename ?? "מסמך ללא שם")
                     .font(Theme.Typography.cardTitle)
                     .foregroundStyle(Theme.Palette.textPrimary)
                     .multilineTextAlignment(.trailing)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.75)
                 Text(subtitle)
                     .font(Theme.Typography.caption)
                     .foregroundStyle(Theme.Palette.textSecondary)
                     .multilineTextAlignment(.trailing)
+                    .beaconHorizontalText(minScale: 0.68)
             }
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                 Text(dateString)
                     .font(Theme.Typography.captionEmphasis)
                     .foregroundStyle(Theme.Palette.textSecondary)
+                    .beaconHorizontalText()
                 if document.is_private {
-                    HStack(spacing: 4) {
+                    HStack(spacing: Theme.Spacing.xs) {
                         Image(systemName: "lock.fill")
                             .font(.system(size: 11, weight: .semibold))
                         Text("פרטי")
                             .font(Theme.Typography.tag)
+                            .beaconHorizontalText()
                     }
                     .foregroundStyle(Theme.Palette.textSecondary)
                 }
@@ -94,19 +99,21 @@ struct DocumentCard: View {
             Text("מעבדים את המסמך…")
                 .font(Theme.Typography.body)
                 .foregroundStyle(Theme.Palette.textSecondary)
+                .beaconHorizontalText(minScale: 0.7)
             Spacer()
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, Theme.Spacing.s)
     }
 
     private var failureRow: some View {
         HStack(spacing: Theme.Spacing.s) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(Theme.Palette.coralAccent)
-            VStack(alignment: .trailing, spacing: 2) {
+            VStack(alignment: .trailing, spacing: Theme.Spacing.xxs) {
                 Text("פרסור נכשל — נסה שוב")
                     .font(Theme.Typography.bodyEmphasis)
                     .foregroundStyle(Theme.Palette.textPrimary)
+                    .beaconHorizontalText(minScale: 0.7)
                     .frame(maxWidth: .infinity, alignment: .trailing)
             }
             Spacer()
@@ -117,7 +124,7 @@ struct DocumentCard: View {
             }
             .accessibilityLabel("נסה שוב לפרסר את המסמך")
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, Theme.Spacing.xs)
     }
 
     private func parsedSummaryRow(_ summary: String) -> some View {
@@ -136,6 +143,7 @@ struct DocumentCard: View {
                             .font(.system(size: 13, weight: .semibold))
                         Text("צפה בסיכום המלא")
                             .font(Theme.Typography.captionEmphasis)
+                            .beaconHorizontalText(minScale: 0.66)
                     }
                     .foregroundStyle(Theme.Palette.deepTeal)
                 }
@@ -144,6 +152,7 @@ struct DocumentCard: View {
                 HStack(spacing: Theme.Spacing.xs) {
                     Text("סוכם ע״י AI")
                         .font(Theme.Typography.tag)
+                        .beaconHorizontalText()
                     Image(systemName: "sparkles")
                         .font(.system(size: 12, weight: .semibold))
                 }
@@ -158,10 +167,11 @@ struct DocumentCard: View {
                 Image(systemName: "arrow.down.circle")
                 Text("צפה במסמך")
                     .font(Theme.Typography.bodyEmphasis)
+                    .beaconHorizontalText()
                 Spacer()
             }
             .foregroundStyle(Theme.Palette.deepTeal)
-            .padding(.vertical, 12)
+            .padding(.vertical, Theme.Layout.controlVerticalPadding)
             .padding(.horizontal, Theme.Spacing.m)
             .background(Theme.Palette.background)
             .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.chip, style: .continuous))

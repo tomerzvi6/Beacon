@@ -21,6 +21,7 @@ struct BeaconPrimaryButton: View {
                 }
                 Text(title)
                     .font(Theme.Typography.bodyEmphasis)
+                    .beaconHorizontalText()
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
@@ -56,6 +57,7 @@ struct BeaconSecondaryButton: View {
                 }
                 Text(title)
                     .font(Theme.Typography.bodyEmphasis)
+                    .beaconHorizontalText()
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)

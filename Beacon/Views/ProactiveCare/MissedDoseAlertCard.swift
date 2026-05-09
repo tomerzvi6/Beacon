@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MissedDoseAlertCard: View {
     var dose: MedicationDose
+    var canResolve: Bool = true
     var onMarkTaken: () -> Void
     var onAddNote: () -> Void
 
@@ -33,24 +34,43 @@ struct MissedDoseAlertCard: View {
                         foreground: Theme.Palette.coralAccent
                     )
                     Spacer()
-                    VStack(alignment: .trailing, spacing: 4) {
+                    VStack(alignment: .trailing, spacing: Theme.Spacing.xs) {
                         Text("התראת מינון חסר")
                             .font(Theme.Typography.cardTitle)
                             .foregroundStyle(Theme.Palette.coralAccent)
+                            .beaconHorizontalText(minScale: 0.7)
                         Text("לא נרשמה נטילת '\(dose.medicationName)' בשעה \(timeString).")
                             .font(Theme.Typography.body)
                             .foregroundStyle(Theme.Palette.textPrimary)
                             .multilineTextAlignment(.trailing)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.75)
                     }
                 }
 
-                HStack(spacing: Theme.Spacing.s) {
-                    BeaconSecondaryButton(title: "הוסף הערה", action: onAddNote)
-                    BeaconPrimaryButton(
-                        title: "סמן כנלקח עכשיו",
-                        variant: .danger,
-                        action: onMarkTaken
-                    )
+                if canResolve {
+                    HStack(spacing: Theme.Spacing.s) {
+                        BeaconSecondaryButton(title: "הוסף הערה", action: onAddNote)
+                        BeaconPrimaryButton(
+                            title: "סמן כנלקח עכשיו",
+                            variant: .danger,
+                            action: onMarkTaken
+                        )
+                    }
+                } else {
+                    HStack(spacing: Theme.Spacing.xs) {
+                        Spacer()
+                        Image(systemName: "eye.fill")
+                            .font(.system(size: 14, weight: .semibold))
+                        Text("צפייה בלבד")
+                            .font(Theme.Typography.bodyEmphasis)
+                            .beaconHorizontalText()
+                    }
+                    .foregroundStyle(Theme.Palette.textSecondary)
+                    .padding(.vertical, Theme.Layout.controlVerticalPadding)
+                    .padding(.horizontal, Theme.Spacing.m)
+                    .background(Theme.Palette.cardBackground.opacity(0.7))
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.chip, style: .continuous))
                 }
             }
             .padding(Theme.Spacing.m)

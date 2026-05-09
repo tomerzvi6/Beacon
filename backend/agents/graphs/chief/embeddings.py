@@ -17,21 +17,29 @@ def embed_text(text: str) -> list[float]:
     return _embed_openai(text)
 
 
+@lru_cache(maxsize=1)
+def _get_voyage_client():
+    import voyageai  # type: ignore
+    return voyageai.Client(api_key=os.environ.get("VOYAGE_API_KEY", ""))
+
+
+@lru_cache(maxsize=1)
+def _get_openai_client():
+    import openai  # type: ignore
+    return openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY", ""))
+
+
 def _embed_voyage(text: str) -> list[float]:
     try:
-        import voyageai  # type: ignore
-        client = voyageai.Client(api_key=os.environ.get("VOYAGE_API_KEY", ""))
+        client = _get_voyage_client()
         result = client.embed([text], model=os.environ.get("EMBEDDING_MODEL", "voyage-2"))
         return result.embeddings[0]
     except Exception:
-        # Fall back to OpenAI if Voyage fails
         return _embed_openai(text)
 
 
 def _embed_openai(text: str) -> list[float]:
-    import openai  # type: ignore
-    client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY", ""))
-    resp = client.embeddings.create(
+    resp = _get_openai_client().embeddings.create(
         input=text,
         model=os.environ.get("EMBEDDING_MODEL", "text-embedding-3-small"),
     )

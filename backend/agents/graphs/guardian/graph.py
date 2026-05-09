@@ -6,9 +6,13 @@ Graph: gather → check → analyze → propose
 """
 from typing import TypedDict
 
+import os
+
 from anthropic import Anthropic
 from langgraph.graph import END, StateGraph
 from sqlalchemy.orm import Session
+
+_MODEL = os.environ.get("GUARDIAN_MODEL", "claude-sonnet-4-6")
 
 from agents.db import get_engine
 from agents.graphs._pending_tasks import process_pending_tasks_for_agent
@@ -93,7 +97,7 @@ def analyze(state: GuardianState) -> GuardianState:
 
     client = Anthropic()
     message = client.messages.create(
-        model="claude-sonnet-4-6",
+        model=_MODEL,
         max_tokens=1000,
         system=[{
             "type": "text",

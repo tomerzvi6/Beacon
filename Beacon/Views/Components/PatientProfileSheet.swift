@@ -3,6 +3,7 @@ import SwiftUI
 struct PatientProfileSheet: View {
     @Environment(AppEnvironment.self) private var environment
     @Environment(\.dismiss) private var dismiss
+    @State private var showingPermissions = false
 
     private var patient: Patient { environment.patient }
 
@@ -23,9 +24,18 @@ struct PatientProfileSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("סגור") { dismiss() }
                 }
+                if environment.canManagePermissions {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("ניהול גישה") { showingPermissions = true }
+                    }
+                }
             }
         }
         .environment(\.layoutDirection, .rightToLeft)
+        .sheet(isPresented: $showingPermissions) {
+            PermissionsSettingsView()
+                .environment(environment)
+        }
     }
 
     private var headerCard: some View {
@@ -40,7 +50,7 @@ struct PatientProfileSheet: View {
                 Text(patient.displayName)
                     .font(Theme.Typography.sectionTitle)
                     .foregroundStyle(Theme.Palette.textPrimary)
-                Text("\(patient.age) · \(patient.condition)")
+                Text("גיל \(patient.age)")
                     .font(Theme.Typography.body)
                     .foregroundStyle(Theme.Palette.textSecondary)
 
@@ -49,7 +59,7 @@ struct PatientProfileSheet: View {
                     Text("היום: \(patient.todaysWellness.displayLabel)")
                         .font(Theme.Typography.captionEmphasis)
                 }
-                .padding(.vertical, 6)
+                .padding(.vertical, Theme.Layout.compactPillVerticalPadding)
                 .padding(.horizontal, Theme.Spacing.m)
                 .background(Theme.Palette.sage.opacity(0.5))
                 .clipShape(Capsule())
@@ -70,7 +80,7 @@ struct PatientProfileSheet: View {
 
                 infoRow(label: "סוג דם", value: patient.bloodType, icon: "drop.fill")
 
-                VStack(alignment: .trailing, spacing: 4) {
+                VStack(alignment: .trailing, spacing: Theme.Spacing.xs) {
                     HStack {
                         Spacer()
                         Image(systemName: "exclamationmark.shield.fill")
@@ -85,27 +95,43 @@ struct PatientProfileSheet: View {
                         .frame(maxWidth: .infinity, alignment: .trailing)
                 }
 
-                Link(destination: URL(string: "tel:\(patient.emergencyContactPhone.replacingOccurrences(of: "-", with: ""))")!) {
-                    HStack(spacing: Theme.Spacing.s) {
-                        Image(systemName: "phone.fill")
-                            .font(.system(size: 16, weight: .semibold))
-                        VStack(alignment: .trailing, spacing: 2) {
-                            Text("התקשר ל-\(patient.emergencyContactName)")
-                                .font(Theme.Typography.bodyEmphasis)
-                            Text(patient.emergencyContactPhone)
-                                .font(Theme.Typography.caption)
-                                .opacity(0.85)
-                        }
-                        Spacer()
+                if let emergencyCallURL {
+                    Link(destination: emergencyCallURL) {
+                        emergencyCallButtonContent
                     }
-                    .foregroundStyle(.white)
-                    .padding(.vertical, 14)
-                    .padding(.horizontal, Theme.Spacing.m)
-                    .background(Theme.Palette.coralAccent)
-                    .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.chip, style: .continuous))
+                } else {
+                    emergencyCallButtonContent
+                        .opacity(0.65)
+                        .accessibilityLabel("אין מספר טלפון תקין לאיש קשר לחירום")
                 }
             }
         }
+    }
+
+    private var emergencyCallURL: URL? {
+        let phone = patient.emergencyContactPhone.filter { $0.isNumber || $0 == "+" }
+        guard !phone.isEmpty else { return nil }
+        return URL(string: "tel:\(phone)")
+    }
+
+    private var emergencyCallButtonContent: some View {
+        HStack(spacing: Theme.Spacing.s) {
+            Image(systemName: "phone.fill")
+                .font(.system(size: 16, weight: .semibold))
+            VStack(alignment: .trailing, spacing: Theme.Spacing.xxs) {
+                Text("התקשר ל-\(patient.emergencyContactName)")
+                    .font(Theme.Typography.bodyEmphasis)
+                Text(patient.emergencyContactPhone.isEmpty ? "לא הוגדר מספר" : patient.emergencyContactPhone)
+                    .font(Theme.Typography.caption)
+                    .opacity(0.85)
+            }
+            Spacer()
+        }
+        .foregroundStyle(.white)
+        .padding(.vertical, Theme.Layout.prominentControlVerticalPadding)
+        .padding(.horizontal, Theme.Spacing.m)
+        .background(Theme.Palette.coralAccent)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.chip, style: .continuous))
     }
 
     private var medicalCard: some View {

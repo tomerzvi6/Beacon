@@ -9,10 +9,16 @@ struct BeaconScreenHeader: View {
             Text(title)
                 .font(Theme.Typography.screenTitle)
                 .foregroundStyle(Theme.Palette.textPrimary)
+                .multilineTextAlignment(.trailing)
+                .lineLimit(2)
+                .minimumScaleFactor(0.82)
             if let subtitle {
                 Text(subtitle)
                     .font(Theme.Typography.body)
                     .foregroundStyle(Theme.Palette.textSecondary)
+                    .multilineTextAlignment(.trailing)
+                    .lineLimit(3)
+                    .minimumScaleFactor(0.82)
             }
         }
         .frame(maxWidth: .infinity, alignment: .trailing)

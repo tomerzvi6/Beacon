@@ -9,6 +9,8 @@ import os
 from pathlib import Path
 from typing import Literal, TypedDict
 
+_MODEL = os.environ.get("CREATIVE_AGENT_MODEL", "claude-sonnet-4-6")
+
 from anthropic import Anthropic
 from langgraph.graph import END, StateGraph
 from sqlalchemy.orm import Session
@@ -101,7 +103,7 @@ def draft_content(state: CreativeState) -> CreativeState:
         )
 
     message = client.messages.create(
-        model="claude-sonnet-4-6",
+        model=_MODEL,
         max_tokens=1200,
         system=[
             {

@@ -20,6 +20,7 @@ struct FamilyScheduleCard: View {
                     Text("אין אירועים להיום.")
                         .font(Theme.Typography.body)
                         .foregroundStyle(Theme.Palette.textSecondary)
+                        .beaconHorizontalText()
                         .frame(maxWidth: .infinity, alignment: .trailing)
                 } else {
                     VStack(spacing: Theme.Spacing.s) {

@@ -8,7 +8,7 @@ struct BeaconCard<Content: View>: View {
 
     var style: Style = .plain
     var cornerRadius: CGFloat = Theme.CornerRadius.card
-    var padding: CGFloat = Theme.Spacing.m
+    var padding: CGFloat = 14
     @ViewBuilder var content: () -> Content
 
     var body: some View {

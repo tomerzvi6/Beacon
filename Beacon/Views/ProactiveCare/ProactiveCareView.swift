@@ -9,67 +9,77 @@ struct ProactiveCareView: View {
     @State private var showingCustomSymptomSheet = false
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .trailing, spacing: Theme.Spacing.l) {
-                PatientStatusStrip()
-
-                if let vm = viewModel {
-                    BeaconScreenHeader(
-                        title: environment.isPatientView ? "התרופות שלי היום" : "התרופות של \(environment.patient.displayName) היום",
-                        subtitle: environment.isPatientView ? "הנה מה שצריך לקחת היום." : "הנה מה שדרוש תשומת לב כרגע."
-                    )
-
-                    ForEach(vm.lowStockMedications) { med in
-                        LowStockCard(medication: med) {
-                            vm.createRefillTask(for: med)
-                            toastMessage = "נוספה משימת קנייה ל\(med.name)."
-                        }
-                    }
-
-                    if let missed = vm.missedDose {
-                        MissedDoseAlertCard(
-                            dose: missed,
-                            onMarkTaken: {
-                                vm.resolveMissed(missed, markAsTaken: true)
-                                toastMessage = "המינון עודכן כנלקח."
-                            },
-                            onAddNote: {
-                                vm.resolveMissed(missed, markAsTaken: false, note: "נרשם על ידי המטפל/ת.")
-                                toastMessage = "ההערה נרשמה."
-                            }
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(alignment: .trailing, spacing: Theme.Spacing.m) {
+                    if let vm = viewModel {
+                        BeaconScreenHeader(
+                            title: environment.isPatientView ? "התרופות שלי היום" : "התרופות של \(environment.patient.displayName) היום",
+                            subtitle: environment.isPatientView ? "הנה מה שצריך לקחת היום." : "הנה מה שדרוש תשומת לב כרגע."
                         )
-                    }
 
-                    VStack(alignment: .trailing, spacing: Theme.Spacing.m) {
-                        BeaconSectionHeader(
-                            title: "תרופות להיום",
-                            accessory: AnyView(BeaconBadge(text: "\(vm.remainingCount) נותרו", tone: .softBlue))
-                        )
-                        ForEach(vm.upcomingDoses) { dose in
-                            MedicationDoseCard(dose: dose, isPatientView: environment.isPatientView) {
-                                vm.markTaken(dose)
-                                toastMessage = environment.isPatientView
-                                    ? "כל הכבוד! \(dose.medicationName) נלקח."
-                                    : "\(dose.medicationName) סומן כנלקח."
+                        ForEach(vm.lowStockMedications) { med in
+                            LowStockCard(medication: med, canCreateRefillTask: canWriteMedications) {
+                                vm.createRefillTask(for: med)
+                                toastMessage = "נוספה משימת קנייה ל\(med.name)."
                             }
                         }
-                    }
 
-                    QuickSymptomLogger { symptom in
-                        if symptom == .custom {
-                            showingCustomSymptomSheet = true
+                        if let missed = vm.missedDose {
+                            MissedDoseAlertCard(
+                                dose: missed,
+                                canResolve: canWriteMedications,
+                                onMarkTaken: {
+                                    vm.resolveMissed(missed, markAsTaken: true)
+                                    toastMessage = "המינון עודכן כנלקח."
+                                },
+                                onAddNote: {
+                                    vm.resolveMissed(missed, markAsTaken: false, note: "נרשם על ידי המטפל/ת.")
+                                    toastMessage = "ההערה נרשמה."
+                                }
+                            )
+                        }
+
+                        VStack(alignment: .trailing, spacing: Theme.Spacing.m) {
+                            BeaconSectionHeader(
+                                title: "תרופות להיום",
+                                accessory: AnyView(BeaconBadge(text: "\(vm.remainingCount) נותרו", tone: .softBlue))
+                            )
+                            ForEach(vm.upcomingDoses) { dose in
+                                MedicationDoseCard(
+                                    dose: dose,
+                                    isPatientView: environment.isPatientView,
+                                    canMarkTaken: canWriteMedications
+                                ) {
+                                    vm.markTaken(dose)
+                                    toastMessage = environment.isPatientView
+                                        ? "כל הכבוד! \(dose.medicationName) נלקח."
+                                        : "\(dose.medicationName) סומן כנלקח."
+                                }
+                            }
+                        }
+
+                        if canWriteMedications {
+                            QuickSymptomLogger { symptom in
+                                if symptom == .custom {
+                                    showingCustomSymptomSheet = true
+                                } else {
+                                    vm.logSymptom(symptom)
+                                    toastMessage = "נרשם: \(symptom.displayLabel)."
+                                }
+                            }
                         } else {
-                            vm.logSymptom(symptom)
-                            toastMessage = "נרשם: \(symptom.displayLabel)."
+                            readOnlyMedicationNotice
                         }
-                    }
 
-                    if !vm.recentSymptoms.isEmpty {
-                        recentSymptomsCard(entries: vm.recentSymptoms)
+                        if !vm.recentSymptoms.isEmpty {
+                            recentSymptomsCard(entries: vm.recentSymptoms)
+                        }
                     }
                 }
+                .padding(.horizontal, Theme.Spacing.m)
+                .padding(.bottom, Theme.Spacing.m)
             }
-            .padding(Theme.Spacing.m)
         }
         .beaconScreenBackground()
         .overlay(alignment: .bottom) {
@@ -101,6 +111,10 @@ struct ProactiveCareView: View {
         }
     }
 
+    private var canWriteMedications: Bool {
+        environment.canWrite(.medications)
+    }
+
     private func recentSymptomsCard(entries: [SymptomEntry]) -> some View {
         BeaconCard {
             VStack(alignment: .trailing, spacing: Theme.Spacing.s) {
@@ -119,9 +133,19 @@ struct ProactiveCareView: View {
                                 .foregroundStyle(Theme.Palette.sageDark)
                         }
                     }
-                    .padding(.vertical, 4)
+                    .padding(.vertical, Theme.Spacing.xs)
                 }
             }
+        }
+    }
+
+    private var readOnlyMedicationNotice: some View {
+        BeaconCard {
+            BeaconEmptyState(
+                systemImage: "eye.fill",
+                title: "צפייה בלבד",
+                message: "אפשר לראות תרופות ומדדים, אבל רק משתמש עם הרשאת עריכה יכול לסמן מינון, ליצור משימת קנייה או לרשום מדד חדש."
+            )
         }
     }
 
@@ -129,7 +153,7 @@ struct ProactiveCareView: View {
         Text(text)
             .font(Theme.Typography.bodyEmphasis)
             .foregroundStyle(Theme.Palette.textPrimary)
-            .padding(.vertical, 12)
+            .padding(.vertical, Theme.Layout.controlVerticalPadding)
             .padding(.horizontal, Theme.Spacing.l)
             .background(.regularMaterial, in: Capsule())
             .beaconCardShadow()

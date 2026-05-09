@@ -2,6 +2,7 @@ import SwiftUI
 
 struct LowStockCard: View {
     var medication: Medication
+    var canCreateRefillTask: Bool = true
     var onCreateRefillTask: () -> Void
     @State private var taskCreated = false
 
@@ -18,6 +19,8 @@ struct LowStockCard: View {
                     Text("מלאי נמוך — \(medication.name)")
                         .font(Theme.Typography.cardTitle)
                         .foregroundStyle(Theme.Palette.textPrimary)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.75)
                         .frame(maxWidth: .infinity, alignment: .trailing)
                     Text("נותרו \(medication.stockCount) בלבד. מומלץ לחדש מרשם.")
                         .font(Theme.Typography.body)
@@ -31,10 +34,11 @@ struct LowStockCard: View {
                                 .symbolEffect(.bounce, value: taskCreated)
                             Text("נוספה משימה ללוח הבקרה")
                                 .font(Theme.Typography.captionEmphasis)
+                                .beaconHorizontalText(minScale: 0.66)
                         }
                         .foregroundStyle(Theme.Palette.sageDark)
-                        .padding(.top, 4)
-                    } else {
+                        .padding(.top, Theme.Spacing.xs)
+                    } else if canCreateRefillTask {
                         Button(action: {
                             onCreateRefillTask()
                             taskCreated = true
@@ -44,17 +48,26 @@ struct LowStockCard: View {
                                     .font(.system(size: 14, weight: .semibold))
                                 Text("צור משימת קנייה")
                                     .font(Theme.Typography.captionEmphasis)
+                                    .beaconHorizontalText(minScale: 0.66)
                             }
                             .foregroundStyle(.white)
-                            .padding(.vertical, 10)
+                            .padding(.vertical, Theme.Layout.chipVerticalPadding)
                             .padding(.horizontal, Theme.Spacing.m)
                             .background(Theme.Palette.coralAccent)
                             .clipShape(Capsule())
-                            .frame(minHeight: 44)
+                            .frame(minHeight: Theme.Layout.minimumTouchTarget)
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
-                        .padding(.top, 4)
+                        .padding(.top, Theme.Spacing.xs)
+                    } else {
+                        HStack(spacing: Theme.Spacing.xs) {
+                            Image(systemName: "eye.fill")
+                            Text("צפייה בלבד")
+                                .font(Theme.Typography.captionEmphasis)
+                        }
+                        .foregroundStyle(Theme.Palette.textSecondary)
+                        .padding(.top, Theme.Spacing.xs)
                     }
                 }
             }

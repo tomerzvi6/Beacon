@@ -34,9 +34,11 @@ struct ScheduleEventRow: View {
                 Text(timeString)
                     .font(Theme.Typography.timeLabel)
                     .foregroundStyle(Theme.Palette.deepTeal)
+                    .beaconHorizontalText()
                 Text(dayPartString)
                     .font(Theme.Typography.caption)
                     .foregroundStyle(Theme.Palette.textSecondary)
+                    .beaconHorizontalText()
             }
             .frame(minWidth: 64, alignment: .trailing)
 
@@ -48,6 +50,8 @@ struct ScheduleEventRow: View {
                         .font(Theme.Typography.cardTitle)
                         .foregroundStyle(Theme.Palette.textPrimary)
                         .multilineTextAlignment(.trailing)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.78)
                 }
 
                 if let location = event.locationName {
@@ -55,6 +59,7 @@ struct ScheduleEventRow: View {
                         Text(location)
                             .font(Theme.Typography.body)
                             .foregroundStyle(Theme.Palette.textSecondary)
+                            .beaconHorizontalText(minScale: 0.68)
                         Image(systemName: "mappin.and.ellipse")
                             .font(.system(size: 14))
                             .foregroundStyle(Theme.Palette.textSecondary)
@@ -66,6 +71,7 @@ struct ScheduleEventRow: View {
                     Text(subtitle)
                         .font(Theme.Typography.body)
                         .foregroundStyle(Theme.Palette.textSecondary)
+                        .beaconHorizontalText(minScale: 0.68)
                         .frame(maxWidth: .infinity, alignment: .trailing)
                 }
 
@@ -74,6 +80,7 @@ struct ScheduleEventRow: View {
                         Text("מלווה: \(companion.displayName) (\(companion.relation))")
                             .font(Theme.Typography.body)
                             .foregroundStyle(Theme.Palette.textSecondary)
+                            .beaconHorizontalText(minScale: 0.64)
                         BeaconAvatar(
                             systemImage: companion.avatarSymbol,
                             diameter: 22,

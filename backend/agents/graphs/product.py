@@ -7,10 +7,14 @@ Graph: gather → analyze → propose
 """
 from typing import TypedDict
 
+import os
+
 from anthropic import Anthropic
 from langgraph.graph import END, StateGraph
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+
+_MODEL = os.environ.get("PRODUCT_AGENT_MODEL", "claude-sonnet-4-6")
 
 from agents.db import get_engine
 from agents.graphs._pending_tasks import process_pending_tasks_for_agent
@@ -131,7 +135,7 @@ def analyze(state: ProductState) -> ProductState:
     m = state["metrics"]
 
     message = client.messages.create(
-        model="claude-sonnet-4-6",
+        model=_MODEL,
         max_tokens=1200,
         system=[{
             "type": "text",

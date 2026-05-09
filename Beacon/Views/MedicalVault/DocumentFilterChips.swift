@@ -7,31 +7,33 @@ struct DocumentFilterChips: View {
     @Binding var selection: BackendDocumentCategory?
     /// Subset of categories surfaced as quick chips. Most users only
     /// need lab + visit summary + prescription day-to-day; the rest
-    /// are reachable through the (TODO) full filter sheet.
+    /// can be added here once the product needs deeper filtering.
     var options: [BackendDocumentCategory] = [.lab, .visitSummary, .prescription, .imaging]
 
     var body: some View {
-        HStack(spacing: Theme.Spacing.s) {
-            chip(label: "הכל", isSelected: selection == nil) {
-                selection = nil
-            }
-            ForEach(options) { option in
-                chip(label: option.displayLabel, isSelected: selection == option) {
-                    selection = (selection == option) ? nil : option
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: Theme.Spacing.s) {
+                chip(label: "הכל", isSelected: selection == nil) {
+                    selection = nil
                 }
+                ForEach(options) { option in
+                    chip(label: option.displayLabel, isSelected: selection == option) {
+                        selection = (selection == option) ? nil : option
+                    }
+                }
+                HStack(spacing: Theme.Spacing.xs) {
+                    Text("סינון")
+                        .font(Theme.Typography.captionEmphasis)
+                        .beaconHorizontalText()
+                    Image(systemName: "line.3.horizontal.decrease")
+                        .font(.system(size: 13, weight: .semibold))
+                }
+                .foregroundStyle(Theme.Palette.textSecondary)
+                .padding(.vertical, Theme.Layout.chipVerticalPadding)
+                .padding(.horizontal, Theme.Spacing.m)
+                .background(Theme.Palette.cardBackground)
+                .clipShape(Capsule())
             }
-            Spacer(minLength: 0)
-            HStack(spacing: Theme.Spacing.xs) {
-                Text("סינון")
-                    .font(Theme.Typography.captionEmphasis)
-                Image(systemName: "line.3.horizontal.decrease")
-                    .font(.system(size: 13, weight: .semibold))
-            }
-            .foregroundStyle(Theme.Palette.textSecondary)
-            .padding(.vertical, 10)
-            .padding(.horizontal, Theme.Spacing.m)
-            .background(Theme.Palette.cardBackground)
-            .clipShape(Capsule())
         }
     }
 
@@ -44,7 +46,8 @@ struct DocumentFilterChips: View {
             Text(label)
                 .font(Theme.Typography.captionEmphasis)
                 .foregroundStyle(isSelected ? .white : Theme.Palette.textPrimary)
-                .padding(.vertical, 10)
+                .beaconHorizontalText(minScale: 0.6)
+                .padding(.vertical, Theme.Layout.chipVerticalPadding)
                 .padding(.horizontal, Theme.Spacing.m)
                 .background(isSelected ? Theme.Palette.deepTeal : Theme.Palette.cardBackground)
                 .clipShape(Capsule())

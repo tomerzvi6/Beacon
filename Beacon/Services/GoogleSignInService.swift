@@ -90,7 +90,7 @@ struct GoogleSignInService {
 
     // MARK: - Helpers
 
-    private static func makeResult(_ user: GIDGoogleUser) -> GoogleSignInResult? {
+    nonisolated private static func makeResult(_ user: GIDGoogleUser) -> GoogleSignInResult? {
         guard let idToken = user.idToken?.tokenString else { return nil }
         return GoogleSignInResult(
             idToken: idToken,

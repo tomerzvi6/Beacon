@@ -2,28 +2,112 @@ import Foundation
 import Observation
 import AuthenticationServices
 
-@Observable
-final class AppEnvironment {
-    private enum BackendSessionCache {
-        static let key = "beacon.cachedBackendUser.v1"
+struct PatientProfileDraft: Codable, Equatable {
+    var displayName: String
+    var age: Int?
+    var primaryDoctor: String
+    var primaryHospital: String
+    var bloodType: String
+    var allergies: [String]
+    var emergencyContactName: String
+    var emergencyContactPhone: String
+}
+
+struct PatientApprovalDraft: Codable, Equatable {
+    var verificationEmail: String
+    var hasIdPhotoForVerification: Bool
+}
+
+enum PatientAuthorizationStatus: String, Codable, Equatable {
+    case approvedByPatient
+    case pendingPatientConsent
+
+    var displayLabel: String {
+        switch self {
+        case .approvedByPatient: return "מאושר על ידי המטופל"
+        case .pendingPatientConsent: return "ממתין לאישור המטופל"
+        }
     }
 
+    var allowsProtectedCareAccess: Bool {
+        self == .approvedByPatient
+    }
+}
+
+enum AuditAction: String, Codable {
+    case familyCreated
+    case patientConsentPending
+    case patientConsentApproved
+    case permissionUpdated
+    case mockInviteOpened
+    case mockInviteBlockedByLimit
+    case accessRevoked
+    case inviteAccepted
+    case signedOut
+}
+
+struct AuditEvent: Codable, Identifiable, Equatable {
+    var id: UUID
+    var occurredAt: Date
+    var actorMemberId: String
+    var actorDisplayName: String
+    var action: AuditAction
+    var targetType: String
+    var targetId: String?
+    var summary: String
+}
+
+private struct AuditLogger {
+    private let key = "beacon.auditEvents.v1"
+    private let maxEvents = 250
+
+    func load() -> [AuditEvent] {
+        guard let data = UserDefaults.standard.data(forKey: key) else { return [] }
+        return (try? JSONDecoder().decode([AuditEvent].self, from: data)) ?? []
+    }
+
+    func append(_ event: AuditEvent) -> [AuditEvent] {
+        var events = load()
+        events.insert(event, at: 0)
+        if events.count > maxEvents {
+            events = Array(events.prefix(maxEvents))
+        }
+        if let data = try? JSONEncoder().encode(events) {
+            UserDefaults.standard.set(data, forKey: key)
+        }
+        return events
+    }
+}
+
+@Observable
+final class AppEnvironment {
     enum Viewer: String, CaseIterable, Identifiable {
         case caregiver
         case patient
 
         var id: String { rawValue }
+
         var displayLabel: String {
             switch self {
             case .caregiver: return "תצוגת מטפל/ת"
-            case .patient:   return "תצוגת חולה"
+            case .patient: return "תצוגת חולה"
             }
         }
     }
 
+    private enum BackendSessionCache {
+        static let key = "beacon.cachedBackendUser.v1"
+        static let patientProfileKey = "beacon.localPatientProfile.v1"
+        static let patientApprovalKey = "beacon.localPatientApproval.v1"
+        static let patientAuthorizationKey = "beacon.patientAuthorizationStatus.v1"
+    }
+
+    static let maxCaregivers = 5
+
     // MARK: - Auth state
     var authState: AuthState = .loading
     var authErrorMessage: String? = nil
+    var signUpSuccessMessage: String? = nil   // distinct from errors
     private let authService: AuthService?
     private(set) var supabaseUserId: UUID? = nil
 
@@ -38,8 +122,12 @@ final class AppEnvironment {
     // MARK: - Domain state (was previously hard-mocked)
     var currentUser: FamilyMember
     var patient: Patient
-    var activeViewer: Viewer
     var members: [FamilyMember]
+    var activeViewer: Viewer
+    var patientAuthorizationStatus: PatientAuthorizationStatus
+    private(set) var auditEvents: [AuditEvent]
+
+    private let auditLogger = AuditLogger()
 
     // MARK: - Init paths
     /// Production initializer — empty state until session check completes.
@@ -49,11 +137,14 @@ final class AppEnvironment {
     }
 
     private init(authService: AuthService) {
+        let initialCurrentUser = FamilyMember.primaryCaregiver
         self.authService = authService
-        self.currentUser = .primaryCaregiver
+        self.currentUser = initialCurrentUser
         self.patient = .primary
-        self.activeViewer = .caregiver
         self.members = FamilyMember.all
+        self.activeViewer = initialCurrentUser.isPatient ? .patient : .caregiver
+        self.patientAuthorizationStatus = AppEnvironment.cachedPatientAuthorizationStatus()
+        self.auditEvents = AuditLogger().load()
     }
 
     /// Preview / mock initializer — bypasses Supabase entirely.
@@ -62,16 +153,18 @@ final class AppEnvironment {
     init(
         currentUser: FamilyMember = .primaryCaregiver,
         patient: Patient = .primary,
-        activeViewer: Viewer = .caregiver,
         members: [FamilyMember] = FamilyMember.all,
+        activeViewer: Viewer? = nil,
         authState: AuthState = .authenticated
     ) {
         self.authService = nil
         self.currentUser = currentUser
         self.patient = patient
-        self.activeViewer = activeViewer
         self.members = members
+        self.activeViewer = activeViewer ?? (currentUser.isPatient ? .patient : .caregiver)
         self.authState = authState
+        self.patientAuthorizationStatus = .approvedByPatient
+        self.auditEvents = AuditLogger().load()
     }
 
     // MARK: - Session lifecycle
@@ -148,13 +241,37 @@ final class AppEnvironment {
         let role: MemberRole = (user.role == "patient") ? .patient
                               : (user.role == "co_owner") ? .admin
                               : .defaultMember
+        let relation = user.role == "patient" ? "חולה" : "מטפל/ת"
         self.currentUser = FamilyMember(
             id: user.id.uuidString,
             displayName: user.full_name.isEmpty ? "מטפל/ת" : user.full_name,
-            relation: "מטפל/ת ראשי/ת",
+            relation: relation,
             avatarSymbol: "person.crop.circle.fill",
             role: role
         )
+        self.activeViewer = role.isPatient ? .patient : .caregiver
+        if user.role == "patient" {
+            updatePatientAuthorizationStatus(.approvedByPatient)
+            applyPatientProfile(
+                cachedPatientProfile()
+                    ?? PatientProfileDraft(
+                        displayName: user.full_name.isEmpty ? patient.displayName : user.full_name,
+                        age: nil,
+                        primaryDoctor: "",
+                        primaryHospital: "",
+                        bloodType: "",
+                        allergies: [],
+                        emergencyContactName: "",
+                        emergencyContactPhone: ""
+                    ),
+                displayNameOverride: user.full_name.isEmpty ? nil : user.full_name
+            )
+        } else {
+            patientAuthorizationStatus = AppEnvironment.cachedPatientAuthorizationStatus()
+            if let profile = cachedPatientProfile() {
+                applyPatientProfile(profile)
+            }
+        }
     }
 
     /// Exchange the Apple identity token for a Beacon backend JWT. Failures
@@ -193,6 +310,7 @@ final class AppEnvironment {
     func signInWithEmail(email: String, password: String) async {
         guard let authService else { return }
         authErrorMessage = nil
+        signUpSuccessMessage = nil
         do {
             try await authService.signInWithEmail(email: email, password: password)
             await loadUserContextAndRoute(using: authService)
@@ -205,8 +323,14 @@ final class AppEnvironment {
     func signUpWithEmail(email: String, password: String) async {
         guard let authService else { return }
         authErrorMessage = nil
+        signUpSuccessMessage = nil
         do {
             try await authService.signUpWithEmail(email: email, password: password)
+            guard await authService.currentSession() != nil else {
+                authState = .unauthenticated
+                signUpSuccessMessage = "ההרשמה נוצרה. בדוק/י את המייל שלך ואשר/י את החשבון, ואז התחבר/י."
+                return
+            }
             await loadUserContextAndRoute(using: authService)
         } catch {
             authErrorMessage = error.localizedDescription
@@ -215,12 +339,93 @@ final class AppEnvironment {
 
     @MainActor
     func createFamily(patientName: String, caregiverName: String) async {
-        guard let authService else { return }
+        let profile = PatientProfileDraft(
+            displayName: patientName,
+            age: nil,
+            primaryDoctor: "",
+            primaryHospital: "",
+            bloodType: "",
+            allergies: [],
+            emergencyContactName: "",
+            emergencyContactPhone: ""
+        )
+        await createFamily(patientProfile: profile, caregiverName: caregiverName)
+    }
+
+    @MainActor
+    func createFamily(
+        patientProfile: PatientProfileDraft,
+        caregiverName: String,
+        approvalDraft: PatientApprovalDraft? = nil
+    ) async {
         authErrorMessage = nil
+        let trimmedCaregiverName = caregiverName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedPatientName = patientProfile.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedPatientName.isEmpty, !trimmedCaregiverName.isEmpty else { return }
+
+        let normalizedProfile = PatientProfileDraft(
+            displayName: trimmedPatientName,
+            age: patientProfile.age,
+            primaryDoctor: patientProfile.primaryDoctor.trimmingCharacters(in: .whitespacesAndNewlines),
+            primaryHospital: patientProfile.primaryHospital.trimmingCharacters(in: .whitespacesAndNewlines),
+            bloodType: patientProfile.bloodType.trimmingCharacters(in: .whitespacesAndNewlines),
+            allergies: patientProfile.allergies
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty },
+            emergencyContactName: patientProfile.emergencyContactName.trimmingCharacters(in: .whitespacesAndNewlines),
+            emergencyContactPhone: patientProfile.emergencyContactPhone.trimmingCharacters(in: .whitespacesAndNewlines)
+        )
+        let authorizationStatus: PatientAuthorizationStatus = currentUser.isPatient
+            ? .approvedByPatient
+            : .pendingPatientConsent
+
+        guard let authService else {
+            cachePatientProfile(normalizedProfile)
+            if let approvalDraft { cachePatientApprovalDraft(approvalDraft) }
+            applyPatientProfile(normalizedProfile)
+            updatePatientAuthorizationStatus(authorizationStatus)
+            recordAudit(
+                .familyCreated,
+                targetType: "patient_case",
+                summary: authorizationStatus == .approvedByPatient
+                    ? "Patient case created by the patient."
+                    : "Pending patient case created by a caregiver."
+            )
+            authState = .authenticated
+            return
+        }
+
+        if await authService.currentSession() == nil, backendUser != nil {
+            cachePatientProfile(normalizedProfile)
+            if let approvalDraft { cachePatientApprovalDraft(approvalDraft) }
+            applyPatientProfile(normalizedProfile)
+            updatePatientAuthorizationStatus(authorizationStatus)
+            recordAudit(
+                .familyCreated,
+                targetType: "patient_case",
+                summary: authorizationStatus == .approvedByPatient
+                    ? "Backend-only patient case created by the patient."
+                    : "Backend-only pending patient case created by a caregiver."
+            )
+            authState = .authenticated
+            return
+        }
+
         do {
             _ = try await authService.createFamily(
-                patientName: patientName,
-                caregiverName: caregiverName
+                patientName: normalizedProfile.displayName,
+                caregiverName: trimmedCaregiverName
+            )
+            cachePatientProfile(normalizedProfile)
+            if let approvalDraft { cachePatientApprovalDraft(approvalDraft) }
+            applyPatientProfile(normalizedProfile)
+            updatePatientAuthorizationStatus(authorizationStatus)
+            recordAudit(
+                authorizationStatus == .approvedByPatient ? .familyCreated : .patientConsentPending,
+                targetType: "patient_case",
+                summary: authorizationStatus == .approvedByPatient
+                    ? "Patient case created and marked approved."
+                    : "Patient case created and marked pending consent."
             )
             await loadUserContextAndRoute(using: authService)
         } catch {
@@ -238,6 +443,8 @@ final class AppEnvironment {
         self.backendAuthErrorMessage = nil
         self.supabaseUserId = nil
         clearCachedBackendUser()
+        clearCachedPatientState()
+        recordAudit(.signedOut, targetType: "session", summary: "User signed out.")
 
         guard let authService else {
             self.authState = .unauthenticated
@@ -257,6 +464,12 @@ final class AppEnvironment {
         authErrorMessage = nil
         do {
             _ = try await authService.acceptInvite(token: token)
+            recordAudit(
+                .inviteAccepted,
+                targetType: "invite",
+                targetId: token.uuidString,
+                summary: "Invite accepted."
+            )
             await loadUserContextAndRoute(using: authService)
         } catch {
             authErrorMessage = error.localizedDescription
@@ -281,32 +494,29 @@ final class AppEnvironment {
             // user becomes the "current admin" and patient name comes
             // from the family record.
             let role: MemberRole = (ctx.role == "patient") ? .patient
-                                  : (ctx.role == "admin")  ? .admin
+                                  : (ctx.role == "admin" || ctx.role == "co_owner") ? .admin
                                   : .defaultMember
+            if role.isPatient {
+                updatePatientAuthorizationStatus(.approvedByPatient)
+            } else {
+                patientAuthorizationStatus = AppEnvironment.cachedPatientAuthorizationStatus()
+            }
+            let relation = role.isPatient ? "חולה" : "מטפל/ת"
             let cloudUser = FamilyMember(
                 id: ctx.userId.uuidString,
                 displayName: ctx.displayName ?? "מטפל/ת",
-                relation: "מטפל/ת ראשי/ת",
+                relation: relation,
                 avatarSymbol: "person.crop.circle.fill",
                 role: role
             )
             self.currentUser = cloudUser
+            self.activeViewer = role.isPatient ? .patient : .caregiver
             if let pname = ctx.patientName {
-                self.patient = Patient(
-                    id: self.patient.id,
-                    displayName: pname,
-                    relationToCaregiver: self.patient.relationToCaregiver,
-                    avatarSymbol: self.patient.avatarSymbol,
-                    age: self.patient.age,
-                    condition: self.patient.condition,
-                    primaryDoctor: self.patient.primaryDoctor,
-                    primaryHospital: self.patient.primaryHospital,
-                    bloodType: self.patient.bloodType,
-                    allergies: self.patient.allergies,
-                    emergencyContactName: self.patient.emergencyContactName,
-                    emergencyContactPhone: self.patient.emergencyContactPhone,
-                    todaysWellness: self.patient.todaysWellness
-                )
+                if let profile = cachedPatientProfile() {
+                    applyPatientProfile(profile, displayNameOverride: pname)
+                } else {
+                    self.patient = patientWithUpdatedProfile(displayName: pname)
+                }
             }
             self.authState = .authenticated
         } catch {
@@ -315,41 +525,104 @@ final class AppEnvironment {
         }
     }
 
-    // MARK: - Existing functionality (unchanged)
+    // MARK: - Domain access
 
     var isPatientView: Bool { activeViewer == .patient }
 
     func toggleViewer() {
-        activeViewer = (activeViewer == .caregiver) ? .patient : .caregiver
+        activeViewer = activeViewer == .caregiver ? .patient : .caregiver
     }
 
     func canRead(_ module: AppModule) -> Bool {
-        effectiveUser.canRead(module)
+        guard patientAuthorizationAllowsAccess(to: module) else { return false }
+        return effectiveUser.canRead(module)
     }
 
     func canWrite(_ module: AppModule) -> Bool {
-        effectiveUser.canWrite(module)
+        guard patientAuthorizationAllowsAccess(to: module) else { return false }
+        return effectiveUser.canWrite(module)
     }
 
     var canManagePermissions: Bool {
-        currentUser.isAdmin || currentUser.isPatient
+        currentUser.hasFullAccess
     }
 
     var canInviteMembers: Bool {
-        currentUser.isAdmin
+        currentUser.hasFullAccess
+    }
+
+    var caregiverCount: Int {
+        members.filter { !$0.isPatient }.count
+    }
+
+    var remainingCaregiverSlots: Int {
+        max(Self.maxCaregivers - caregiverCount, 0)
+    }
+
+    var canAddCaregiver: Bool {
+        caregiverCount < Self.maxCaregivers
     }
 
     func updatePermissions(for memberId: String, module: AppModule, level: AccessLevel) {
         guard canManagePermissions else { return }
         guard let index = members.firstIndex(where: { $0.id == memberId }) else { return }
+        guard !members[index].isPatient else { return }
+        guard currentUser.isPatient || !members[index].hasFullAccess else { return }
         members[index].role = members[index].role.withUpdated(module, level: level)
         FamilyMember.all = members
+        recordAudit(
+            .permissionUpdated,
+            targetType: "family_member",
+            targetId: memberId,
+            summary: "\(module.rawValue) permission changed to \(level.rawValue)."
+        )
+    }
+
+    func revokeAccess(for memberId: String) {
+        guard canManagePermissions else { return }
+        guard let member = members.first(where: { $0.id == memberId }) else { return }
+        guard !member.isPatient else { return }
+        guard currentUser.isPatient || !member.hasFullAccess else { return }
+        members.removeAll { $0.id == memberId }
+        FamilyMember.all = members
+        recordAudit(
+            .accessRevoked,
+            targetType: "family_member",
+            targetId: memberId,
+            summary: "Family member access revoked immediately."
+        )
+    }
+
+    func approvePatientConsent() {
+        guard currentUser.isPatient else { return }
+        updatePatientAuthorizationStatus(.approvedByPatient)
+        recordAudit(
+            .patientConsentApproved,
+            targetType: "patient_case",
+            summary: "Patient approved access to the care record."
+        )
+    }
+
+    func recordMockInviteOpened() {
+        recordAudit(
+            .mockInviteOpened,
+            targetType: "invite",
+            summary: "Mock invite flow opened."
+        )
+    }
+
+    func recordMockInviteBlockedByLimit() {
+        recordAudit(
+            .mockInviteBlockedByLimit,
+            targetType: "invite",
+            summary: "Mock invite blocked because caregiver limit was reached."
+        )
     }
 
     var greetingName: String {
         switch activeViewer {
         case .caregiver: return currentUser.displayName
-        case .patient:   return patient.displayName
+        case .patient: return patient.displayName
         }
     }
 
@@ -371,16 +644,72 @@ final class AppEnvironment {
     }
 
     private var effectiveUser: FamilyMember {
-        isPatientView ? .patient : currentUser
+        currentUser
+    }
+
+    private func patientAuthorizationAllowsAccess(to module: AppModule) -> Bool {
+        if currentUser.isPatient { return true }
+        if patientAuthorizationStatus.allowsProtectedCareAccess { return true }
+        return module == .feed
     }
 
     @MainActor
     private func restoreBackendOnlySession() -> Bool {
-        guard TokenStore.read() != nil else { return false }
+        guard let token = TokenStore.read() else { return false }
+        // Reject expired tokens — all API calls would return 401 anyway
+        if let exp = TokenStore.expirationDate(of: token), exp < Date() {
+            TokenStore.clear()
+            clearCachedBackendUser()
+            return false
+        }
         guard let user = cachedBackendUser() else { return false }
         backendUser = user
         applyBackendUserToDisplay(user)
         return true
+    }
+
+    @MainActor
+    private func applyPatientProfile(
+        _ profile: PatientProfileDraft,
+        displayNameOverride: String? = nil
+    ) {
+        patient = patientWithUpdatedProfile(
+            displayName: displayNameOverride ?? profile.displayName,
+            age: profile.age,
+            primaryDoctor: profile.primaryDoctor,
+            primaryHospital: profile.primaryHospital,
+            bloodType: profile.bloodType,
+            allergies: profile.allergies,
+            emergencyContactName: profile.emergencyContactName,
+            emergencyContactPhone: profile.emergencyContactPhone
+        )
+    }
+
+    private func patientWithUpdatedProfile(
+        displayName: String? = nil,
+        age: Int? = nil,
+        primaryDoctor: String? = nil,
+        primaryHospital: String? = nil,
+        bloodType: String? = nil,
+        allergies: [String]? = nil,
+        emergencyContactName: String? = nil,
+        emergencyContactPhone: String? = nil
+    ) -> Patient {
+        Patient(
+            id: patient.id,
+            displayName: displayName?.isEmpty == false ? displayName! : patient.displayName,
+            relationToCaregiver: patient.relationToCaregiver,
+            avatarSymbol: patient.avatarSymbol,
+            age: age ?? patient.age,
+            condition: patient.condition,
+            primaryDoctor: primaryDoctor?.isEmpty == false ? primaryDoctor! : patient.primaryDoctor,
+            primaryHospital: primaryHospital?.isEmpty == false ? primaryHospital! : patient.primaryHospital,
+            bloodType: bloodType?.isEmpty == false ? bloodType! : patient.bloodType,
+            allergies: allergies?.isEmpty == false ? allergies! : patient.allergies,
+            emergencyContactName: emergencyContactName?.isEmpty == false ? emergencyContactName! : patient.emergencyContactName,
+            emergencyContactPhone: emergencyContactPhone?.isEmpty == false ? emergencyContactPhone! : patient.emergencyContactPhone,
+            todaysWellness: patient.todaysWellness
+        )
     }
 
     private func cacheBackendUser(_ user: BackendUser) {
@@ -397,5 +726,61 @@ final class AppEnvironment {
 
     private func clearCachedBackendUser() {
         UserDefaults.standard.removeObject(forKey: BackendSessionCache.key)
+    }
+
+    private func clearCachedPatientState() {
+        UserDefaults.standard.removeObject(forKey: BackendSessionCache.patientProfileKey)
+        UserDefaults.standard.removeObject(forKey: BackendSessionCache.patientApprovalKey)
+        UserDefaults.standard.removeObject(forKey: BackendSessionCache.patientAuthorizationKey)
+        patientAuthorizationStatus = .approvedByPatient
+    }
+
+    private func cachePatientProfile(_ profile: PatientProfileDraft) {
+        guard let data = try? JSONEncoder().encode(profile) else { return }
+        UserDefaults.standard.set(data, forKey: BackendSessionCache.patientProfileKey)
+    }
+
+    private func cachedPatientProfile() -> PatientProfileDraft? {
+        guard let data = UserDefaults.standard.data(forKey: BackendSessionCache.patientProfileKey) else {
+            return nil
+        }
+        return try? JSONDecoder().decode(PatientProfileDraft.self, from: data)
+    }
+
+    private func cachePatientApprovalDraft(_ approvalDraft: PatientApprovalDraft) {
+        guard let data = try? JSONEncoder().encode(approvalDraft) else { return }
+        UserDefaults.standard.set(data, forKey: BackendSessionCache.patientApprovalKey)
+    }
+
+    private func updatePatientAuthorizationStatus(_ status: PatientAuthorizationStatus) {
+        patientAuthorizationStatus = status
+        UserDefaults.standard.set(status.rawValue, forKey: BackendSessionCache.patientAuthorizationKey)
+    }
+
+    private static func cachedPatientAuthorizationStatus() -> PatientAuthorizationStatus {
+        guard let raw = UserDefaults.standard.string(forKey: BackendSessionCache.patientAuthorizationKey),
+              let status = PatientAuthorizationStatus(rawValue: raw) else {
+            return .approvedByPatient
+        }
+        return status
+    }
+
+    private func recordAudit(
+        _ action: AuditAction,
+        targetType: String,
+        targetId: String? = nil,
+        summary: String
+    ) {
+        let event = AuditEvent(
+            id: UUID(),
+            occurredAt: Date(),
+            actorMemberId: currentUser.id,
+            actorDisplayName: currentUser.displayName,
+            action: action,
+            targetType: targetType,
+            targetId: targetId,
+            summary: summary
+        )
+        auditEvents = auditLogger.append(event)
     }
 }

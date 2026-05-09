@@ -3,6 +3,7 @@ import SwiftUI
 struct MedicationDoseCard: View {
     var dose: MedicationDose
     var isPatientView: Bool = false
+    var canMarkTaken: Bool = true
     var onMarkTaken: () -> Void
 
     private var timeString: String {
@@ -23,13 +24,15 @@ struct MedicationDoseCard: View {
                         foreground: Theme.Palette.sageDark
                     )
                     Spacer()
-                    VStack(alignment: .trailing, spacing: 2) {
+                    VStack(alignment: .trailing, spacing: Theme.Spacing.xxs) {
                         Text(timeString)
                             .font(Theme.Typography.timeLabel)
                             .foregroundStyle(Theme.Palette.deepTeal)
+                            .beaconHorizontalText()
                         Text(dose.medicationName)
                             .font(Theme.Typography.cardTitle)
                             .foregroundStyle(Theme.Palette.textPrimary)
+                            .beaconHorizontalText(minScale: 0.68)
                         Text(combinedSubtitle)
                             .font(Theme.Typography.body)
                             .foregroundStyle(Theme.Palette.textSecondary)
@@ -53,11 +56,15 @@ struct MedicationDoseCard: View {
     private var actionRow: some View {
         switch dose.status {
         case .upcoming:
-            BeaconPrimaryButton(
-                title: isPatientView ? "לקחתי עכשיו" : "סמן כנלקח",
-                systemImage: "checkmark.circle.fill",
-                action: onMarkTaken
-            )
+            if canMarkTaken {
+                BeaconPrimaryButton(
+                    title: isPatientView ? "לקחתי עכשיו" : "סמן כנלקח",
+                    systemImage: "checkmark.circle.fill",
+                    action: onMarkTaken
+                )
+            } else {
+                readOnlyStatus("ממתין לנטילה", systemImage: "clock.fill")
+            }
         case .taken:
             HStack(spacing: Theme.Spacing.xs) {
                 Image(systemName: "checkmark.seal.fill")
@@ -66,9 +73,10 @@ struct MedicationDoseCard: View {
                 Text("נלקח")
                     .font(Theme.Typography.bodyEmphasis)
                     .foregroundStyle(Theme.Palette.sageDark)
+                    .beaconHorizontalText()
                 Spacer()
             }
-            .padding(.vertical, 12)
+            .padding(.vertical, Theme.Layout.controlVerticalPadding)
             .padding(.horizontal, Theme.Spacing.m)
             .background(Theme.Palette.sage)
             .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.chip, style: .continuous))
@@ -80,19 +88,40 @@ struct MedicationDoseCard: View {
                     .font(.system(size: 14, weight: .semibold))
                 Text("מתוכנן לערב")
                     .font(Theme.Typography.bodyEmphasis)
+                    .beaconHorizontalText()
             }
             .foregroundStyle(Theme.Palette.textSecondary)
-            .padding(.vertical, 12)
+            .padding(.vertical, Theme.Layout.controlVerticalPadding)
             .padding(.horizontal, Theme.Spacing.m)
             .background(Theme.Palette.background)
             .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.chip, style: .continuous))
         case .missed:
-            BeaconPrimaryButton(
-                title: isPatientView ? "כן, לקחתי" : "סמן כנלקח",
-                variant: .danger,
-                action: onMarkTaken
-            )
+            if canMarkTaken {
+                BeaconPrimaryButton(
+                    title: isPatientView ? "כן, לקחתי" : "סמן כנלקח",
+                    variant: .danger,
+                    action: onMarkTaken
+                )
+            } else {
+                readOnlyStatus("מינון חסר", systemImage: "exclamationmark.triangle.fill")
+            }
         }
+    }
+
+    private func readOnlyStatus(_ label: String, systemImage: String) -> some View {
+        HStack(spacing: Theme.Spacing.xs) {
+            Spacer()
+            Image(systemName: systemImage)
+                .font(.system(size: 14, weight: .semibold))
+            Text(label)
+                .font(Theme.Typography.bodyEmphasis)
+                .beaconHorizontalText()
+        }
+        .foregroundStyle(Theme.Palette.textSecondary)
+        .padding(.vertical, Theme.Layout.controlVerticalPadding)
+        .padding(.horizontal, Theme.Spacing.m)
+        .background(Theme.Palette.background)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.chip, style: .continuous))
     }
 }
 

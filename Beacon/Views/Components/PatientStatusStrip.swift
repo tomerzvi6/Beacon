@@ -14,17 +14,19 @@ struct PatientStatusStrip: View {
                 HStack(spacing: Theme.Spacing.s) {
                     BeaconAvatar(
                         systemImage: environment.patient.avatarSymbol,
-                        diameter: 40,
+                        diameter: Theme.Layout.minimumTouchTarget - Theme.Spacing.s,
                         tint: Theme.Palette.softBlue,
                         foreground: Theme.Palette.deepTeal
                     )
-                    VStack(alignment: .trailing, spacing: 0) {
+                    VStack(alignment: .trailing, spacing: Theme.Layout.statusStripTextSpacing) {
                         Text(environment.patient.displayName)
                             .font(Theme.Typography.bodyEmphasis)
                             .foregroundStyle(Theme.Palette.textPrimary)
+                            .beaconHorizontalText(minScale: 0.75)
                         Text("פתח כרטיס רפואי")
                             .font(Theme.Typography.caption)
                             .foregroundStyle(Theme.Palette.textSecondary)
+                            .beaconHorizontalText(minScale: 0.75)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .trailing)
@@ -33,7 +35,7 @@ struct PatientStatusStrip: View {
             .buttonStyle(.plain)
             .accessibilityLabel("פתח כרטיס רפואי של \(environment.patient.displayName)")
 
-            Spacer()
+            Spacer(minLength: Theme.Spacing.s)
 
             Button {
                 showingWellnessPicker = true
@@ -44,11 +46,12 @@ struct PatientStatusStrip: View {
                     Text(environment.patient.todaysWellness.displayLabel)
                         .font(Theme.Typography.captionEmphasis)
                         .foregroundStyle(Theme.Palette.textPrimary)
+                        .beaconHorizontalText(minScale: 0.7)
                 }
-                .padding(.vertical, 8)
+                .padding(.vertical, Theme.Layout.compactPillVerticalPadding)
                 .padding(.horizontal, Theme.Spacing.m)
                 .background(.regularMaterial, in: Capsule())
-                .frame(minHeight: 44)
+                .frame(minHeight: Theme.Layout.minimumTouchTarget)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -62,7 +65,7 @@ struct PatientStatusStrip: View {
                 Image(systemName: environment.isPatientView ? "person.fill" : "heart.text.square.fill")
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundStyle(environment.isPatientView ? Theme.Palette.coralAccent : Theme.Palette.deepTeal)
-                    .frame(width: 44, height: 44)
+                    .frame(width: Theme.Layout.minimumTouchTarget, height: Theme.Layout.minimumTouchTarget)
                     .background(.regularMaterial, in: Circle())
                     .contentShape(Circle())
             }
@@ -77,7 +80,7 @@ struct PatientStatusStrip: View {
                     Image(systemName: "person.badge.key.fill")
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(Theme.Palette.textSecondary)
-                        .frame(width: 44, height: 44)
+                        .frame(width: Theme.Layout.minimumTouchTarget, height: Theme.Layout.minimumTouchTarget)
                         .background(.regularMaterial, in: Circle())
                         .contentShape(Circle())
                 }
@@ -85,8 +88,8 @@ struct PatientStatusStrip: View {
                 .accessibilityLabel("נהל הרשאות גישה")
             }
         }
-        .padding(.horizontal, Theme.Spacing.m)
-        .padding(.vertical, Theme.Spacing.s)
+        .padding(.horizontal, Theme.Layout.statusStripHorizontalPadding)
+        .padding(.vertical, Theme.Layout.statusStripVerticalPadding)
         .background(Theme.Palette.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.card, style: .continuous))
         .beaconCardShadow()
@@ -98,9 +101,11 @@ struct PatientStatusStrip: View {
             PermissionsSettingsView()
                 .environment(environment)
         }
-        .confirmationDialog("איך \(environment.patient.displayName) מרגיש היום?",
-                            isPresented: $showingWellnessPicker,
-                            titleVisibility: .visible) {
+        .confirmationDialog(
+            "איך \(environment.patient.displayName) מרגיש היום?",
+            isPresented: $showingWellnessPicker,
+            titleVisibility: .visible
+        ) {
             ForEach(PatientWellness.allCases) { wellness in
                 Button("\(wellness.emoji)  \(wellness.displayLabel)") {
                     var updated = environment.patient
@@ -110,6 +115,15 @@ struct PatientStatusStrip: View {
             }
             Button("ביטול", role: .cancel) { }
         }
+    }
+}
+
+struct BeaconEdgeTopBar: View {
+    var body: some View {
+        PatientStatusStrip()
+            .padding(.horizontal, Theme.Layout.edgeBarHorizontalInset)
+            .padding(.top, Theme.Layout.topStatusStripTopInset)
+            .padding(.bottom, Theme.Layout.topStatusStripBottomGap)
     }
 }
 

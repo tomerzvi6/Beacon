@@ -47,7 +47,7 @@ def handle_chat_turn(conversation_id: str, user_message: str) -> dict:
         "final_response": "",
         "citations": [],
         "grounding_ok": False,
-        "conversation_history": history,  # type: ignore[typeddict-unknown-key]
+        "conversation_history": history,
     }
 
     graph = build_chief_graph()

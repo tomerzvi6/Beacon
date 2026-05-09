@@ -50,18 +50,11 @@ private struct TaskRow: View {
     var body: some View {
         VStack(alignment: .trailing, spacing: Theme.Spacing.s) {
             HStack(alignment: .top, spacing: Theme.Spacing.s) {
-                Button(action: onToggleComplete) {
-                    Image(systemName: task.isCompleted ? "checkmark.square.fill" : "square")
-                        .font(.system(size: 22))
-                        .foregroundStyle(task.isCompleted ? Theme.Palette.sageDark : Theme.Palette.textSecondary)
-                        .frame(width: 44, height: 44)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
+                completionControl
 
                 Spacer(minLength: 0)
 
-                VStack(alignment: .trailing, spacing: 2) {
+                VStack(alignment: .trailing, spacing: Theme.Spacing.xxs) {
                     Text(task.title)
                         .font(Theme.Typography.cardTitle)
                         .foregroundStyle(Theme.Palette.textPrimary)
@@ -82,6 +75,7 @@ private struct TaskRow: View {
                     Text("שובץ ל-\(claimant.displayName)")
                         .font(Theme.Typography.captionEmphasis)
                         .foregroundStyle(Theme.Palette.textSecondary)
+                        .beaconHorizontalText(minScale: 0.65)
                     Image(systemName: "person.fill.checkmark")
                         .font(.system(size: 13))
                         .foregroundStyle(Theme.Palette.textSecondary)
@@ -89,6 +83,8 @@ private struct TaskRow: View {
                 .padding(Theme.Spacing.s)
                 .background(Theme.Palette.background)
                 .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.chip, style: .continuous))
+            } else if !canWrite {
+                readOnlyAssignmentRow
             } else if let claimant = task.claimedBy {
                 HStack(spacing: Theme.Spacing.s) {
                     if claimant.id == currentUser.id {
@@ -96,7 +92,8 @@ private struct TaskRow: View {
                             Text("שחרר")
                                 .font(Theme.Typography.captionEmphasis)
                                 .foregroundStyle(Theme.Palette.coralAccent)
-                                .frame(minWidth: 44, minHeight: 44)
+                                .beaconHorizontalText()
+                                .frame(minWidth: Theme.Layout.minimumTouchTarget, minHeight: Theme.Layout.minimumTouchTarget)
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
@@ -106,6 +103,7 @@ private struct TaskRow: View {
                         Text("שובץ ל-\(claimant.displayName)")
                             .font(Theme.Typography.captionEmphasis)
                             .foregroundStyle(Theme.Palette.sageDark)
+                            .beaconHorizontalText(minScale: 0.65)
                         Image(systemName: "person.fill.checkmark")
                             .font(.system(size: 14))
                             .foregroundStyle(Theme.Palette.sageDark)
@@ -122,10 +120,11 @@ private struct TaskRow: View {
                             .font(.system(size: 15, weight: .semibold))
                         Text("קח על עצמך משימה")
                             .font(Theme.Typography.bodyEmphasis)
+                            .beaconHorizontalText()
                     }
                     .foregroundStyle(Theme.Palette.sageDark)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
+                    .padding(.vertical, Theme.Layout.controlVerticalPadding)
                     .background(Theme.Palette.sage)
                     .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.chip, style: .continuous))
                 }
@@ -135,6 +134,44 @@ private struct TaskRow: View {
         .padding(Theme.Spacing.m)
         .background(Theme.Palette.background)
         .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.card, style: .continuous))
+    }
+
+    @ViewBuilder
+    private var completionControl: some View {
+        if canWrite {
+            Button(action: onToggleComplete) {
+                completionIcon
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(task.isCompleted ? "סמן משימה כפתוחה" : "סמן משימה כהושלמה")
+        } else {
+            completionIcon
+                .accessibilityLabel(task.isCompleted ? "משימה הושלמה" : "משימה פתוחה")
+        }
+    }
+
+    private var completionIcon: some View {
+        Image(systemName: task.isCompleted ? "checkmark.square.fill" : "square")
+            .font(.system(size: 20))
+            .foregroundStyle(task.isCompleted ? Theme.Palette.sageDark : Theme.Palette.textSecondary)
+            .frame(width: Theme.Layout.minimumTouchTarget, height: Theme.Layout.minimumTouchTarget)
+    }
+
+    private var readOnlyAssignmentRow: some View {
+        HStack(spacing: Theme.Spacing.xs) {
+            Spacer()
+            Text("צפייה בלבד")
+                .font(Theme.Typography.captionEmphasis)
+                .foregroundStyle(Theme.Palette.textSecondary)
+                .beaconHorizontalText(minScale: 0.65)
+            Image(systemName: "eye.fill")
+                .font(.system(size: 13))
+                .foregroundStyle(Theme.Palette.textSecondary)
+        }
+        .padding(Theme.Spacing.s)
+        .background(Theme.Palette.background)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.chip, style: .continuous))
     }
 }
 

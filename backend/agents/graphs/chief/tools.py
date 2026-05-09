@@ -176,7 +176,7 @@ def _search_drafts(query: str, agent_filter: str = "", date_range_days: int = 7)
                 "LEFT(output_draft::text, 400) AS snippet, "
                 "1 - (content_embedding_vec <=> :vec::vector) AS score "
                 "FROM agent_runs "
-                "WHERE started_at >= now() - interval ':days days' "
+                "WHERE started_at >= now() - :days * interval '1 day' "
                 "  AND (:agent = '' OR agent_name = :agent) "
                 "  AND content_embedding_vec IS NOT NULL "
                 "ORDER BY content_embedding_vec <=> :vec::vector "
