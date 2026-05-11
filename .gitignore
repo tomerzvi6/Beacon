@@ -24,3 +24,6 @@ Secrets.plist
 
 # Worktrees / Claude
 .claude/worktrees/
+
+# Claude session artifacts (accidentally placed in repo)
+outputs/
