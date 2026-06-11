@@ -48,8 +48,10 @@ struct LoginView: View {
                     .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.button, style: .continuous))
                     .accessibilityLabel("התחבר עם Apple")
 
-                    GoogleSignInRow(isWorking: isWorking) {
-                        Task { await handleGoogle() }
+                    if GoogleSignInService.hasClientID {
+                        GoogleSignInRow(isWorking: isWorking) {
+                            Task { await handleGoogle() }
+                        }
                     }
 
                     Button {

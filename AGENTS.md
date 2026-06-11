@@ -2,62 +2,81 @@
 
 ## מהו הפרויקט
 
-אפליקציית iOS (SwiftUI, iOS 17+) לניהול טיפול רפואי עבור משפחות של חולי סרטן.
-שפה: עברית. RTL מלא. ארכיטקטורה: MVVM + SwiftData.
+אפליקציית iOS לניהול טיפול רפואי משפחתי עבור משפחות של חולי סרטן.
+שפה: עברית. RTL מלא. ארכיטקטורה באפליקציה: SwiftUI + MVVM + SwiftData.
+
+הפרויקט נמצא במצב POC היברידי:
+
+- חלק מהדאטה עדיין מקומי ב-SwiftData.
+- מסמכים רפואיים כבר מגיעים מ-Backend Parser API.
+- קיימת שכבת backend תחת `backend/` עם FastAPI, Postgres/Alembic, upload, parsing, auth ו-agents.
 
 ## מצב נוכחי
 
-- MVP מלא עם **נתוני Mock בלבד** — אין backend אמיתי
-- Supabase מחובר כ-dependency אבל לא בשימוש עדיין
-- AI summaries הם static strings מתוך `SampleAISummaries.swift` — לא Codex API אמיתי
+- iOS app נבנה עם Xcode/XcodeGen.
+- Login/onboarding קיימים באפליקציה.
+- Apple Sign-In מחובר ל-Supabase Auth וגם ל-Beacon backend JWT.
+- Email/password הוא fallback לפיתוח.
+- Google Sign-In קיים בקוד, אבל פעיל רק כשמוגדרים `GOOGLE_CLIENT_ID` ו-URL scheme מתאים.
+- תיק רפואי משתמש ב-`BackendDocumentService` מול Parser API.
+- משימות, תרופות, מינונים, סימפטומים ופיד עדיין מקומיים ב-SwiftData.
+- כרטיס `AISmartSummaryFeatureCard` עדיין משתמש בסיכום דמו סטטי.
+- Parsing אמיתי למסמכים קיים ב-backend דרך OCR + Claude/Anthropic.
 
 ## ארכיטקטורה
 
-```
+```text
 Beacon/
-├── App/              # RootTabView (4 טאבים), Theme tokens
-├── Models/           # SwiftData @Model — DailyTask, Medication, MedicalDocument, SymptomEntry, FeedPost
-├── ViewModels/       # @Observable per-tab — DashboardVM, MedicalVaultVM, ProactiveCareVM, CircleOfTrustVM
-├── Views/
-│   ├── Dashboard/
-│   ├── MedicalVault/
-│   ├── ProactiveCare/
-│   └── CircleOfTrust/
-└── Services/
-    ├── MockDataSeeder.swift      # זריעת נתוני דמו — מופעל פעם אחת בלבד (UserDefaults flag)
-    └── SampleAISummaries.swift   # Façade זמני לסיכומי AI
+├── Beacon/
+│   ├── App/              # RootTabView, Theme
+│   ├── Models/           # SwiftData models + backend DTOs
+│   ├── ViewModels/       # @Observable per-tab / app environment
+│   ├── Views/            # SwiftUI screens
+│   ├── Services/         # Auth, Google, backend docs, seeding
+│   └── Networking/       # APIClient, TokenStore, APIConfig
+├── backend/
+│   ├── parser_api/       # FastAPI user-facing API
+│   ├── shared/           # DB models, schemas, migrations
+│   ├── agents/           # agent graphs + dashboard
+│   └── tests/
+└── docs/
 ```
 
 ## מוסכמות חובה
 
-- **אין לשנות נתוני seed** ב-`MockDataSeeder.swift` אלא אם התבקש במפורש
-- **אין לכתוב hex codes** ישירות ב-Views — תמיד דרך `Theme.Palette`
-- **אין לכתוב spacing numbers** ישירות — תמיד דרך `Theme.Spacing`
-- כל ViewModel: `@Observable`, מקבל `ModelContext` בקונסטרקטור
-- Views לא מכילים לוגיקה עסקית — הכל ב-ViewModel
-- RTL נאכף ב-`BeaconApp` בלבד, לא בכל View
+- אין לשנות נתוני seed ב-`MockDataSeeder.swift` אלא אם התבקש במפורש.
+- אין לכתוב hex codes ישירות ב-Views — תמיד דרך `Theme.Palette`.
+- אין לכתוב spacing numbers ישירות — תמיד דרך `Theme.Spacing` או `Theme.Layout`.
+- כל ViewModel: `@Observable`, מקבל `ModelContext` בקונסטרקטור כשהוא עובד מול SwiftData.
+- Views לא מכילים לוגיקה עסקית — הכל ב-ViewModel/Service.
+- RTL נאכף ב-`BeaconApp` וב-Preview helpers, לא ידנית בכל View.
+- אין להדפיס או להעתיק ערכי Secrets לתשובות.
 
-## נקודות הרחבה עתידיות (אל תממש לבד)
+## נקודות הרחבה עתידיות
 
 | מה | איפה | הערה |
 |---|---|---|
-| Codex / AI אמיתי | `AIServiceProtocol` (לא קיים עדיין) | להזריק ל-`MedicalVaultViewModel` |
-| Hospital sync | `HospitalSyncAlert` | כרגע זרוע ידנית |
-| Multi-user / roles | `AppEnvironment.currentUser` | נקודת החלפה יחידה |
-| Backend Supabase | `supabase_schema.sql` ב-docs/ | Schema מוכן, לא מחובר |
+| AI service באפליקציה | `MedicalVaultViewModel` / service חדש | לחבר את כרטיס ה-AI למסמך backend אמיתי |
+| Hospital sync | `HospitalSyncAlert` | כרגע התראה מקומית/זרועה |
+| Multi-user roles מלאים | `AppEnvironment` + backend households | חלק מקומי, חלק backend |
+| Backend tasks/meds/feed | `backend/parser_api/routes` + iOS services | עדיין לא מחובר מלא באפליקציה |
+| Audit אמיתי | backend append-only table | באפליקציה כרגע UserDefaults |
 
-## מה מותר לסוכן לעשות ללא אישור
+## מה מותר לסוכן לעשות ללא אישור נוסף
 
-- קריאת כל קובץ בפרויקט
-- הוספת View חדש / Component
-- הוספת פונקציה ל-ViewModel קיים
-- עדכון Theme tokens
-- הרצת `swift build`
+- קריאת כל קובץ בפרויקט.
+- עדכון דוקומנטציה.
+- הוספת View/Component.
+- הוספת פונקציה ל-ViewModel קיים.
+- עדכון Theme tokens.
+- הרצת `xcodebuild`.
+- הרצת בדיקות backend אם הסביבה קיימת.
 
 ## מה דורש אישור מפורש מהמשתמש
 
-- שינוי ב-`MockDataSeeder.swift`
-- שינוי ב-`project.yml`
-- הוספת dependency חדש
-- כל שינוי שנוגע ל-Supabase / backend
-- git push
+- שינוי ב-`MockDataSeeder.swift`.
+- שינוי ב-`project.yml`.
+- הוספת dependency חדש.
+- שינוי schema/migration/backend behavior משמעותי.
+- שינוי ערכי Secrets.
+- git push.

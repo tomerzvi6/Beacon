@@ -16,6 +16,15 @@ def _doc(household_id, deleted_at=None, is_private=False, uploaded_by=None):
     d = MagicMock()
     d.id = uuid.uuid4()
     d.household_id = uuid.UUID(household_id)
+    d.mime_type = "application/pdf"
+    d.category_source = None
+    d.category_suggested = None
+    d.flagged_for_review = False
+    d.flag_reason = None
+    d.parsed_summary_he = "סיכום בדיקה"
+    d.parsed_summary_simple_he = "סיכום פשוט"
+    d.created_at = datetime.now(tz=timezone.utc)
+    d.parsed_at = datetime.now(tz=timezone.utc)
     d.deleted_at = deleted_at
     d.deleted_by = None
     d.is_private = is_private

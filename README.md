@@ -1,150 +1,132 @@
-# Beacon — MVP iOS App
+# Beacon — iOS + Backend POC
 
-Beacon הוא אפליקציית "חדר פיקוד" לניהול טיפול רפואי וליווי משפחתי עבור משפחות של חולי סרטן. אפליקציית SwiftUI/SwiftData לפי ארכיטקטורת MVVM, עם ממשק בעברית ו־RTL מלא.
+Beacon היא אפליקציית iOS בעברית וב-RTL מלא לניהול טיפול רפואי משפחתי עבור משפחות של חולי סרטן.
 
-## Build instructions
+הפרויקט כבר אינו "Mock בלבד". הוא נמצא באמצע מעבר מ-MVP מקומי ל-POC עם backend:
 
-הפרויקט נוצר על סביבת פיתוח חוצת פלטפורמות ומשתמש ב־[XcodeGen](https://github.com/yonaskolb/XcodeGen) כדי לייצר את קובץ ה־`Beacon.xcodeproj` מתוך `project.yml`. ה־Swift קבצים כבר מוכנים. השלבים הבאים נעשים על מכשיר Mac עם Xcode 15 ומעלה:
+- אפליקציית iOS ב-SwiftUI, iOS 17+, MVVM + SwiftData.
+- Auth באפליקציה: Apple Sign-In, Email dev fallback, ותשתית Google Sign-In כשהסודות ו-URL scheme מוגדרים.
+- Supabase עדיין קיים עבור Auth/משפחה ישנה, אבל נוסף גם Beacon backend JWT מול Parser API.
+- מסמכים רפואיים נקראים מה-backend, לא מ-SwiftData.
+- משימות, תרופות, מינונים, סימפטומים, לו"ז ופיד עדיין מקומיים ב-SwiftData.
+- Parsing אמיתי למסמכים קיים ב-backend דרך OCR + Claude/Anthropic.
+- כרטיס "סיכום AI חכם" העליון באפליקציה עדיין דמו סטטי מתוך `SampleAISummaries`.
 
-### מסלול A — XcodeGen (מומלץ)
+## Current Status
+
+### עובד עכשיו
+
+- `xcodebuild` עובר על סימולטור iOS.
+- ארבעת הטאבים הראשיים קיימים: לוח בקרה, תיק רפואי, מעקב טיפול, מעגל תמיכה.
+- Login / onboarding / הרשאות / ניהול גישה קיימים באפליקציה.
+- העלאת מסמכים, רשימת מסמכים, parse polling וסיכומים מחוברים ל-Parser API.
+- Backend FastAPI כולל auth exchange, מסמכים, upload, tasks, households, symptoms, doses ו-agents.
+
+### עדיין חלקי
+
+- backend מקומי דורש Postgres, Python 3.11, venv וסודות.
+- אין test target ל-iOS.
+- בדיקות backend דורשות התקנת dependencies.
+- Google Sign-In דורש `GOOGLE_CLIENT_ID` וגם URL scheme הפוך ב-`Info.plist`.
+- משימות/תרופות/פיד עדיין לא עברו ל-backend.
+- הזמנות והרשאות משפחתיות באפליקציה עדיין בחלקן mock/local.
+
+## Project Structure
+
+```text
+Beacon/
+├── Beacon/                 # iOS app
+│   ├── App/                # RootTabView, Theme
+│   ├── Models/             # SwiftData models + backend DTOs
+│   ├── ViewModels/         # @Observable view models
+│   ├── Views/              # SwiftUI screens
+│   ├── Services/           # Auth, Google, backend docs, seeding
+│   └── Networking/         # APIClient, TokenStore, APIConfig
+├── backend/                # FastAPI + agents backend
+│   ├── parser_api/         # user-facing API
+│   ├── shared/             # SQLAlchemy models, schemas, migrations
+│   ├── agents/             # Streamlit dashboard + agent graphs
+│   └── tests/              # backend tests
+├── docs/                   # product/architecture docs
+├── project.yml             # XcodeGen spec
+└── Beacon.xcodeproj/       # generated Xcode project
+```
+
+## iOS Setup
 
 ```bash
-# 1. התקנה (פעם אחת):
-brew install xcodegen
-
-# 2. בתוך תיקיית הריפו:
-cd /path/to/Beacon2
+# optional, only if regenerating the project
 xcodegen generate
 
-# 3. פתיחה:
-open Beacon.xcodeproj
+# build
+xcodebuild -project Beacon.xcodeproj \
+  -scheme Beacon \
+  -destination 'platform=iOS Simulator,name=iPhone 17' \
+  build
 ```
 
-כעת אפשר לבנות ולהריץ (`⌘R`) מול כל סימולטור iOS 17+.
+Secrets live in `Beacon/Secrets.plist` and are intentionally gitignored. Use `Beacon/Secrets.example.plist` as the template.
 
-### מסלול B — Xcode חדש ידני
+For simulator backend calls, `BACKEND_URL=http://localhost:8000` is fine. For a physical iPhone, set `BACKEND_URL` to a LAN IP or tunnel URL.
 
-1. פתח Xcode → `File > New > Project > iOS App` (לא שומרים, רק בשביל תבנית).
-2. מחק את הקבצים שנוצרו אוטומטית תחת הטרגט.
-3. גרור את תיקיית `Beacon/` שלמה לתוך הפרויקט, ודא שמסומן "Create groups" ושהטרגט `Beacon` מסומן.
-4. גרור את `Beacon/Assets.xcassets` כ־resource.
-5. ב־project settings:
-   - Deployment Target: iOS 17.0
-   - Development Language: Hebrew
-   - Localizations: הוסף Hebrew.
-6. ודא שה־Info.plist שמפנים אליו הוא `Beacon/Info.plist`.
+## Backend Setup
 
----
+See [backend/LOCAL_DEV.md](/Users/tomer/projects/Beacon/backend/LOCAL_DEV.md) for the full flow.
 
-## Project structure
+Short version:
 
-```
-Beacon2/
-├── project.yml                 # XcodeGen spec
-├── Beacon.xcodeproj/           # (מיוצר ע״י xcodegen generate)
-└── Beacon/
-    ├── BeaconApp.swift         # @main — רישום ModelContainer, RTL, seed
-    ├── Info.plist
-    ├── Assets.xcassets/
-    │   └── Colors/             # 10 color tokens
-    ├── App/
-    │   ├── RootTabView.swift   # 4-tab TabView
-    │   └── Theme.swift         # Typography / Palette / Spacing / Radii
-    ├── Models/                 # SwiftData @Model + פלט תיכוני
-    ├── ViewModels/             # @Observable ViewModels לכל טאב
-    ├── Views/
-    │   ├── Components/         # BeaconCard, Button, Badge, Avatar, …
-    │   ├── Dashboard/          # לוח בקרה
-    │   ├── MedicalVault/       # תיק רפואי
-    │   ├── ProactiveCare/      # מעקב טיפול
-    │   └── CircleOfTrust/      # מעגל תמיכה
-    └── Services/
-        ├── MockDataSeeder.swift   # זריעת נתוני דמו בעברית ב־SwiftData
-        └── SampleAISummaries.swift # סיכומי AI מוכנים מראש
+```bash
+cd backend
+python3.11 -m venv venv_parser
+source venv_parser/bin/activate
+pip install -e ./parser_api -e ./shared
+
+export DATABASE_URL="postgresql+psycopg://beacon:beacon_dev@localhost:5432/beacon"
+export ANTHROPIC_API_KEY="..."
+export STORAGE_BACKEND=local
+export LOCAL_API_BASE_URL=http://localhost:8000
+
+alembic -c alembic.ini upgrade head
+python -m shared.seed
+uvicorn parser_api.main:app --reload --port 8000
 ```
 
----
+## Data Ownership
 
-## Architecture
+| Area | Current source |
+|---|---|
+| Documents | Backend Parser API |
+| Document upload/parse | Backend Parser API + storage |
+| Backend suggested tasks | Backend DB |
+| Dashboard tasks | SwiftData local |
+| Medications/doses | SwiftData local |
+| Symptoms | SwiftData local |
+| Feed posts/comments | SwiftData local |
+| Permissions UI | Mostly local/AppEnvironment |
+| Audit in app | UserDefaults local |
+| Agent dashboard | Backend DB |
 
-- **SwiftUI + MVVM + SwiftData (iOS 17+).**
-- **`@Observable`** ViewModels. כל טאב מחזיק ViewModel משלו עם state וצירי intent (`claimTask`, `markDoseTaken`, `togglePostReaction`…). ה־Views לא מכילים לוגיקה עסקית.
-- **`ModelContainer`** נוצר ב־`BeaconApp` ומוזרק לכל ה־Views דרך `.modelContainer(...)`. ה־ViewModels מקבלים `ModelContext` בקונסטרקטור.
-- **Seeding:** `MockDataSeeder.seedIfNeeded(in:)` רץ פעם אחת (gated ע״י `UserDefaults` flag). קבצי Preview משתמשים ב־`MockDataSeeder.makeInMemoryPreviewContainer()`.
-- **Theme tokens בלבד.** אין hex codes ומרווחים קבועים פזורים ב־Views — הכל דרך `Theme.Palette`, `Theme.Typography`, `Theme.Spacing`, `Theme.CornerRadius`.
-- **RTL** נאכף במקום אחד: `.environment(\.locale, Locale(identifier: "he_IL"))` + `.environment(\.layoutDirection, .rightToLeft)` ב־`BeaconApp` ובכל `#Preview`.
+## Verification
 
----
+1. Build iOS with `xcodebuild`.
+2. Start backend on `localhost:8000`.
+3. In the app, use Apple Sign-In or Email dev fallback.
+4. Open Settings → אבחון שרת and run `/health`.
+5. Upload a PDF/image in Medical Vault and confirm parse status changes.
+6. Run backend tests once dependencies are installed:
 
-## Features delivered (MVP)
+```bash
+cd backend
+source venv_parser/bin/activate
+pip install -e ./parser_api[dev] -e ./shared
+pytest tests
+```
 
-### 1. לוח בקרה (`DashboardView`)
-- ברכת פתיחה מותאמת לשעה (`בוקר טוב, רונית`).
-- לוח זמנים משפחתי עם תגיות **רפואי/שגרה** ומלווה.
-- משימות להיום עם כפתור **"קח על עצמך משימה"** שמשייך את המשימה למטפל/ת.
+## Known Work
 
-### 2. תיק רפואי (`MedicalVaultView`)
-- כרטיס סנכרון חד־כיווני: **"תוצאות מעבדה חדשות התקבלו"** (בי״ח שיבא) — ניתן לסגירה.
-- כרטיס Featured גדול: **סיכום AI חכם** עם כפתור **"הוסף משימות מוצעות ליומן באופן אוטומטי"** — המשימות עוברות באמת למאגר המשימות של הדאשבורד.
-- שורת חיפוש + תגיות סינון (הכל / סיכומי ביקור / בדיקות דם).
-- כרטיסי מסמכים עם החלפה בין **"סיכום AI מופשט"** ל**"מסמך מקורי"**.
-- מסך פירוט (`DocumentDetailView`) עם Picker בין AI למקור + כפתור הוספת המשימות.
-
-### 3. מעקב טיפול (`ProactiveCareView`)
-- **התראת מינון חסר** בראש המסך (אוקסיקונטין 08:00) עם "סמן כנלקח עכשיו" / "הוסף הערה".
-- רשימת תרופות להיום + תג **"X נותרו"**.
-- כרטיסי מינון בזמנים 12:00 / 18:00 עם מצב דינמי (`upcoming` / `taken` / `scheduledLater`).
-- **דיווח מהיר** עם שלושה כפתורים אייקוניים — בחילה / עייפות / כאב — + "הוסף מדד חדש".
-- מדדים שנרשמו שורדים ב־SwiftData בין הפעלות.
-
-### 4. מעגל תמיכה (`CircleOfTrustView`)
-- כרטיס **פרסום עדכון** עם בורר סטטוס (מצב יציב / זקוקים למנוחה / משתפרים / מודאגים).
-- חיווי **"גלוי למשפחה בלבד"**.
-- פוסטים עם תגוביות, מונה לבבות וחיבוקים.
-- **הגבלת אינטראקציה**: משתמש שאינו `primaryCaregiver` רואה רק כפתורי רגש (❤ / 🤗) ולא יכול להגיב בטקסט. לצורך MVP הדמו מוגדר עם `currentUser = primaryCaregiver`, אבל ה־VM והעיצוב כבר תומכים בהחלפת תפקיד.
-
----
-
-## Design notes
-
-### Colors (Assets)
-
-| Token | Hex | Usage |
-|---|---|---|
-| `BeaconDeepTeal` | `#16475A` | כפתורי CTA, כותרות |
-| `BeaconSoftBlue` | `#C5DCE0` | תגיות רפואיות, משטחים משניים |
-| `BeaconSage` | `#DCEEDD` | תגיות שגרה, הצלחות, כפתור "קח על עצמך" |
-| `BeaconSageDark` | `#5C8A6E` | טקסט על Sage |
-| `BeaconCoralBg` | `#FBE4E4` | רקע התראה אדומה |
-| `BeaconCoralAccent` | `#B22D3F` | accent של התראה אדומה, כפתור "סמן כנלקח" |
-| `BeaconBackground` | `#EFF4F4` | רקע מסך |
-| `BeaconCardBackground` | `#FFFFFF` | רקע כרטיס |
-| `BeaconTextPrimary` | `#1F3845` | טקסט ראשי |
-| `BeaconTextSecondary` | `#6F7E84` | טקסט משני |
-
-### Typography
-
-מבוסס System font (SF) עם Rounded design לכותרות גדולות — מעניק תחושה רכה, ידידותית, ומטפל יפה בעברית. גדלים מעט גדולים מהברירת־מחדל (17–30pt) לטובת עומס קוגניטיבי נמוך.
-
----
-
-## Verification checklist
-
-1. פתח את הפרויקט ב־Xcode ובנה (`⌘B`) מול `iPhone 15 (iOS 17+)`.
-2. הרץ (`⌘R`). האפליקציה צריכה להיפתח ישירות בטאב **"לוח בקרה"** בעברית + RTL.
-3. החלף בין 4 הטאבים וודא שאין קריסות.
-4. **לוח בקרה**: לחץ "קח על עצמך משימה" — המשימה משתנה ומציגה את רונית כמטפלת.
-5. **מעקב טיפול**: לחץ "קח עכשיו" במינון 12:00 — הכרטיס משתנה למצב "נלקח".
-6. **מעקב טיפול**: לחץ על "בחילה" / "עייפות" / "כאב" — toast "נרשם", והפריט שורד restart.
-7. **תיק רפואי**: פתח כרטיס מסמך ← ראה Picker AI vs Original. לחץ "הוסף משימות מוצעות ליומן" — חזור לדאשבורד וודא שהמשימות נוספו.
-8. **מעגל תמיכה**: לחץ ❤ על פוסט — המונה עולה ושורד restart.
-9. פתח Xcode Canvas (`⌥⌘↩︎`) לכל אחד מה־`#Preview` — ודא שהעברית מוצגת RTL כהלכה.
-
----
-
-## Known TODOs / future hooks
-
-- **תבנית אייקון אפליקציה** — `AppIcon.appiconset` ריק, יש להוסיף PNGs.
-- **AI אמיתי** — `SampleAISummaries` משמש כ־façade. החלפה ל־Claude / OpenAI דורשת הזרקת `AIServiceProtocol` לתוך `MedicalVaultViewModel`.
-- **סנכרון בית חולים אמיתי** — `HospitalSyncAlert` כעת זרוע ידנית. במהלך backend עתידי, ניתן לרשום webhook → `ModelContext.insert(...)`.
-- **הרשאות / רב־משתמש** — `AppEnvironment.currentUser` הוא נקודת ההחלפה היחידה להחלפת תפקיד בזמן ריצה (e.g. מעגל חיצוני שרואה רק אימוג׳י).
+- Decide whether tasks/medications should stay local for the next milestone or move to backend.
+- Connect the static AI summary card to the latest parsed backend document, or label it clearly as demo.
+- Complete Google Sign-In configuration when a real `GOOGLE_CLIENT_ID` is available.
+- Add iOS unit tests around ViewModels.
+- Replace local UserDefaults audit with append-only backend audit.
+- Keep docs aligned with code after every phase.

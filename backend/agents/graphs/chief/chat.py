@@ -60,24 +60,27 @@ def handle_chat_turn(conversation_id: str, user_message: str) -> dict:
 
     user_msg_id = str(uuid.uuid4())
     chief_msg_id = str(uuid.uuid4())
+    user_insert_sql = (
+        "INSERT INTO chief_conversations "
+        "(id, conversation_id, role, content_he, created_at) "
+        "VALUES (:id::uuid, :cid::uuid, 'user', :content, :ts)"
+    )
+    chief_insert_sql = (
+        "INSERT INTO chief_conversations "
+        "(id, conversation_id, role, content_he, citations, tools_used, created_at) "
+        "VALUES (:id::uuid, :cid::uuid, 'chief', :content, :cit::jsonb, :tools::jsonb, :ts)"
+    )
 
     with engine.begin() as conn:
         # Persist user message
         conn.execute(
-            text(
-                "INSERT INTO chief_conversations "
-                "(id, conversation_id, role, content_he, created_at) "
-                "VALUES (:id::uuid, :cid::uuid, 'user', :content, :ts)"
-            ),
+            text(user_insert_sql),
             {"id": user_msg_id, "cid": conversation_id, "content": user_message, "ts": now},
+            execution_options={"debug_sql": user_insert_sql},
         )
         # Persist chief reply
         conn.execute(
-            text(
-                "INSERT INTO chief_conversations "
-                "(id, conversation_id, role, content_he, citations, tools_used, created_at) "
-                "VALUES (:id::uuid, :cid::uuid, 'chief', :content, :cit::jsonb, :tools::jsonb, :ts)"
-            ),
+            text(chief_insert_sql),
             {
                 "id": chief_msg_id,
                 "cid": conversation_id,
@@ -86,6 +89,7 @@ def handle_chat_turn(conversation_id: str, user_message: str) -> dict:
                 "tools": json.dumps(tools_used, ensure_ascii=False, default=str),
                 "ts": now,
             },
+            execution_options={"debug_sql": chief_insert_sql},
         )
 
     return {

@@ -14,6 +14,7 @@ struct GoogleSignInResult {
 
 enum GoogleSignInError: Error, LocalizedError {
     case clientIDMissing
+    case urlSchemeMissing(expectedScheme: String)
     case noPresenter
     case missingIDToken
     case sdkError(Error)
@@ -22,6 +23,8 @@ enum GoogleSignInError: Error, LocalizedError {
         switch self {
         case .clientIDMissing:
             return "GOOGLE_CLIENT_ID חסר ב-Secrets.plist."
+        case .urlSchemeMissing(let expectedScheme):
+            return "חסר URL Scheme ל-Google Sign-In ב-Info.plist: \(expectedScheme)"
         case .noPresenter:
             return "לא נמצא חלון פעיל ל-Google Sign-In."
         case .missingIDToken:
@@ -37,6 +40,10 @@ enum GoogleSignInError: Error, LocalizedError {
 /// async entry point.
 @MainActor
 struct GoogleSignInService {
+    static var hasClientID: Bool {
+        SecretsLoader.string(for: "GOOGLE_CLIENT_ID") != nil
+    }
+
     /// Initialise the SDK with the OAuth client ID from `Secrets.plist`.
     /// Idempotent — call once at app launch.
     static func configureIfNeeded() {
@@ -69,6 +76,14 @@ struct GoogleSignInService {
     /// Present the Google Sign-In sheet on top of the key window. Throws
     /// `GoogleSignInError.clientIDMissing` if the SDK isn't configured.
     func signIn() async throws -> GoogleSignInResult {
+        guard let clientID = SecretsLoader.string(for: "GOOGLE_CLIENT_ID") else {
+            throw GoogleSignInError.clientIDMissing
+        }
+        if let expectedScheme = Self.reversedClientID(clientID),
+           !Self.bundleDeclaresURLScheme(expectedScheme)
+        {
+            throw GoogleSignInError.urlSchemeMissing(expectedScheme: expectedScheme)
+        }
         guard GIDSignIn.sharedInstance.configuration != nil else {
             throw GoogleSignInError.clientIDMissing
         }
@@ -99,6 +114,22 @@ struct GoogleSignInService {
             email: user.profile?.email,
             nonce: nil
         )
+    }
+
+    nonisolated private static func reversedClientID(_ clientID: String) -> String? {
+        let parts = clientID.split(separator: ".").map(String.init)
+        guard parts.count >= 3 else { return nil }
+        return parts.reversed().joined(separator: ".")
+    }
+
+    nonisolated private static func bundleDeclaresURLScheme(_ scheme: String) -> Bool {
+        guard let types = Bundle.main.object(forInfoDictionaryKey: "CFBundleURLTypes") as? [[String: Any]] else {
+            return false
+        }
+        return types.contains { type in
+            guard let schemes = type["CFBundleURLSchemes"] as? [String] else { return false }
+            return schemes.contains(scheme)
+        }
     }
 
     private static func topViewController() -> UIViewController? {

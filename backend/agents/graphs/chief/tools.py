@@ -125,10 +125,10 @@ TOOL_DEFINITIONS = [
                     "type": "string",
                     "enum": ["guardian", "customer_success", "product", "creative", "cross_agent"],
                 },
-                "title_he": {"type": "string"},
-                "description_he": {"type": "string"},
+                "title": {"type": "string"},
+                "description": {"type": "string"},
             },
-            "required": ["target_agent", "title_he"],
+            "required": ["target_agent", "title"],
         },
     },
 ]
@@ -302,9 +302,12 @@ def _update_initiative(
 
 def _create_initiative(
     target_agent: str,
-    title_he: str,
-    description_he: str = "",
+    title: str = "",
+    description: str = "",
+    **legacy_fields,
 ) -> dict:
+    title_value = title or legacy_fields.get("title_he", "")
+    description_value = description or legacy_fields.get("description_he", "")
     init_id = str(uuid.uuid4())
     engine = get_engine()
     with engine.begin() as conn:
@@ -313,6 +316,6 @@ def _create_initiative(
                 "INSERT INTO initiatives (id, target_agent, title_he, description_he, status) "
                 "VALUES (:id::uuid, :agent, :title, :desc, 'open')"
             ),
-            {"id": init_id, "agent": target_agent, "title": title_he, "desc": description_he},
+            {"id": init_id, "agent": target_agent, "title": title_value, "desc": description_value},
         )
     return {"initiative_id": init_id, "status": "open"}
