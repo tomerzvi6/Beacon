@@ -6,7 +6,9 @@ struct DashboardView: View {
     @Environment(AppEnvironment.self) private var environment
 
     @State private var viewModel: DashboardViewModel?
+    @State private var caregiverViewModel: CaregiverLayerViewModel?
     @State private var toastMessage: String?
+    @State private var selectedCheckIn: CaregiverCheckIn?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -18,6 +20,16 @@ struct DashboardView: View {
                             name: environment.greetingName,
                             dateString: environment.todayHebrewDate
                         )
+
+                        if let caregiverVM = caregiverViewModel,
+                           caregiverVM.hasDashboardUpdate,
+                           let checkIn = caregiverVM.latestCheckIn {
+                            CaregiverUpdateCard(
+                                checkIn: checkIn,
+                                caregiverName: caregiverVM.caregiverName(for: checkIn),
+                                onTap: { selectedCheckIn = checkIn }
+                            )
+                        }
 
                         if environment.canRead(.schedule) {
                             FamilyScheduleCard(events: vm.events)
@@ -70,11 +82,22 @@ struct DashboardView: View {
             try? await Task.sleep(nanoseconds: 1_800_000_000)
             toastMessage = nil
         }
+        .sheet(item: $selectedCheckIn) { checkIn in
+            if let caregiverVM = caregiverViewModel {
+                CaregiverCheckInDetailView(checkIn: checkIn, viewModel: caregiverVM)
+                    .environment(environment)
+            }
+        }
         .onAppear {
             if viewModel == nil {
                 viewModel = DashboardViewModel(context: context, environment: environment)
             } else {
                 viewModel?.refresh()
+            }
+            if caregiverViewModel == nil {
+                caregiverViewModel = CaregiverLayerViewModel(context: context)
+            } else {
+                caregiverViewModel?.refresh()
             }
         }
     }

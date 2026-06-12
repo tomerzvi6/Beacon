@@ -18,7 +18,9 @@ struct BeaconApp: App {
             SymptomEntry.self,
             HospitalSyncAlert.self,
             FeedPost.self,
-            FeedComment.self
+            FeedComment.self,
+            CaregiverProfile.self,
+            CaregiverCheckIn.self
         ])
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         do {

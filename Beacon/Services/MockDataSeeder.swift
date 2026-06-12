@@ -179,7 +179,9 @@ enum MockDataSeeder {
             SymptomEntry.self,
             HospitalSyncAlert.self,
             FeedPost.self,
-            FeedComment.self
+            FeedComment.self,
+            CaregiverProfile.self,
+            CaregiverCheckIn.self
         ])
         let config = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try! ModelContainer(for: schema, configurations: [config])

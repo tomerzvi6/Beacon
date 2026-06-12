@@ -131,6 +131,7 @@ struct BeaconEdgeTopBar: View {
     PatientStatusStrip()
         .padding()
         .beaconScreenBackground()
+        .modelContainer(MockDataSeeder.makeInMemoryPreviewContainer())
         .environment(AppEnvironment())
         .environment(\.locale, Locale(identifier: "he_IL"))
         .environment(\.layoutDirection, .rightToLeft)

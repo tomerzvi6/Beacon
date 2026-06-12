@@ -1,10 +1,14 @@
 import SwiftUI
+import SwiftData
 
 struct PermissionsSettingsView: View {
     @Environment(AppEnvironment.self) private var environment
+    @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @State private var editingMember: FamilyMember?
     @State private var showingMockInvite = false
+    @State private var showingCaregiverSetup = false
+    @State private var caregiverViewModel: CaregiverLayerViewModel?
 
     private var manageableMembers: [FamilyMember] {
         environment.members.filter { !$0.isPatient && !$0.hasFullAccess }
@@ -31,6 +35,9 @@ struct PermissionsSettingsView: View {
                 if environment.canInviteMembers {
                     inviteSection
                 }
+                if environment.canManagePermissions {
+                    homeCaregiverSection
+                }
                 accountSection
             }
             .navigationTitle("ניהול גישה")
@@ -48,8 +55,57 @@ struct PermissionsSettingsView: View {
                 MockInviteSheet()
                     .environment(environment)
             }
+            .sheet(isPresented: $showingCaregiverSetup) {
+                if let caregiverViewModel {
+                    CaregiverSetupSheet(viewModel: caregiverViewModel)
+                }
+            }
+            .onAppear {
+                if caregiverViewModel == nil {
+                    caregiverViewModel = CaregiverLayerViewModel(context: modelContext)
+                }
+            }
         }
         .environment(\.layoutDirection, .rightToLeft)
+    }
+
+    private var homeCaregiverSection: some View {
+        Section {
+            Button {
+                caregiverViewModel?.refresh()
+                showingCaregiverSetup = true
+            } label: {
+                HStack(spacing: Theme.Spacing.m) {
+                    Image(systemName: "figure.2.arms.open")
+                        .font(.system(size: 20))
+                        .foregroundStyle(Theme.Palette.deepTeal)
+                        .frame(width: 36, height: 36)
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text(caregiverViewModel?.isCaregiverLayerActive == true
+                             ? "מטפל/ת בבית — \(caregiverViewModel?.activeCaregiver?.displayName ?? "")"
+                             : "הוספת מטפל/ת בבית")
+                            .font(Theme.Typography.bodyEmphasis)
+                            .foregroundStyle(Theme.Palette.deepTeal)
+                        Text(caregiverViewModel?.isCaregiverLayerActive == true
+                             ? "שכבת המטפל/ת פעילה — לחצו לניהול או לדיווח"
+                             : "מטפל/ת מדווח/ת בשפה שלו/ה, ואתם מקבלים תקציר בעברית")
+                            .font(Theme.Typography.caption)
+                            .foregroundStyle(Theme.Palette.textSecondary)
+                    }
+                    Spacer()
+                    if caregiverViewModel?.isCaregiverLayerActive == true {
+                        BeaconBadge(text: "פעיל", tone: .sage, leadingDot: true)
+                    }
+                }
+                .padding(.vertical, 4)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        } header: {
+            Text("מטפל/ת בבית")
+        } footer: {
+            Text("שכבה אופציונלית. למטפל/ת אין גישה לתיק הרפואי — רק מסך דיווח יומי פשוט.")
+        }
     }
 
     private var ownerSection: some View {
@@ -469,6 +525,7 @@ private struct ModulePermissionRow: View {
 
 #Preview("PermissionsSettingsView") {
     PermissionsSettingsView()
+        .modelContainer(MockDataSeeder.makeInMemoryPreviewContainer())
         .environment(AppEnvironment())
         .environment(\.locale, Locale(identifier: "he_IL"))
 }
