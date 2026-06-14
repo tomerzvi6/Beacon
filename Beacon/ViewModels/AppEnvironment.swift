@@ -189,6 +189,11 @@ final class AppEnvironment {
         }
 
         await loadUserContextAndRoute(using: authService)
+        // Silent launch check — if the backend call failed, show a clean
+        // login screen without a confusing error the user didn't trigger.
+        if authState == .unauthenticated {
+            authErrorMessage = nil
+        }
     }
 
     @MainActor

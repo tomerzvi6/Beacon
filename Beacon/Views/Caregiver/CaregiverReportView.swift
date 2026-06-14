@@ -133,7 +133,7 @@ struct CaregiverReportView: View {
         title: String,
         options: [Option],
         selection: Binding<Option>,
-        label: (Option) -> String,
+        label: @escaping (Option) -> String,
         icon: KeyPath<Option, String>
     ) -> some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.s) {

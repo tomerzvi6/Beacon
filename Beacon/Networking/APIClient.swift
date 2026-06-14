@@ -150,8 +150,8 @@ final class APIClient {
         switch http.statusCode {
         case 200..<300:
             if data.isEmpty {
-                if R.self == EmptyResponse.self {
-                    return EmptyResponse() as! R
+                if R.self == EmptyResponse.self, let empty = EmptyResponse() as? R {
+                    return empty
                 }
             }
             do {

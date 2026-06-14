@@ -67,7 +67,7 @@ struct DashboardView: View {
                 Text(toastMessage)
                     .font(Theme.Typography.bodyEmphasis)
                     .foregroundStyle(Theme.Palette.textPrimary)
-                    .padding(.vertical, 12)
+                    .padding(.vertical, Theme.Layout.controlVerticalPadding)
                     .padding(.horizontal, Theme.Spacing.l)
                     .background(.regularMaterial, in: Capsule())
                     .beaconCardShadow()

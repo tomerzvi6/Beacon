@@ -120,7 +120,7 @@ struct AuthService {
 
     func signInWithEmail(email: String, password: String) async throws {
         do {
-            try await withTimeout(seconds: 15) {
+            _ = try await withTimeout(seconds: 15) {
                 try await client.auth.signIn(email: email, password: password)
             }
         } catch {
@@ -130,7 +130,7 @@ struct AuthService {
 
     func signUpWithEmail(email: String, password: String) async throws {
         do {
-            try await withTimeout(seconds: 15) {
+            _ = try await withTimeout(seconds: 15) {
                 try await client.auth.signUp(email: email, password: password)
             }
         } catch {

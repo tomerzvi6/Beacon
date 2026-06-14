@@ -174,7 +174,7 @@ final class MedicalVaultViewModel {
                 // Pull the freshly-finalized doc into the list, then
                 // kick off parse + poll in the background.
                 await refresh()
-                Task { await self.startParseAndPoll(documentId: documentId) }
+                Task { [weak self] in await self?.startParseAndPoll(documentId: documentId) }
             case .duplicate(_, let uploadedAt):
                 uploadAlert = .duplicate(filename: file.filename, uploadedAt: uploadedAt)
             }

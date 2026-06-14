@@ -22,11 +22,18 @@ struct BeaconApp: App {
             CaregiverProfile.self,
             CaregiverCheckIn.self
         ])
-        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-        do {
-            self.modelContainer = try ModelContainer(for: schema, configurations: [config])
-        } catch {
-            fatalError("Failed to create Beacon ModelContainer: \(error)")
+        if let container = try? ModelContainer(
+            for: schema,
+            configurations: ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+        ) {
+            self.modelContainer = container
+        } else {
+            // Persistent store failed (schema migration) — fall back to in-memory.
+            // Data is re-seeded from MockDataSeeder on every launch in this mode.
+            self.modelContainer = try! ModelContainer(
+                for: schema,
+                configurations: ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+            )
         }
         GoogleSignInService.configureIfNeeded()
     }

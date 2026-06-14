@@ -10,15 +10,14 @@ enum SupabaseManager {
             let key = SecretsLoader.string(for: "SUPABASE_ANON_KEY"),
             let supabaseURL = URL(string: url)
         else {
-            fatalError("""
-            ⚠️ Supabase credentials missing.
-
-            Please populate Beacon/Secrets.plist with your project's
-            SUPABASE_URL and SUPABASE_ANON_KEY (see Secrets.example.plist).
-
-            Get them from:
-            Supabase Dashboard → Project Settings → API
-            """)
+            // Credentials missing or contain placeholder values.
+            // Return a dummy client so the app launches in unauthenticated
+            // state (showing LoginView) instead of crashing with fatalError.
+            // Populate Beacon/Secrets.plist with real values to enable auth.
+            return SupabaseClient(
+                supabaseURL: URL(string: "https://placeholder.supabase.co")!,
+                supabaseKey: "placeholder-key"
+            )
         }
         return SupabaseClient(supabaseURL: supabaseURL, supabaseKey: key)
     }()

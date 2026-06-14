@@ -1,5 +1,23 @@
 # Beacon — הנחיות לסוכנים
 
+## Product Context — Read This First
+
+**The problem:** Families of cancer patients manage a critical medical-logistical load under heavy emotional stress — scattered documents, coordination between family members, medication tracking, and appointments.
+
+**Users:** Two types, in the same app:
+- **Primary caregiver** — a family member managing the patient's care
+- **The patient themselves** — an active participant, not just observed
+
+Tech level: basic. If the user knows WhatsApp and Facebook, they can use Beacon.
+
+**The most critical flow (never break this):**
+Receiving/uploading a medical document → parsing → Hebrew summary accessible to the family.
+This is the heart of the app.
+
+**Current phase:**
+Formal POC with Rambam hospital — not yet started. The product is ready and waiting.
+Success = families using Beacon daily to actively manage their loved one's care.
+
 ## מהו הפרויקט
 
 אפליקציית iOS לניהול טיפול רפואי משפחתי עבור משפחות של חולי סרטן.
