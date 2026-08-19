@@ -12,6 +12,15 @@ import Foundation
 final class APIClient {
     static let shared = APIClient()
 
+    /// Invoked once, centrally, whenever any request comes back 401. A
+    /// token can go bad mid-session for reasons the user had no part in
+    /// (server restarted with a fresh signing key in dev, a session was
+    /// revoked) — without a central hook, every screen's own sync call
+    /// would silently no-op on 401 and just show stale/empty data forever.
+    /// `AppEnvironment` sets this once, at launch, to sign the user out and
+    /// route back to login with an explanation.
+    static var onUnauthorized: (@Sendable () -> Void)?
+
     private let session: URLSession
     private let decoder: JSONDecoder
     private let encoder: JSONEncoder
@@ -81,6 +90,12 @@ final class APIClient {
         authenticated: Bool = true
     ) async throws -> R {
         try await sendWithBody(method: "PATCH", path: path, body: body, authenticated: authenticated)
+    }
+
+    func put<B: Encodable>(_ path: String, body: B, authenticated: Bool = true) async throws {
+        let _: EmptyResponse = try await sendWithBody(
+            method: "PUT", path: path, body: body, authenticated: authenticated
+        )
     }
 
     func delete(_ path: String, authenticated: Bool = true) async throws {
@@ -160,6 +175,7 @@ final class APIClient {
                 throw APIError.decoding(error)
             }
         case 401:
+            Self.onUnauthorized?()
             throw APIError.unauthorized
         default:
             if let detail = Self.extractDetail(from: data) {

@@ -5,19 +5,35 @@ from fastapi import FastAPI
 
 from parser_api.config import settings
 from parser_api.middleware import apply_middleware
-from parser_api.routes import auth, documents, doses, households, symptoms, tasks, uploads, users
+from parser_api.routes import (
+    auth,
+    caregivers,
+    documents,
+    doses,
+    feed,
+    households,
+    medications,
+    schedule,
+    symptoms,
+    tasks,
+    uploads,
+    users,
+)
 
 
 def _verify_runtime_secrets() -> None:
     """Refuse to boot in non-development environments when JWT_SIGNING_KEY
-    has not been overridden — prevents the dev default from being used in
-    production by accident.
+    was not explicitly configured. config.py no longer falls back to a
+    fixed, guessable key — an unconfigured deployment now gets a random
+    per-process key instead, which is safe but invalidates every session on
+    each restart/redeploy. That's a bad (if harmless) production surprise,
+    so we still fail loudly here rather than let it happen silently.
     """
-    if settings.environment != "development" and settings.jwt_signing_key == "dev-secret":
+    if settings.environment != "development" and "JWT_SIGNING_KEY" not in os.environ:
         raise RuntimeError(
             "JWT_SIGNING_KEY must be set in non-development environments "
             f"(ENVIRONMENT={settings.environment!r}). Refusing to boot with "
-            "the dev default key."
+            "an auto-generated key."
         )
 
 
@@ -54,6 +70,10 @@ app.include_router(symptoms.router)
 app.include_router(doses.router)
 app.include_router(users.router)
 app.include_router(households.router)
+app.include_router(schedule.router)
+app.include_router(feed.router)
+app.include_router(caregivers.router)
+app.include_router(medications.router)
 
 
 @app.get("/health")

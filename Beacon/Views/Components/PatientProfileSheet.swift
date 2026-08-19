@@ -2,8 +2,11 @@ import SwiftUI
 
 struct PatientProfileSheet: View {
     @Environment(AppEnvironment.self) private var environment
+    @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @State private var showingPermissions = false
+    @State private var demoDataEnabled = MockDataSeeder.isDemoDataEnabled
+    @State private var showingClearDemoConfirm = false
 
     private var patient: Patient { environment.patient }
 
@@ -12,6 +15,9 @@ struct PatientProfileSheet: View {
             ScrollView {
                 VStack(spacing: Theme.Spacing.l) {
                     headerCard
+                    if environment.currentUser.hasFullAccess {
+                        modeControlCard
+                    }
                     emergencyCard
                     medicalCard
                 }
@@ -142,6 +148,100 @@ struct PatientProfileSheet: View {
                 infoRow(label: "בית חולים", value: patient.primaryHospital, icon: "building.2")
             }
         }
+    }
+
+    /// Single control panel for the three testable states — keeps the
+    /// tester from hunting through two separate toggles. Shows the live
+    /// current state up top, then the version switch and the demo switch.
+    private var modeControlCard: some View {
+        BeaconCard {
+            VStack(alignment: .trailing, spacing: Theme.Spacing.m) {
+                BeaconSectionHeader(title: "מצב האפליקציה (לבדיקה)", systemImage: "slider.horizontal.3")
+
+                // Live current-state banner
+                HStack(spacing: Theme.Spacing.s) {
+                    Text(currentModeSummary)
+                        .font(Theme.Typography.bodyEmphasis)
+                        .foregroundStyle(Theme.Palette.deepTeal)
+                        .multilineTextAlignment(.trailing)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                    Image(systemName: environment.dataSourceMode.iconSymbol)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(Theme.Palette.deepTeal)
+                }
+                .padding(Theme.Spacing.s)
+                .frame(maxWidth: .infinity)
+                .background(Theme.Palette.softBlue.opacity(0.35))
+                .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.chip, style: .continuous))
+
+                // Version switch
+                Text("גרסה")
+                    .font(Theme.Typography.captionEmphasis)
+                    .foregroundStyle(Theme.Palette.textSecondary)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                Picker("גרסה", selection: Binding(
+                    get: { environment.dataSourceMode },
+                    set: { environment.dataSourceMode = $0 }
+                )) {
+                    ForEach(DataSourceMode.allCases) { mode in
+                        Text(mode.displayLabel).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                Text(environment.dataSourceMode.explanation)
+                    .font(Theme.Typography.caption)
+                    .foregroundStyle(Theme.Palette.textSecondary)
+                    .multilineTextAlignment(.trailing)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+
+                Divider()
+
+                // Demo data switch
+                Text("נתוני הדגמה")
+                    .font(Theme.Typography.captionEmphasis)
+                    .foregroundStyle(Theme.Palette.textSecondary)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                Text(demoDataEnabled
+                     ? "פעיל — משפחה, תרופות, יומן, פיד ומטפלת לדוגמה."
+                     : "כבוי — האפליקציה נקייה, כמו אצל משפחה אמיתית.")
+                    .font(Theme.Typography.caption)
+                    .foregroundStyle(Theme.Palette.textSecondary)
+                    .multilineTextAlignment(.trailing)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+
+                if demoDataEnabled {
+                    BeaconSecondaryButton(title: "ניקוי נתוני ההדגמה", systemImage: "trash") {
+                        showingClearDemoConfirm = true
+                    }
+                } else {
+                    BeaconSecondaryButton(title: "טעינת נתוני הדגמה", systemImage: "sparkles") {
+                        MockDataSeeder.enableDemoData(in: modelContext)
+                        demoDataEnabled = true
+                        environment.contentRevision += 1
+                    }
+                }
+            }
+        }
+        .confirmationDialog(
+            "לנקות את כל נתוני ההדגמה?",
+            isPresented: $showingClearDemoConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("ניקוי הכל", role: .destructive) {
+                MockDataSeeder.disableDemoData(in: modelContext)
+                demoDataEnabled = false
+                environment.contentRevision += 1
+            }
+            Button("ביטול", role: .cancel) { }
+        } message: {
+            Text("כל התרופות, המשימות, הפוסטים והמטפל/ת שנטענו להדגמה יימחקו. פעולה זו מוחקת גם רשומות שהוספתם ידנית באפליקציה.")
+        }
+    }
+
+    private var currentModeSummary: String {
+        let version = environment.dataSourceMode.displayLabel
+        let demo = demoDataEnabled ? "דמו פעיל" : "נקי"
+        return "מצב נוכחי: \(version) · \(demo)"
     }
 
     private func infoRow(label: String, value: String, icon: String) -> some View {

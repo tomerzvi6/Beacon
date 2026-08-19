@@ -29,6 +29,10 @@ struct CaregiverReportView: View {
                 VStack(alignment: .leading, spacing: Theme.Spacing.l) {
                     header
 
+                    if !viewModel.activeInstructions.isEmpty {
+                        instructionsSection
+                    }
+
                     choiceSection(
                         title: strings.mealSection,
                         options: CaregiverMealStatus.allCases,
@@ -125,6 +129,46 @@ struct CaregiverReportView: View {
                     .font(Theme.Typography.captionEmphasis)
             }
         }
+    }
+
+    // MARK: - Instructions from the family (caregiver's language)
+
+    private var instructionsSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.s) {
+            HStack(spacing: Theme.Spacing.s) {
+                Image(systemName: "list.bullet.clipboard.fill")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(Theme.Palette.coralAccent)
+                Text(CaregiverInstructionKind.sectionHeader(for: language))
+                    .font(Theme.Typography.cardTitle)
+                    .foregroundStyle(Theme.Palette.textPrimary)
+            }
+            VStack(alignment: .leading, spacing: Theme.Spacing.s) {
+                ForEach(viewModel.activeInstructions) { instruction in
+                    HStack(alignment: .top, spacing: Theme.Spacing.s) {
+                        Image(systemName: instruction.kind.iconSymbol)
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(Theme.Palette.deepTeal)
+                            .frame(width: Theme.Spacing.l)
+                        Text(localizedInstructionText(instruction))
+                            .font(Theme.Typography.bodyLarge)
+                            .foregroundStyle(Theme.Palette.textPrimary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+            }
+            .padding(Theme.Spacing.m)
+            .background(Theme.Palette.coralBackground.opacity(0.45))
+            .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.card, style: .continuous))
+            .beaconCardShadow()
+        }
+    }
+
+    private func localizedInstructionText(_ instruction: CaregiverInstruction) -> String {
+        let title = instruction.kind.localizedTitle(for: language)
+        let detail = instruction.detail
+        if detail.isEmpty { return title }
+        return instruction.kind == .custom ? detail : "\(title): \(detail)"
     }
 
     // MARK: - Choice rows (big buttons)
@@ -261,7 +305,7 @@ struct CaregiverReportView: View {
         defer { isSubmitting = false }
 
         if language != viewModel.activeCaregiver?.preferredLanguage {
-            viewModel.updateLanguage(language)
+            await viewModel.updateLanguage(language)
         }
 
         let trimmedNote = freeText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -318,7 +362,7 @@ struct CaregiverReportView: View {
 #Preview("CaregiverReportView") {
     let container = MockDataSeeder.makeInMemoryPreviewContainer()
     let viewModel = CaregiverLayerViewModel(context: container.mainContext)
-    viewModel.activateCaregiver(name: "Maria", relationTitle: "מטפלת סיעודית", language: .english)
+    Task { await viewModel.activateCaregiver(name: "Maria", relationTitle: "מטפלת סיעודית", language: .english) }
     return CaregiverReportView(viewModel: viewModel)
         .modelContainer(container)
 }

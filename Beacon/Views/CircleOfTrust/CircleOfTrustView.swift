@@ -26,11 +26,13 @@ struct CircleOfTrustView: View {
                                 onPublish: {
                                     let hadText = !vm.composerText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                                     let asPatient = vm.composerAsPatient && environment.currentUser.hasFullAccess
-                                    vm.publishComposer()
-                                    if hadText {
-                                        toastMessage = asPatient
-                                            ? "העדכון פורסם בשם \(environment.patient.displayName) ✓"
-                                            : "העדכון פורסם ✓"
+                                    Task {
+                                        await vm.publishComposer()
+                                        if hadText {
+                                            toastMessage = asPatient
+                                                ? "העדכון פורסם בשם \(environment.patient.displayName) ✓"
+                                                : "העדכון פורסם ✓"
+                                        }
                                     }
                                 },
                                 publishAsPatient: Binding(get: { vm.composerAsPatient }, set: { vm.composerAsPatient = $0 })
@@ -54,12 +56,16 @@ struct CircleOfTrustView: View {
                                         post: post,
                                         currentUser: environment.currentUser,
                                         onReact: { reaction in
-                                            vm.incrementReaction(reaction, on: post)
-                                            toastMessage = reaction == .heart ? "❤ נשלח" : "🤗 נשלח"
+                                            Task {
+                                                await vm.incrementReaction(reaction, on: post)
+                                                toastMessage = reaction == .heart ? "❤ נשלח" : "🤗 נשלח"
+                                            }
                                         },
                                         onAddComment: { body in
-                                            vm.addComment(body, to: post)
-                                            toastMessage = "תגובה נשלחה ✓"
+                                            Task {
+                                                await vm.addComment(body, to: post)
+                                                toastMessage = "תגובה נשלחה ✓"
+                                            }
                                         }
                                     )
                                 }
@@ -68,7 +74,8 @@ struct CircleOfTrustView: View {
                     }
                 }
                 .padding(.horizontal, Theme.Spacing.m)
-                .padding(.bottom, Theme.Spacing.m)
+                .padding(.top, Theme.Layout.scrollContentTopClearance)
+                .padding(.bottom, Theme.Layout.scrollContentBottomClearance)
             }
         }
         .beaconScreenBackground()
@@ -98,6 +105,12 @@ struct CircleOfTrustView: View {
             } else {
                 viewModel?.refresh()
             }
+        }
+        .onChange(of: environment.contentRevision) {
+            viewModel?.refresh()
+        }
+        .task {
+            await viewModel?.syncWithBackend()
         }
     }
 }

@@ -6,7 +6,7 @@ struct PermissionsSettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @State private var editingMember: FamilyMember?
-    @State private var showingMockInvite = false
+    @State private var showingInvite = false
     @State private var showingCaregiverSetup = false
     @State private var caregiverViewModel: CaregiverLayerViewModel?
 
@@ -28,7 +28,7 @@ struct PermissionsSettingsView: View {
                 ownerSection
                 fullAccessSection
                 membersSection
-                if environment.currentUser.isPatient,
+                if (environment.currentUser.isPatient || environment.currentUser.role == .admin),
                    environment.patientAuthorizationStatus == .pendingPatientConsent {
                     patientApprovalSection
                 }
@@ -51,8 +51,8 @@ struct PermissionsSettingsView: View {
                 MemberPermissionsEditor(member: member)
                     .environment(environment)
             }
-            .sheet(isPresented: $showingMockInvite) {
-                MockInviteSheet()
+            .sheet(isPresented: $showingInvite) {
+                InviteSheet()
                     .environment(environment)
             }
             .sheet(isPresented: $showingCaregiverSetup) {
@@ -194,28 +194,28 @@ struct PermissionsSettingsView: View {
     private var inviteSection: some View {
         Section {
             Button {
-                if environment.canAddCaregiver {
-                    environment.recordMockInviteOpened()
-                } else {
-                    environment.recordMockInviteBlockedByLimit()
-                }
-                showingMockInvite = true
+                showingInvite = true
             } label: {
                 HStack(spacing: Theme.Spacing.m) {
-                    Image(systemName: "person.badge.plus")
+                    Image(systemName: environment.canAddCaregiver
+                          ? "person.badge.plus"
+                          : "person.3.sequence.fill")
                         .font(.system(size: 20))
-                        .foregroundStyle(Theme.Palette.deepTeal)
+                        .foregroundStyle(environment.canAddCaregiver
+                                         ? Theme.Palette.deepTeal
+                                         : Theme.Palette.textSecondary)
                         .frame(width: 36, height: 36)
                     VStack(alignment: .trailing, spacing: 2) {
                         Text("הזמן איש קשר חדש")
                             .font(Theme.Typography.bodyEmphasis)
-                            .foregroundStyle(Theme.Palette.deepTeal)
+                            .foregroundStyle(environment.canAddCaregiver
+                                             ? Theme.Palette.deepTeal
+                                             : Theme.Palette.textSecondary)
                         Text("\(environment.caregiverCount)/\(AppEnvironment.maxCaregivers) מטפלים")
                             .font(Theme.Typography.caption)
                             .foregroundStyle(Theme.Palette.textSecondary)
                     }
                     Spacer()
-                    BeaconBadge(text: "Mock", tone: .neutral)
                 }
                 .padding(.vertical, 4)
                 .contentShape(Rectangle())
@@ -224,7 +224,9 @@ struct PermissionsSettingsView: View {
         } header: {
             Text("הזמנה")
         } footer: {
-            Text("כרגע זה מסך הדגמה בלבד. בהמשך ההזמנה תשלח קוד, והמטופל יאשר דרך מייל וצילום תעודת זהות.")
+            Text(environment.canAddCaregiver
+                 ? "יצירת קישור הזמנה אישי. הנמען ילחץ עליו עם Beacon מותקן ויצורף אוטומטית."
+                 : "הגעת למגבלת \(AppEnvironment.maxCaregivers) מטפלים ב-MVP.")
         }
     }
 
@@ -305,7 +307,14 @@ struct PermissionsSettingsView: View {
             }
             #endif
             Button(role: .destructive) {
-                Task { await environment.signOut() }
+                Task {
+                    await environment.signOut()
+                    // Local care data (tasks/meds/doses/symptoms/feed) isn't
+                    // tied to the backend session — wipe it so a different
+                    // family signing into this device never sees the
+                    // previous family's medical data.
+                    MockDataSeeder.disableDemoData(in: modelContext)
+                }
             } label: {
                 HStack(spacing: Theme.Spacing.m) {
                     Image(systemName: "rectangle.portrait.and.arrow.right")
@@ -425,75 +434,202 @@ private struct MemberPermissionsEditor: View {
     }
 }
 
-private struct MockInviteSheet: View {
+/// Generates a real Supabase invite token and displays a shareable deep link.
+private struct InviteSheet: View {
     @Environment(AppEnvironment.self) private var environment
     @Environment(\.dismiss) private var dismiss
+
+    @State private var inviteCode: String?
+    @State private var expiresInMinutes: Int = 0
+    @State private var isLoading = true
+    @State private var errorMessage: String?
+    @State private var didCopy = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .trailing, spacing: Theme.Spacing.l) {
-                    Image(systemName: environment.canAddCaregiver ? "person.badge.plus" : "person.3.sequence.fill")
-                        .font(.system(size: 46, weight: .semibold))
-                        .foregroundStyle(Theme.Palette.deepTeal)
-                        .frame(maxWidth: .infinity)
-
-                    VStack(alignment: .trailing, spacing: Theme.Spacing.s) {
-                        Text(environment.canAddCaregiver ? "הזמנה לדוגמה" : "הגעת למגבלת המטפלים")
-                            .font(Theme.Typography.sectionTitle)
-                            .foregroundStyle(Theme.Palette.textPrimary)
-                        Text(message)
-                            .font(Theme.Typography.body)
-                            .foregroundStyle(Theme.Palette.textSecondary)
-                            .multilineTextAlignment(.trailing)
-                    }
-
-                    BeaconCard {
-                        VStack(alignment: .trailing, spacing: Theme.Spacing.m) {
-                            infoRow(icon: "number", title: "קוד הזמנה", value: environment.canAddCaregiver ? "MOCK-2481" : "לא זמין")
-                            infoRow(icon: "envelope.fill", title: "אימות מטופל", value: "מייל לאימות")
-                            infoRow(icon: "camera.viewfinder", title: "זיהוי", value: "צילום תעודת זהות")
-                            infoRow(icon: "checkmark.shield.fill", title: "סמכות אחרונה", value: "אישור המטופל/ת")
-                        }
-                    }
-
-                    BeaconSecondaryButton(title: "סגור") {
-                        dismiss()
+                    if !environment.canAddCaregiver {
+                        limitReachedContent
+                    } else if isLoading {
+                        loadingContent
+                    } else if let code = inviteCode {
+                        successContent(code: code)
+                    } else if let error = errorMessage {
+                        errorContent(error)
                     }
                 }
                 .padding(Theme.Spacing.l)
+                .frame(maxWidth: .infinity)
             }
-            .navigationTitle("הזמנת מטפל")
+            .navigationTitle("הזמנת מטפל/ת")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("סגור") { dismiss() }
+                }
+            }
         }
         .environment(\.layoutDirection, .rightToLeft)
-    }
-
-    private var message: String {
-        if environment.canAddCaregiver {
-            return "כרגע לא נשלחת הזמנה אמיתית. זה מדגים את ה-flow: מטפל מקבל קוד, המטופל מאמת מייל ותעודת זהות, ואז מאשר את הגישה."
+        .task {
+            guard environment.canAddCaregiver else { isLoading = false; return }
+            await generateCode()
         }
-        return "ב-MVP הגבלנו עד \(AppEnvironment.maxCaregivers) מטפלים כדי לשמור על שליטה והרשאות פשוטות."
     }
 
-    private func infoRow(icon: String, title: String, value: String) -> some View {
-        HStack(spacing: Theme.Spacing.m) {
-            Image(systemName: icon)
-                .font(.system(size: 16, weight: .semibold))
+    // MARK: - States
+
+    private var loadingContent: some View {
+        VStack(spacing: Theme.Spacing.l) {
+            ProgressView()
+                .controlSize(.large)
+                .padding(.top, Theme.Spacing.xxl)
+            Text("מייצר קוד הזמנה…")
+                .font(Theme.Typography.body)
+                .foregroundStyle(Theme.Palette.textSecondary)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func successContent(code: String) -> some View {
+        VStack(alignment: .trailing, spacing: Theme.Spacing.l) {
+            Image(systemName: "person.badge.plus")
+                .font(.system(size: 46, weight: .semibold))
                 .foregroundStyle(Theme.Palette.deepTeal)
-                .frame(width: 30, height: 30)
-                .background(Theme.Palette.softBlue.opacity(0.4))
-                .clipShape(Circle())
-            VStack(alignment: .trailing, spacing: 2) {
-                Text(title)
-                    .font(Theme.Typography.caption)
-                    .foregroundStyle(Theme.Palette.textSecondary)
-                Text(value)
-                    .font(Theme.Typography.bodyEmphasis)
-                    .foregroundStyle(Theme.Palette.textPrimary)
+                .frame(maxWidth: .infinity)
+
+            Text("קוד ההזמנה מוכן")
+                .font(Theme.Typography.sectionTitle)
+                .foregroundStyle(Theme.Palette.textPrimary)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+
+            Text("שלח/י את הקוד למטפל/ת. אחרי שיתקינו את Beacon ויתחברו, הם יזינו אותו במסך ההצטרפות — ויראו את אותו תיק רפואי כמוך.")
+                .font(Theme.Typography.body)
+                .foregroundStyle(Theme.Palette.textSecondary)
+                .multilineTextAlignment(.trailing)
+
+            BeaconCard {
+                VStack(spacing: Theme.Spacing.s) {
+                    Text("קוד הצטרפות")
+                        .font(Theme.Typography.caption)
+                        .foregroundStyle(Theme.Palette.textSecondary)
+                    // LTR so the digits never reorder inside the RTL layout.
+                    Text(spacedCode(code))
+                        .font(.system(size: 34, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(Theme.Palette.deepTeal)
+                        .environment(\.layoutDirection, .leftToRight)
+                        .frame(maxWidth: .infinity)
+                        .accessibilityLabel(code.map(String.init).joined(separator: " "))
+                    if expiresInMinutes > 0 {
+                        Text("בתוקף ל־\(expiryDescription)")
+                            .font(Theme.Typography.caption)
+                            .foregroundStyle(Theme.Palette.textSecondary)
+                    }
+                }
+                .frame(maxWidth: .infinity)
             }
-            Spacer()
+
+            ShareLink(item: "הצטרף/י למעגל הטיפול שלנו ב-Beacon. קוד ההצטרפות שלך: \(code)") {
+                Label("שתף/י ב-WhatsApp / SMS", systemImage: "square.and.arrow.up")
+                    .font(Theme.Typography.bodyEmphasis)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, Theme.Layout.prominentControlVerticalPadding)
+                    .foregroundStyle(.white)
+                    .background(Theme.Palette.deepTeal)
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.card, style: .continuous))
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                UIPasteboard.general.string = code
+                didCopy = true
+            } label: {
+                Label(didCopy ? "הועתק ✓" : "העתק קוד", systemImage: didCopy ? "checkmark" : "doc.on.doc")
+                    .font(Theme.Typography.bodyEmphasis)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, Theme.Layout.prominentControlVerticalPadding)
+                    .foregroundStyle(Theme.Palette.deepTeal)
+                    .background(Theme.Palette.deepTeal.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.card, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .animation(.easeInOut(duration: 0.2), value: didCopy)
         }
+    }
+
+    /// "483920" → "483 920" — easier to read aloud over the phone.
+    private func spacedCode(_ code: String) -> String {
+        guard code.count == 6 else { return code }
+        let mid = code.index(code.startIndex, offsetBy: 3)
+        return "\(code[code.startIndex..<mid]) \(code[mid...])"
+    }
+
+    private var expiryDescription: String {
+        let days = expiresInMinutes / (60 * 24)
+        if days >= 1 { return days == 1 ? "יום אחד" : "\(days) ימים" }
+        let hours = max(1, expiresInMinutes / 60)
+        return hours == 1 ? "שעה" : "\(hours) שעות"
+    }
+
+    private func errorContent(_ message: String) -> some View {
+        VStack(spacing: Theme.Spacing.l) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 46))
+                .foregroundStyle(Theme.Palette.coralAccent)
+                .frame(maxWidth: .infinity)
+            Text("לא ניתן היה ליצור קוד")
+                .font(Theme.Typography.sectionTitle)
+                .foregroundStyle(Theme.Palette.textPrimary)
+            Text(message)
+                .font(Theme.Typography.body)
+                .foregroundStyle(Theme.Palette.textSecondary)
+                .multilineTextAlignment(.trailing)
+            BeaconPrimaryButton(title: "נסה שוב", systemImage: "arrow.clockwise") {
+                isLoading = true
+                errorMessage = nil
+                Task { await generateCode() }
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var limitReachedContent: some View {
+        VStack(spacing: Theme.Spacing.l) {
+            Image(systemName: "person.3.sequence.fill")
+                .font(.system(size: 46, weight: .semibold))
+                .foregroundStyle(Theme.Palette.textSecondary)
+                .frame(maxWidth: .infinity)
+            Text("הגעת למגבלת המטפלים")
+                .font(Theme.Typography.sectionTitle)
+                .foregroundStyle(Theme.Palette.textPrimary)
+            Text("ב-MVP הגבלנו עד \(AppEnvironment.maxCaregivers) מטפלים. כדי להוסיף עוד, הסר גישה ממטפל קיים תחילה.")
+                .font(Theme.Typography.body)
+                .foregroundStyle(Theme.Palette.textSecondary)
+                .multilineTextAlignment(.trailing)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    // MARK: - Code generation
+
+    /// Asks the backend for the code. It has to be the backend and not
+    /// Supabase: the medical vault is scoped by the backend's household, so a
+    /// relative who joined anywhere else would open the app to an empty file.
+    private func generateCode() async {
+        guard environment.backendUser != nil else {
+            errorMessage = "לא נמצא מידע על המשתמש. נסה/י להתחבר מחדש."
+            isLoading = false
+            return
+        }
+        do {
+            let invite = try await HouseholdService().createCaregiverInvite()
+            inviteCode = invite.code
+            expiresInMinutes = invite.expiresInMinutes
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        isLoading = false
     }
 }
 

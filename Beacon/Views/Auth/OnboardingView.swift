@@ -15,9 +15,10 @@ struct OnboardingView: View {
     @State private var hasIdPhotoForVerification = false
     @State private var caregiverName = ""
     @State private var isWorking = false
+    @State private var showingJoinSheet = false
     @FocusState private var focusedField: Field?
 
-    private let totalSteps = 4
+    private let totalSteps = 5
 
     enum Field {
         case patientName
@@ -41,10 +42,11 @@ struct OnboardingView: View {
                     .padding(.top, Theme.Spacing.l)
 
                 TabView(selection: $step) {
-                    patientStep.tag(0)
-                    medicalInfoStep.tag(1)
-                    verificationStep.tag(2)
-                    caregiverStep.tag(3)
+                    modeStep.tag(0)
+                    patientStep.tag(1)
+                    medicalInfoStep.tag(2)
+                    verificationStep.tag(3)
+                    caregiverStep.tag(4)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .animation(.easeInOut, value: step)
@@ -73,6 +75,87 @@ struct OnboardingView: View {
                     .animation(.spring(duration: 0.3), value: step)
             }
         }
+    }
+
+    private var modeStep: some View {
+        ScrollView {
+            VStack(alignment: .trailing, spacing: Theme.Spacing.l) {
+                Spacer(minLength: Theme.Spacing.xl)
+
+                stepIcon("arrow.triangle.2.circlepath", tint: Theme.Palette.deepTeal)
+
+                stepHeader(
+                    title: "איך יגיע המידע הרפואי?",
+                    subtitle: "אפשר להחליף את זה בכל שלב מהכרטיס הרפואי באפליקציה."
+                )
+
+                VStack(spacing: Theme.Spacing.m) {
+                    ForEach(DataSourceMode.allCases) { mode in
+                        modeOptionRow(mode)
+                    }
+                }
+
+                BeaconPrimaryButton(title: "המשך", systemImage: "arrow.left.circle.fill") {
+                    withAnimation { step = 1 }
+                }
+
+                // Someone invited by a relative must not create a second
+                // family — that would leave them with their own empty vault
+                // instead of the one they were invited to.
+                Button {
+                    showingJoinSheet = true
+                } label: {
+                    Text("הוזמנת על ידי בן משפחה? הזן/י קוד הצטרפות")
+                        .font(Theme.Typography.bodyEmphasis)
+                        .foregroundStyle(Theme.Palette.deepTeal)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, Theme.Layout.controlVerticalPadding)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+
+                Spacer(minLength: Theme.Spacing.xl)
+            }
+            .padding(.horizontal, Theme.Spacing.l)
+        }
+        .sheet(isPresented: $showingJoinSheet) {
+            JoinWithCodeSheet()
+                .environment(environment)
+        }
+    }
+
+    private func modeOptionRow(_ mode: DataSourceMode) -> some View {
+        let isSelected = environment.dataSourceMode == mode
+        return Button {
+            environment.dataSourceMode = mode
+        } label: {
+            HStack(spacing: Theme.Spacing.m) {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(isSelected ? Theme.Palette.deepTeal : Theme.Palette.textSecondary)
+                VStack(alignment: .trailing, spacing: Theme.Spacing.xs) {
+                    Text(mode.displayLabel)
+                        .font(Theme.Typography.bodyEmphasis)
+                        .foregroundStyle(Theme.Palette.textPrimary)
+                    Text(mode.explanation)
+                        .font(Theme.Typography.caption)
+                        .foregroundStyle(Theme.Palette.textSecondary)
+                        .multilineTextAlignment(.trailing)
+                }
+                Spacer()
+                Image(systemName: mode.iconSymbol)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(Theme.Palette.deepTeal)
+            }
+            .padding(Theme.Spacing.m)
+            .background(isSelected ? Theme.Palette.softBlue.opacity(0.35) : Theme.Palette.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.card, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.CornerRadius.card, style: .continuous)
+                    .strokeBorder(isSelected ? Theme.Palette.deepTeal : Color.clear, lineWidth: 2)
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     private var patientStep: some View {
@@ -117,11 +200,18 @@ struct OnboardingView: View {
                     advanceFromPatient()
                 }
 
+                Button("חזור") { withAnimation { step = 0 } }
+                    .font(Theme.Typography.captionEmphasis)
+                    .foregroundStyle(Theme.Palette.textSecondary)
+                    .frame(maxWidth: .infinity)
+
                 Spacer(minLength: Theme.Spacing.xl)
             }
             .padding(.horizontal, Theme.Spacing.l)
         }
-        .onAppear { focusedField = .patientName }
+        .onChange(of: step) { _, newValue in
+            if newValue == 1 { focusedField = .patientName }
+        }
     }
 
     private var medicalInfoStep: some View {
@@ -196,15 +286,15 @@ struct OnboardingView: View {
                     keyboard: .phonePad,
                     submitLabel: .next
                 ) {
-                    withAnimation { step = 2 }
+                    withAnimation { step = 3 }
                 }
 
                 HStack(spacing: Theme.Spacing.m) {
                     BeaconSecondaryButton(title: "חזור") {
-                        withAnimation { step = 0 }
+                        withAnimation { step = 1 }
                     }
                     BeaconPrimaryButton(title: "המשך", systemImage: "arrow.left.circle.fill") {
-                        withAnimation { step = 2 }
+                        withAnimation { step = 3 }
                     }
                 }
 
@@ -213,7 +303,7 @@ struct OnboardingView: View {
             .padding(.horizontal, Theme.Spacing.l)
         }
         .onChange(of: step) { _, newValue in
-            if newValue == 1 { focusedField = .primaryHospital }
+            if newValue == 2 { focusedField = .primaryHospital }
         }
     }
 
@@ -248,7 +338,7 @@ struct OnboardingView: View {
                     Task { await submit() }
                 }
 
-                Button("חזור") { withAnimation { step = 2 } }
+                Button("חזור") { withAnimation { step = 3 } }
                     .font(Theme.Typography.captionEmphasis)
                     .foregroundStyle(Theme.Palette.textSecondary)
                     .frame(maxWidth: .infinity)
@@ -258,7 +348,7 @@ struct OnboardingView: View {
             .padding(.horizontal, Theme.Spacing.l)
         }
         .onChange(of: step) { _, newValue in
-            if newValue == 3 { focusedField = .caregiverName }
+            if newValue == 4 { focusedField = .caregiverName }
         }
     }
 
@@ -314,14 +404,14 @@ struct OnboardingView: View {
 
                 HStack(spacing: Theme.Spacing.m) {
                     BeaconSecondaryButton(title: "חזור") {
-                        withAnimation { step = 1 }
+                        withAnimation { step = 2 }
                     }
                     BeaconPrimaryButton(
                         title: "המשך",
                         systemImage: "arrow.left.circle.fill",
                         isEnabled: isVerificationReady
                     ) {
-                        withAnimation { step = 3 }
+                        withAnimation { step = 4 }
                     }
                 }
 
@@ -330,7 +420,7 @@ struct OnboardingView: View {
             .padding(.horizontal, Theme.Spacing.l)
         }
         .onChange(of: step) { _, newValue in
-            if newValue == 2 { focusedField = .patientVerificationEmail }
+            if newValue == 3 { focusedField = .patientVerificationEmail }
         }
     }
 
@@ -386,7 +476,7 @@ struct OnboardingView: View {
 
     private func advanceFromPatient() {
         guard !trimmed(patientName).isEmpty else { return }
-        withAnimation { step = 1 }
+        withAnimation { step = 2 }
     }
 
     private var isVerificationReady: Bool {

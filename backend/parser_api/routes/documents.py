@@ -5,12 +5,13 @@ import logging
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
 from parser_api.auth import TokenPayload
 from parser_api.dependencies import get_session, get_user_context, require_roles
+from parser_api.middleware import limiter
 from parser_api.services.claude_parser import ClaudeParser
 from parser_api.services.name_detector import should_flag
 from parser_api.services.ocr_service import OCRService
@@ -57,6 +58,15 @@ def _caller_role(session: Session, user: TokenPayload) -> str | None:
     return member.role if member else None
 
 
+def _assert_document_readable(doc: Document, role: str | None, user: TokenPayload) -> None:
+    """Central authorization gate for every action that exposes a document's
+    contents (view, parse, patch, ...). Caregivers cannot read another
+    member's private document — the household match alone is not enough.
+    """
+    if doc.is_private and role == "caregiver" and str(doc.uploaded_by) != user.user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot access private document")
+
+
 # ---------------------------------------------------------------------------
 # List / archive
 # ---------------------------------------------------------------------------
@@ -81,7 +91,10 @@ def list_documents(
         Document.household_id == uuid.UUID(user.household_id)
     )
 
-    if not include_deleted:
+    # Only the patient/co-owner may browse soft-deleted documents (mirrors
+    # the dedicated /trash route's role gate) — a caregiver passing
+    # include_deleted=true is silently limited to the non-deleted view.
+    if not include_deleted or role not in ("patient", "co_owner"):
         stmt = stmt.where(Document.deleted_at.is_(None))
 
     # Caregivers cannot see private documents uploaded by others
@@ -259,8 +272,7 @@ def get_document(
     )
     if doc is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
-    if doc.is_private and role == "caregiver" and str(doc.uploaded_by) != user.user_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot view private document")
+    _assert_document_readable(doc, role, user)
     return DocumentOut.model_validate(doc)
 
 
@@ -286,6 +298,7 @@ def patch_document(
     )
     if doc is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    _assert_document_readable(doc, role, user)
 
     if body.is_private is not None:
         if role == "caregiver":
@@ -312,13 +325,19 @@ def patch_document(
 
 
 @router.post("/{document_id}/parse", response_model=ParseResponse)
+@limiter.limit("10/minute")
 def parse_document(
+    request: Request,
     document_id: str,
     session: Session = Depends(get_session),
     user: TokenPayload = Depends(get_user_context),
 ) -> ParseResponse:
     """
-    Parse a medical document:
+    Parse a medical document. Rate-limited (10/min/IP) — each call runs OCR
+    plus a paid Claude API request, so this is the endpoint most exposed to
+    cost-flooding by a single misbehaving client.
+
+    Steps:
     1. Fetch from storage (S3 or local)
     2. Run OCR
     3. Category-route to Claude (Haiku for admin, Sonnet otherwise)
@@ -334,6 +353,7 @@ def parse_document(
     )
     if doc is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    _assert_document_readable(doc, _caller_role(session, user), user)
     if doc.status not in ("uploaded", "finalized"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

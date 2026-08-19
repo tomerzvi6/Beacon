@@ -50,6 +50,18 @@ targets:
           - he
           - en
         CFBundleDisplayName: Beacon
+        NSCameraUsageDescription: ביקון משתמשת במצלמה כדי לצלם מסמכים רפואיים, קופסאות תרופות ומכתבי זימון.
+        # Without UILaunchScreen iOS runs the app in legacy compatibility
+        # mode: it letterboxes every screen with black bars top and bottom.
+        # These belong here rather than in Info.plist directly — xcodegen
+        # regenerates that file and would drop them. The INFOPLIST_KEY_*
+        # build settings below are inert because GENERATE_INFOPLIST_FILE is NO.
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UIStatusBarStyle: UIStatusBarStyleDefault
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.beacon.app
@@ -64,3 +76,11 @@ targets:
         GENERATE_INFOPLIST_FILE: NO
         SWIFT_EMIT_LOC_STRINGS: YES
         CODE_SIGN_STYLE: Automatic
+        # Push Notifications entitlement (Beacon/Beacon.entitlements) is
+        # deliberately NOT wired in here. A free "Personal Team" Apple ID
+        # cannot provision that capability at all — Xcode's automatic
+        # signing fails outright with it present. Re-add
+        # `CODE_SIGN_ENTITLEMENTS: Beacon/Beacon.entitlements` once a paid
+        # Apple Developer Program membership is active (see
+        # docs/push_notifications.md) so a personal, unpaid device install
+        # keeps working until then.

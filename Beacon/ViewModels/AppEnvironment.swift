@@ -100,6 +100,7 @@ final class AppEnvironment {
         static let patientProfileKey = "beacon.localPatientProfile.v1"
         static let patientApprovalKey = "beacon.localPatientApproval.v1"
         static let patientAuthorizationKey = "beacon.patientAuthorizationStatus.v1"
+        static let dataSourceModeKey = "beacon.dataSourceMode.v1"
     }
 
     static let maxCaregivers = 5
@@ -127,6 +128,21 @@ final class AppEnvironment {
     var patientAuthorizationStatus: PatientAuthorizationStatus
     private(set) var auditEvents: [AuditEvent]
 
+    /// Hospital-integrated vs. independent (self-upload) build. Runtime
+    /// switch so both product versions can be demoed from one install.
+    var dataSourceMode: DataSourceMode {
+        didSet {
+            UserDefaults.standard.set(dataSourceMode.rawValue, forKey: BackendSessionCache.dataSourceModeKey)
+        }
+    }
+
+    var isIndependentMode: Bool { dataSourceMode == .independent }
+
+    /// Bumped whenever local demo data is loaded or cleared. Tab roots
+    /// observe it so the visible screen refreshes immediately, without
+    /// waiting for a tab switch after the profile sheet is dismissed.
+    var contentRevision: Int = 0
+
     private let auditLogger = AuditLogger()
 
     // MARK: - Init paths
@@ -145,6 +161,31 @@ final class AppEnvironment {
         self.activeViewer = initialCurrentUser.isPatient ? .patient : .caregiver
         self.patientAuthorizationStatus = AppEnvironment.cachedPatientAuthorizationStatus()
         self.auditEvents = AuditLogger().load()
+        self.dataSourceMode = AppEnvironment.cachedDataSourceMode()
+        installSessionExpiryHandler()
+    }
+
+    /// Reacts when any backend call comes back 401 — the token can go bad
+    /// mid-session for reasons the user had no part in (server restarted
+    /// with a fresh signing key in dev, a session was revoked). Without
+    /// this, every screen's own sync silently no-ops on the error and the
+    /// family just sees stale/empty data with no explanation of why.
+    private func installSessionExpiryHandler() {
+        APIClient.onUnauthorized = { [weak self] in
+            Task { @MainActor in
+                self?.handleSessionExpired()
+            }
+        }
+    }
+
+    @MainActor
+    private func handleSessionExpired() {
+        guard authState == .authenticated || authState == .needsOnboarding else { return }
+        TokenStore.clear()
+        clearCachedBackendUser()
+        backendUser = nil
+        authState = .unauthenticated
+        authErrorMessage = "ההתחברות פגה. יש להתחבר מחדש."
     }
 
     /// Preview / mock initializer — bypasses Supabase entirely.
@@ -155,7 +196,8 @@ final class AppEnvironment {
         patient: Patient = .primary,
         members: [FamilyMember] = FamilyMember.all,
         activeViewer: Viewer? = nil,
-        authState: AuthState = .authenticated
+        authState: AuthState = .authenticated,
+        dataSourceMode: DataSourceMode = .independent
     ) {
         self.authService = nil
         self.currentUser = currentUser
@@ -165,6 +207,7 @@ final class AppEnvironment {
         self.authState = authState
         self.patientAuthorizationStatus = .approvedByPatient
         self.auditEvents = AuditLogger().load()
+        self.dataSourceMode = dataSourceMode
     }
 
     // MARK: - Session lifecycle
@@ -463,6 +506,60 @@ final class AppEnvironment {
         }
     }
 
+    /// Join an existing family with the six-digit code the organiser shared.
+    ///
+    /// Routing deliberately does NOT go through `loadUserContextAndRoute`
+    /// here. That helper asks Supabase whether the user has a family, but
+    /// membership created by this call lives in the Beacon backend — Supabase
+    /// would still answer "no family" and bounce the user back into
+    /// onboarding, right after they successfully joined.
+    @MainActor
+    func joinHousehold(code: String) async -> Bool {
+        authErrorMessage = nil
+        do {
+            let result = try await HouseholdService().join(code: code)
+
+            // The backend swapped our token for one scoped to the new
+            // household; mirror the new identity locally so every screen
+            // reads the family we just joined.
+            if let previous = backendUser {
+                let updated = BackendUser(
+                    id: previous.id,
+                    household_id: result.member.householdId,
+                    role: result.member.role,
+                    full_name: previous.full_name
+                )
+                backendUser = updated
+                cacheBackendUser(updated)
+            }
+
+            let role: MemberRole = result.member.role == "patient" ? .patient
+                                 : result.member.role == "co_owner" ? .admin
+                                 : .defaultMember
+            currentUser = FamilyMember(
+                id: result.member.userId.uuidString,
+                displayName: currentUser.displayName,
+                relation: role.isPatient ? "חולה" : "מטפל/ת",
+                avatarSymbol: "person.crop.circle.fill",
+                role: role
+            )
+            activeViewer = role.isPatient ? .patient : .caregiver
+            updatePatientAuthorizationStatus(.approvedByPatient)
+            recordAudit(
+                .inviteAccepted,
+                targetType: "household",
+                targetId: result.member.householdId.uuidString,
+                summary: "Joined household with invite code."
+            )
+            contentRevision += 1
+            authState = .authenticated
+            return true
+        } catch {
+            authErrorMessage = error.localizedDescription
+            return false
+        }
+    }
+
     @MainActor
     func acceptInvite(token: UUID) async {
         guard let authService else { return }
@@ -501,7 +598,9 @@ final class AppEnvironment {
             let role: MemberRole = (ctx.role == "patient") ? .patient
                                   : (ctx.role == "admin" || ctx.role == "co_owner") ? .admin
                                   : .defaultMember
-            if role.isPatient {
+            if role.isPatient || role == .admin {
+                // Patients and co-owners (primary caregivers who manage the family) get
+                // full access automatically — no separate patient-consent gate in MVP.
                 updatePatientAuthorizationStatus(.approvedByPatient)
             } else {
                 patientAuthorizationStatus = AppEnvironment.cachedPatientAuthorizationStatus()
@@ -527,6 +626,40 @@ final class AppEnvironment {
         } catch {
             authErrorMessage = error.localizedDescription
             self.authState = .unauthenticated
+        }
+    }
+
+    /// Replaces the static demo cast (`FamilyMember.all`) with the real
+    /// household roster from the backend, so a feed post or claimed task
+    /// authored on another family member's device shows their real name
+    /// instead of failing to resolve. Best-effort: on failure, keeps
+    /// whatever member list is already loaded rather than surfacing an error
+    /// for what is, from the caller's perspective, a background refresh.
+    @MainActor
+    func refreshFamilyMembers() async {
+        guard let backendUser else { return }
+        do {
+            let remoteMembers = try await HouseholdService().members()
+            var updated: [FamilyMember] = remoteMembers.compactMap { member in
+                // Keep the signed-in user's own live entry (local permission
+                // edits shouldn't be clobbered by the server's coarser role).
+                guard member.userId != backendUser.id else { return nil }
+                let role: MemberRole = member.role == "patient" ? .patient
+                                      : member.role == "co_owner" ? .admin
+                                      : .defaultMember
+                return FamilyMember(
+                    id: member.userId.uuidString,
+                    displayName: member.displayName.isEmpty ? "בן/בת משפחה" : member.displayName,
+                    relation: role.isPatient ? "חולה" : "מטפל/ת",
+                    avatarSymbol: "person.crop.circle",
+                    role: role
+                )
+            }
+            updated.append(currentUser)
+            self.members = updated
+            FamilyMember.all = updated
+        } catch {
+            // Keep the previous list — see doc comment above.
         }
     }
 
@@ -599,7 +732,7 @@ final class AppEnvironment {
     }
 
     func approvePatientConsent() {
-        guard currentUser.isPatient else { return }
+        guard currentUser.isPatient || currentUser.role == .admin else { return }
         updatePatientAuthorizationStatus(.approvedByPatient)
         recordAudit(
             .patientConsentApproved,
@@ -768,6 +901,16 @@ final class AppEnvironment {
             return .approvedByPatient
         }
         return status
+    }
+
+    /// Independent (self-upload) is the default until a hospital
+    /// integration actually exists.
+    private static func cachedDataSourceMode() -> DataSourceMode {
+        guard let raw = UserDefaults.standard.string(forKey: BackendSessionCache.dataSourceModeKey),
+              let mode = DataSourceMode(rawValue: raw) else {
+            return .independent
+        }
+        return mode
     }
 
     private func recordAudit(

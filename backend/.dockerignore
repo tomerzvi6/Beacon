@@ -1,0 +1,10 @@
+venv_parser/
+venv_agents/
+__pycache__/
+*.pyc
+*.egg-info/
+.env
+uploads/
+tests/
+agents/
+LOCAL_DEV.md

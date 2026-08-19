@@ -1,0 +1,30 @@
+# Beacon Parser API — Fly.io config
+# Deploy from the backend/ directory: `fly deploy`
+app = "beacon-parser-api"   # שנה לשם ייחודי אם תפוס
+primary_region = "fra"       # פרנקפורט — הכי קרוב לישראל
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  ENVIRONMENT = "production"
+  OCR_MODE = "tesseract"
+  STORAGE_BACKEND = "local"
+  LOCAL_UPLOAD_DIR = "/data/uploads"
+  # עדכן לכתובת הציבורית אחרי הדיפלוי הראשון:
+  LOCAL_API_BASE_URL = "https://beacon-parser-api.fly.dev"
+
+[mounts]
+  source = "beacon_uploads"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"

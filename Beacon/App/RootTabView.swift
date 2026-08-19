@@ -17,22 +17,24 @@ struct RootTabView: View {
     }
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .bottom) {
             Theme.Palette.background.ignoresSafeArea()
             selectedContent
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .safeAreaInset(edge: .top, spacing: 0) {
-            BeaconEdgeTopBar()
-                .padding(.bottom, -Theme.Layout.edgeBarHalfCentimeterOffset)
-                .offset(y: -Theme.Layout.edgeBarHalfCentimeterOffset)
-        }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
+
+            // Both bars are rendered as guaranteed-opaque overlays (not
+            // safeAreaInset) so they always sit visually above scrolled
+            // content, regardless of whether an individual tab's ScrollView
+            // correctly shrinks its own viewport for the reserved safe-area
+            // height. Each tab adds matching scrollContentTopClearance /
+            // scrollContentBottomClearance padding so content never sits
+            // underneath either bar at rest.
             BeaconBottomTabBar(selection: $selection, tabs: availableTabs)
                 .padding(.horizontal, Theme.Layout.bottomTabBarHorizontalInset)
                 .padding(.bottom, Theme.Layout.bottomTabBarBottomInset)
-                .padding(.top, -Theme.Layout.edgeBarHalfCentimeterOffset)
-                .offset(y: Theme.Layout.edgeBarHalfCentimeterOffset)
+        }
+        .overlay(alignment: .top) {
+            BeaconEdgeTopBar()
         }
         .tint(Theme.Palette.deepTeal)
     }

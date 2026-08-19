@@ -49,6 +49,9 @@ class Household(Base):
     tasks: Mapped[list["Task"]] = relationship(back_populates="household")
     medications: Mapped[list["Medication"]] = relationship(back_populates="household")
     symptom_reports: Mapped[list["SymptomReport"]] = relationship(back_populates="household")
+    schedule_events: Mapped[list["ScheduleEvent"]] = relationship(back_populates="household")
+    feed_posts: Mapped[list["FeedPost"]] = relationship(back_populates="household")
+    caregiver_profiles: Mapped[list["CaregiverProfile"]] = relationship(back_populates="household")
 
 
 class User(Base):
@@ -184,6 +187,11 @@ class Task(Base):
     edited_by_user: Mapped[bool] = mapped_column(Boolean, default=False)
     edit_history: Mapped[list] = mapped_column(JSONB, default=list)
 
+    # DailyTask parity (Phase 9.6)
+    kind: Mapped[str] = mapped_column(String(20), default="logistics")  # medical|logistics
+    origin: Mapped[str] = mapped_column(String(20), default="ai_suggestion")
+    # manual|ai_suggestion|hospital_sync
+
     household: Mapped[Household] = relationship(back_populates="tasks")
     document: Mapped[Document | None] = relationship(back_populates="tasks")
 
@@ -196,6 +204,12 @@ class Medication(Base):
     name_he: Mapped[str] = mapped_column(Text)
     dosage: Mapped[str | None] = mapped_column(String(100))
     schedule: Mapped[dict] = mapped_column(JSONB, default=dict)
+
+    # Medication/MedicationDose parity (Phase 9.6)
+    form: Mapped[str] = mapped_column(String(20), default="pill")  # pill|injection|syrup|patch
+    usage_instructions: Mapped[str | None] = mapped_column(Text)
+    stock_count: Mapped[int] = mapped_column(Integer, default=0)
+    low_stock_threshold: Mapped[int] = mapped_column(Integer, default=5)
 
     household: Mapped[Household] = relationship(back_populates="medications")
     dose_events: Mapped[list["DoseEvent"]] = relationship(back_populates="medication")
@@ -224,6 +238,129 @@ class SymptomReport(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     household: Mapped[Household] = relationship(back_populates="symptom_reports")
+
+
+class ScheduleEvent(Base):
+    """Calendar (יומן): appointments and other scheduled events."""
+    __tablename__ = "schedule_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    household_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("households.id"))
+    title: Mapped[str] = mapped_column(Text)
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    kind: Mapped[str] = mapped_column(String(20), default="routine")  # medical|routine|logistics
+    location_name: Mapped[str | None] = mapped_column(Text)
+    companion_user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    subtitle: Mapped[str | None] = mapped_column(Text)
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    household: Mapped[Household] = relationship(back_populates="schedule_events")
+
+
+class FeedPost(Base):
+    """Family support feed (פיד)."""
+    __tablename__ = "feed_posts"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    household_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("households.id"))
+    author_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    body: Mapped[str] = mapped_column(Text)
+    status: Mapped[str | None] = mapped_column(String(20))  # stable|needs_rest|improving|concerned
+    audience: Mapped[str] = mapped_column(String(20), default="family_only")  # family_only|inner_circle
+    posted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    household: Mapped[Household] = relationship(back_populates="feed_posts")
+    comments: Mapped[list["FeedComment"]] = relationship(
+        back_populates="post", cascade="all, delete-orphan", order_by="FeedComment.posted_at"
+    )
+    reactions: Mapped[list["FeedReaction"]] = relationship(
+        back_populates="post", cascade="all, delete-orphan"
+    )
+
+
+class FeedComment(Base):
+    __tablename__ = "feed_comments"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    post_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("feed_posts.id", ondelete="CASCADE"))
+    author_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    body: Mapped[str] = mapped_column(Text)
+    posted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    post: Mapped[FeedPost] = relationship(back_populates="comments")
+
+
+class FeedReaction(Base):
+    """One row per (post, user, reaction) — idempotent heart/hug taps."""
+    __tablename__ = "feed_reactions"
+    __table_args__ = (UniqueConstraint("post_id", "user_id", "reaction"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    post_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("feed_posts.id", ondelete="CASCADE"))
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    reaction: Mapped[str] = mapped_column(String(10))  # heart|hug
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    post: Mapped[FeedPost] = relationship(back_populates="reactions")
+
+
+class CaregiverProfile(Base):
+    """A home caregiver/aide (שכבת מטפל/ת). No login — the family maintains
+    this record and the caregiver reports through a code-free screen."""
+    __tablename__ = "caregiver_profiles"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    household_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("households.id"))
+    display_name: Mapped[str] = mapped_column(String(120))
+    relation_title: Mapped[str] = mapped_column(String(120), default="מטפל/ת סיעודי/ת")
+    preferred_language: Mapped[str] = mapped_column(String(20), default="english")
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    household: Mapped[Household] = relationship(back_populates="caregiver_profiles")
+    checkins: Mapped[list["CaregiverCheckIn"]] = relationship(back_populates="caregiver")
+
+
+class CaregiverCheckIn(Base):
+    __tablename__ = "caregiver_checkins"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    household_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("households.id"))
+    caregiver_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("caregiver_profiles.id"))
+
+    meal_status: Mapped[str] = mapped_column(String(20))  # ateWell|ateLittle|didNotEat
+    hydration_status: Mapped[str] = mapped_column(String(20))  # drankEnough|drankLittle|didNotDrink
+    sleep_status: Mapped[str] = mapped_column(String(20))  # sleptWell|sleptPoorly
+    pain_level: Mapped[int] = mapped_column(Integer)
+    nausea_level: Mapped[int] = mapped_column(Integer)
+    fatigue_level: Mapped[int] = mapped_column(Integer)
+    medication_status: Mapped[str] = mapped_column(String(20))  # taken|missed|notSure
+    medication_note: Mapped[str | None] = mapped_column(Text)
+
+    free_text_original: Mapped[str | None] = mapped_column(Text)
+    original_language: Mapped[str] = mapped_column(String(20))
+    translated_summary_hebrew: Mapped[str] = mapped_column(Text)
+
+    attention_level: Mapped[str] = mapped_column(String(20), default="ok")  # ok|attention|urgent
+    alert_reasons: Mapped[list] = mapped_column(JSONB, default=list)
+    is_acknowledged: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    caregiver: Mapped[CaregiverProfile] = relationship(back_populates="checkins")
+
+
+class CaregiverInstruction(Base):
+    __tablename__ = "caregiver_instructions"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    household_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("households.id"))
+    kind: Mapped[str] = mapped_column(String(30))
+    detail: Mapped[str] = mapped_column(Text, default="")
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
 class AuditLog(Base):

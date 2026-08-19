@@ -22,31 +22,64 @@ struct MedicalVaultView: View {
     @State private var pendingFile: PendingUploadFile? = nil
     @State private var showingBackendAuthAlert = false
 
+    // Independent-mode intake state
+    private enum IndependentAction { case batchScan, medicationLabel, appointment, files }
+    @State private var showingIndependentIntake = false
+    @State private var pendingIndependentAction: IndependentAction? = nil
+    @State private var showingBatchScan = false
+    @State private var showingMedicationIntake = false
+    @State private var showingAppointmentIntake = false
+    @State private var intakeToast: String? = nil
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
                 ScrollView {
                     VStack(alignment: .trailing, spacing: Theme.Spacing.m) {
                         if let vm = viewModel {
-                            if let alert = vm.alert {
+                            // Hospital-sync alerts belong to the integrated build only —
+                            // in independent mode nothing arrives "from the hospital".
+                            if environment.dataSourceMode == .hospitalIntegrated, let alert = vm.alert {
                                 HospitalSyncAlertCard(alert: alert, onDismiss: { vm.dismissAlert() })
                             }
 
                             BeaconScreenHeader(
                                 title: "תיק רפואי",
-                                subtitle: "כל המסמכים והסיכומים של \(environment.patient.displayName), מסודרים וברורים."
+                                subtitle: environment.isIndependentMode
+                                    ? "מצלמים — וביקון מזהה, מתייק ומסכם לבד."
+                                    : "כל המסמכים והסיכומים של \(environment.patient.displayName), מסודרים וברורים."
                             )
 
-                            AISmartSummaryFeatureCard(
-                                summary: vm.featuredSummary,
-                                onReadFullSummary: { openedSummary = vm.featuredSummary },
-                                onAddSuggestedTasks: {
-                                    _ = vm.addSuggestedTasksToCalendar(from: vm.featuredSummary)
-                                },
-                                importedTaskCount: vm.lastImportedTaskTitles.isEmpty
-                                    ? nil
-                                    : vm.lastImportedTaskTitles.count
-                            )
+                            if environment.isIndependentMode {
+                                quickIntakeStrip
+                            }
+
+                            // In independent mode, only a summary of a document the
+                            // family actually uploaded may appear — showing the static
+                            // demo summary to a fresh user reads as someone else's data.
+                            // The integrated build keeps the demo card as a showcase.
+                            if let activeSummary = vm.featuredAISummary
+                                ?? (environment.isIndependentMode ? nil : vm.featuredSummary) {
+                                AISmartSummaryFeatureCard(
+                                    summary: activeSummary,
+                                    onReadFullSummary: {
+                                        // Navigate to the full document detail when a real
+                                        // parsed document is available; otherwise show the
+                                        // static demo in AISummaryDetailView.
+                                        if let doc = vm.featuredDocument {
+                                            openedDocument = doc
+                                        } else {
+                                            openedSummary = activeSummary
+                                        }
+                                    },
+                                    onAddSuggestedTasks: {
+                                        Task { _ = await vm.addSuggestedTasksToCalendar(from: activeSummary) }
+                                    },
+                                    importedTaskCount: vm.lastImportedTaskTitles.isEmpty
+                                        ? nil
+                                        : vm.lastImportedTaskTitles.count
+                                )
+                            }
 
                             if shouldShowDocumentControls(vm) {
                                 searchField(vm: vm)
@@ -65,19 +98,43 @@ struct MedicalVaultView: View {
                         }
                     }
                     .padding(.horizontal, Theme.Spacing.m)
-                    .padding(.bottom, Theme.Layout.medicalVaultBottomContentInset)
+                    .padding(.top, Theme.Layout.scrollContentTopClearance)
+                    .padding(.bottom, Theme.Layout.scrollContentBottomClearance)
                 }
                 .refreshable {
                     await viewModel?.refresh()
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .toolbar(.hidden, for: .navigationBar)
             .beaconScreenBackground()
             .overlay(alignment: .bottomTrailing) {
-                uploadFAB.padding(Theme.Spacing.l)
+                uploadFAB
+                    .padding(.horizontal, Theme.Spacing.l)
+                    .padding(.bottom, Theme.Layout.scrollContentBottomClearance)
             }
             .overlay(alignment: .center) {
                 uploadProgressOverlay
+            }
+            .overlay(alignment: .bottom) {
+                if let intakeToast {
+                    Text(intakeToast)
+                        .font(Theme.Typography.bodyEmphasis)
+                        .foregroundStyle(Theme.Palette.textPrimary)
+                        .padding(.vertical, Theme.Layout.controlVerticalPadding)
+                        .padding(.horizontal, Theme.Spacing.l)
+                        .background(.regularMaterial, in: Capsule())
+                        .beaconCardShadow()
+                        .padding(.bottom, Theme.Spacing.l)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+            }
+            .animation(.spring(response: 0.4, dampingFraction: 0.75), value: intakeToast)
+            .sensoryFeedback(.success, trigger: intakeToast)
+            .task(id: intakeToast) {
+                guard intakeToast != nil else { return }
+                try? await Task.sleep(nanoseconds: 2_200_000_000)
+                intakeToast = nil
             }
             .navigationDestination(item: $openedDocument) { doc in
                 DocumentDetailView(document: doc)
@@ -86,7 +143,7 @@ struct MedicalVaultView: View {
                 AISummaryDetailView(
                     summary: summary,
                     onAddSuggestedTasks: { _ in
-                        _ = viewModel?.addSuggestedTasksToCalendar(from: summary)
+                        Task { _ = await viewModel?.addSuggestedTasksToCalendar(from: summary) }
                     }
                 )
             }
@@ -113,6 +170,44 @@ struct MedicalVaultView: View {
                 onPhotos: { pendingNextPicker = .photos; showingActionSheet = false },
                 onFiles:  { pendingNextPicker = .files;  showingActionSheet = false }
             )
+        }
+        .sheet(isPresented: $showingIndependentIntake, onDismiss: {
+            guard let action = pendingIndependentAction else { return }
+            pendingIndependentAction = nil
+            switch action {
+            case .batchScan, .files:
+                startDocumentPath(action)
+            case .medicationLabel:
+                showingMedicationIntake = true
+            case .appointment:
+                showingAppointmentIntake = true
+            }
+        }) {
+            IndependentIntakeSheet(
+                onBatchScan: { pendingIndependentAction = .batchScan },
+                onMedicationLabel: { pendingIndependentAction = .medicationLabel },
+                onAppointment: { pendingIndependentAction = .appointment },
+                onFiles: { pendingIndependentAction = .files }
+            )
+        }
+        .sheet(isPresented: $showingBatchScan) {
+            if let vm = viewModel {
+                BatchScanSheet(viewModel: vm) { succeeded, _ in
+                    if succeeded > 0 {
+                        intakeToast = "\(succeeded) דפים נכנסו לתיק ומעובדים ברקע ✓"
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $showingMedicationIntake) {
+            MedicationLabelIntakeSheet { medicationName in
+                intakeToast = "\(medicationName) נוספה ללוח התרופות ✓"
+            }
+        }
+        .sheet(isPresented: $showingAppointmentIntake) {
+            AppointmentIntakeSheet { _ in
+                intakeToast = "התור נוסף ליומן המשפחתי ✓"
+            }
         }
         .fullScreenCover(isPresented: $showingCameraPicker) {
             CameraPicker(
@@ -193,9 +288,13 @@ struct MedicalVaultView: View {
                     systemImage: "doc.badge.plus",
                     title: vm.searchText.isEmpty ? "אין מסמכים בקטגוריה" : "לא נמצאו תוצאות",
                     message: vm.searchText.isEmpty
-                        ? "העלה מסמך ראשון כדי ש-Beacon יוכל לסכם אותו, לזהות משימות ולהציע תרופות לבדיקה."
+                        ? (environment.isIndependentMode
+                            ? "אל תסדרו כלום — רק תצלמו. כל דף שתצלמו יזוהה, יתויק ויסוכם בעברית פשוטה."
+                            : "העלה מסמך ראשון כדי ש-Beacon יוכל לסכם אותו, לזהות משימות ולהציע תרופות לבדיקה.")
                         : "נסו לחפש מילת מפתח אחרת או לבחור קטגוריה אחרת.",
-                    actionTitle: vm.searchText.isEmpty ? "העלה מסמך ראשון" : nil,
+                    actionTitle: vm.searchText.isEmpty
+                        ? (environment.isIndependentMode ? "התחלת צילום" : "העלה מסמך ראשון")
+                        : nil,
                     action: vm.searchText.isEmpty ? beginUploadFlow : nil
                 )
             }
@@ -232,11 +331,86 @@ struct MedicalVaultView: View {
     // MARK: - FAB + progress overlay
 
     private func beginUploadFlow() {
+        if environment.isIndependentMode {
+            // Medication + appointment intake are fully local — the auth
+            // gate applies only when a document upload path is chosen.
+            showingIndependentIntake = true
+            return
+        }
         if TokenStore.read() == nil {
             showingBackendAuthAlert = true
         } else {
             showingActionSheet = true
         }
+    }
+
+    /// Requires backend auth (document uploads go through the parser API).
+    private func startDocumentPath(_ action: IndependentAction) {
+        if TokenStore.read() == nil {
+            showingBackendAuthAlert = true
+            return
+        }
+        switch action {
+        case .batchScan: showingBatchScan = true
+        case .files: showingFileImporter = true
+        default: break
+        }
+    }
+
+    // MARK: - Independent-mode quick intake
+
+    /// One-tap capture strip — the three most-used intake paths, always
+    /// visible so families never hunt for the FAB.
+    private var quickIntakeStrip: some View {
+        HStack(spacing: Theme.Spacing.s) {
+            quickIntakeButton(
+                icon: "square.stack.3d.up.fill",
+                label: "ערימת\nמסמכים",
+                tint: Theme.Palette.deepTeal
+            ) {
+                startDocumentPath(.batchScan)
+            }
+            quickIntakeButton(
+                icon: "pills.fill",
+                label: "קופסת\nתרופה",
+                tint: Theme.Palette.sageDark
+            ) {
+                showingMedicationIntake = true
+            }
+            quickIntakeButton(
+                icon: "calendar.badge.plus",
+                label: "זימון\nתור",
+                tint: Theme.Palette.softBlue
+            ) {
+                showingAppointmentIntake = true
+            }
+        }
+    }
+
+    private func quickIntakeButton(
+        icon: String,
+        label: String,
+        tint: Color,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            VStack(spacing: Theme.Spacing.xs) {
+                Image(systemName: icon)
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(tint)
+                Text(label)
+                    .font(Theme.Typography.captionEmphasis)
+                    .foregroundStyle(Theme.Palette.textPrimary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, Theme.Spacing.s + Theme.Spacing.xs)
+            .background(Theme.Palette.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.card, style: .continuous))
+            .beaconCardShadow()
+        }
+        .buttonStyle(.plain)
     }
 
     private var uploadFAB: some View {

@@ -161,21 +161,26 @@ struct CaregiverCheckInDetailView: View {
         VStack(spacing: Theme.Spacing.s) {
             if environment.canWrite(.tasks) {
                 BeaconPrimaryButton(title: "צור משימה", systemImage: "checkmark.circle.fill") {
-                    toastMessage = viewModel.createFollowUpTask(for: checkIn)
-                        ? "נוצרה משימה למעקב ✓"
-                        : "כבר קיימת משימה פתוחה לדיווח הזה"
+                    Task {
+                        let created = await viewModel.createFollowUpTask(for: checkIn)
+                        toastMessage = created ? "נוצרה משימה למעקב ✓" : "כבר קיימת משימה פתוחה לדיווח הזה"
+                    }
                 }
             }
             if !checkIn.isAcknowledged {
                 BeaconSecondaryButton(title: "סמן כטופל", systemImage: "checkmark.seal") {
-                    viewModel.acknowledge(checkIn)
-                    toastMessage = "הדיווח סומן כטופל ✓"
+                    Task {
+                        await viewModel.acknowledge(checkIn)
+                        toastMessage = "הדיווח סומן כטופל ✓"
+                    }
                 }
             }
             if environment.canWrite(.feed) {
                 BeaconSecondaryButton(title: "שתף במעגל התמיכה", systemImage: "bubble.left.and.bubble.right") {
-                    viewModel.shareToFeed(checkIn, authorMemberId: environment.currentUser.id)
-                    toastMessage = "שותף במעגל התמיכה ✓"
+                    Task {
+                        await viewModel.shareToFeed(checkIn, authorMemberId: environment.currentUser.id)
+                        toastMessage = "שותף במעגל התמיכה ✓"
+                    }
                 }
             }
         }

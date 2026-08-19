@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		02CC2A64FB4F90D51A8B2DCB /* IntakeOCRService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B82F47DB76137CA1121BF48F /* IntakeOCRService.swift */; };
 		0811ACE333F8097B7FB7301F /* CircleOfTrustView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6375F6AB417A84933678DAEA /* CircleOfTrustView.swift */; };
 		09B9BC34539E2E16A98AA5F5 /* FeedPostCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 614BB94435A0C811AB480290 /* FeedPostCard.swift */; };
 		0A1243F852D3658E9091B7BF /* ScheduleEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3EB4A270A951D8A190540B2 /* ScheduleEvent.swift */; };
@@ -18,17 +19,22 @@
 		1312EEE4CB509D91D3B738D0 /* SecretsLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 097E12FC8A26CF20E5D73791 /* SecretsLoader.swift */; };
 		1315AFCF0FCA0C440DC3DE0C /* FamilyScheduleCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF5A55C7F6F77BE372066710 /* FamilyScheduleCard.swift */; };
 		1880B9384B2DA04FCE3CBE6B /* LowStockCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13000A200DBC313BFF4263AD /* LowStockCard.swift */; };
+		200DB26A07E2EEB89D96F301 /* TaskService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D52C6E240F2A83C60C6ACCB4 /* TaskService.swift */; };
 		20358DCCDA3FA6B157631871 /* GreetingHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF38341DECE69B8F95351FF1 /* GreetingHeader.swift */; };
 		23B3E49D7D73B1964CE600C0 /* TokenStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0417A6C76E26CF25D8B918E /* TokenStore.swift */; };
+		250836991B630CEC2FE4A54D /* HouseholdService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 646FDFECA0F553B28FD1A16B /* HouseholdService.swift */; };
 		27029282EAAE0923DCDF51E6 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = EE9329A753AD1A276447AFF8 /* GoogleSignInSwift */; };
 		27728725E60604C9592CBD56 /* CaregiverLayerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 107C3EE894A89FFCBDA9A605 /* CaregiverLayerViewModel.swift */; };
 		2C3F092188EF1537A5F8DB69 /* CaregiverCheckInDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2021D46C7A30B54C5BF79DDD /* CaregiverCheckInDetailView.swift */; };
 		2D8E32864899E31CFBCAAB35 /* DashboardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A457F261A0B846D07BE71D5 /* DashboardViewModel.swift */; };
 		2E036D2FB0F123289270FE72 /* ProactiveCareViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD2B5D7288A3C97C9A578F43 /* ProactiveCareViewModel.swift */; };
+		2E52D6BF699D20D7CAF5AA9C /* FeedService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C646A4F2356076505F5A6376 /* FeedService.swift */; };
 		2F147C3C6A0AF9AF99E3544D /* BackendDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E9A198932A1A09554399772 /* BackendDocument.swift */; };
 		2F9F262C0531A3753F181B6B /* SupportReaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCC65FCD1BC1C12FD57BE8D2 /* SupportReaction.swift */; };
 		316CD91CA6106B5E41468F5A /* GoogleSignInService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010DD3E2BCABF22437857F45 /* GoogleSignInService.swift */; };
+		31930C7A301F8B0126EDE37F /* CaregiverInstructionsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DBEC99460201F41F18B5539 /* CaregiverInstructionsSheet.swift */; };
 		32754104DB7E59D68F4D906D /* CaregiverReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D2CC982904CB9662CFDC2D1 /* CaregiverReportView.swift */; };
+		32ED47C40B0BBF8465CC4790 /* JoinWithCodeSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A44D38B8F798663CD236E165 /* JoinWithCodeSheet.swift */; };
 		35FDE87220E14388D0FEFA0C /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 1EEAB4C9DB7A32FDA8DBD9E0 /* GoogleSignIn */; };
 		3A2ABFB59DDD015FFF590107 /* MedicalVaultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8193FB8F9AD2731143790BFB /* MedicalVaultView.swift */; };
 		3B2A579B9EDD59191E49F861 /* BeaconAvatar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C190E771BCB6DA8AF607EF0 /* BeaconAvatar.swift */; };
@@ -36,13 +42,16 @@
 		55E3DB5F740BBAB7CEB79C95 /* APIConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A4CC9A25A3ED3635483E71E /* APIConfig.swift */; };
 		59A2232B9B1309D6F39303EF /* Medication.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FC456572853A99FA938AA2B /* Medication.swift */; };
 		5B5CEC3FA5B3DB0F55ABB77F /* ProactiveCareView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B07765B8C82C626881F34CEE /* ProactiveCareView.swift */; };
+		5CFD89CD7F5AF07A74EC40BF /* CaregiverInstruction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09911C72523247439456EA90 /* CaregiverInstruction.swift */; };
 		5D416DFAF7A7196521865340 /* AppEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A03967CC5DCF1E133BCFEB6 /* AppEnvironment.swift */; };
 		5F2E844CF99BE063A6D2D0AA /* CaregiverSetupSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 660B9F61ED3B6B000BB2DD2A /* CaregiverSetupSheet.swift */; };
 		5FAD9EAE5248DEAA3C04BC3F /* DocumentCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E18E9EDD72BC878D1AD717A /* DocumentCard.swift */; };
 		5FF36126FCB7CF6A52089572 /* BeaconPrimaryButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F83128B780C0D00ABB510D2 /* BeaconPrimaryButton.swift */; };
 		610CCEE7B78203615FE516A4 /* HospitalSyncAlertCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 015532BAD922E49277A7A3E4 /* HospitalSyncAlertCard.swift */; };
+		6584B2F30F4029CF147B2128 /* MedicationLabelIntakeSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 552F2F61B2A02B3657A2ED80 /* MedicationLabelIntakeSheet.swift */; };
 		69CA1E05F9777899F0B0AFD7 /* InviteService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19F054CB36712B90E05C2097 /* InviteService.swift */; };
 		6C198B0DF181B83D3565443C /* FeedPost.swift in Sources */ = {isa = PBXBuildFile; fileRef = E03024AB9780926E666D981E /* FeedPost.swift */; };
+		6CE5FD2A640B8CC46E7ED36D /* PushAppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1188235A41C4C201AB977A99 /* PushAppDelegate.swift */; };
 		6D8695255BE764D3DD453BFA /* CaregiverCheckIn.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8238D03B87D5A25D2D9ED51 /* CaregiverCheckIn.swift */; };
 		6E99C5656525799F647743C7 /* MissedDoseAlertCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E16643D75AD21FDA8F135F7 /* MissedDoseAlertCard.swift */; };
 		726998271F721C9FBDB5E121 /* MedicalVaultViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D06B3BBC8EE30000B1023F13 /* MedicalVaultViewModel.swift */; };
@@ -51,21 +60,30 @@
 		79F23FF0C91B43990D48A3AF /* BeaconScreenHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 078563B590794C5B0FD3462A /* BeaconScreenHeader.swift */; };
 		7BD78F6AFEF1DEAF5DFE086A /* DiagnosticView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBBE678970282D86ABEDB483 /* DiagnosticView.swift */; };
 		82BBCDFD863996EE74719B35 /* DocumentDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56A752E57A8303FBFB599480 /* DocumentDetailView.swift */; };
+		84F04620D5CD12765C4413E2 /* MedicationManagerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 374EE8310068FE0EEE3EE09F /* MedicationManagerSheet.swift */; };
 		8704C1E150D64E475539E4A4 /* DailyTask.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3214AF0014A25C940D09278 /* DailyTask.swift */; };
+		87EA1B84EFD5806D20B4C52B /* DoseReminderService.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBFE0203473B44CC1F611940 /* DoseReminderService.swift */; };
 		8CBB8B5858648893D5D73AA7 /* BeaconBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73D42EB6FC0A6545FE2DB9CC /* BeaconBadge.swift */; };
 		928B4C0189CB7F818C1821A9 /* CaregiverLocalization.swift in Sources */ = {isa = PBXBuildFile; fileRef = D869DF3CD79EBDFF97A1E152 /* CaregiverLocalization.swift */; };
 		968540490383EF0F089B01F2 /* SupabaseClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58BCE94B12A2BBB83E5155BD /* SupabaseClient.swift */; };
+		9846859E9419A17B1F8CC0A8 /* BatchScanSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A0D777BC687A6F4F0404003 /* BatchScanSheet.swift */; };
 		9C05FA6D76AEA40749658C51 /* ComposePostCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4777B97E6EB709C91BFE921C /* ComposePostCard.swift */; };
 		9F706E22D37CB148876751AA /* BeaconSectionHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C665F4A537D982750F291E6 /* BeaconSectionHeader.swift */; };
 		A48A8D861DF68E401FC2B529 /* CustomSymptomSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B662F5D3DB888F2DD1D722C7 /* CustomSymptomSheet.swift */; };
+		A84A09386FA52B4DD6D14DC6 /* DocumentScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 575A908B90C6FF2AA6838066 /* DocumentScannerView.swift */; };
 		A91BF1BF5FA7A552B8451D2B /* SupportReactionBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC533BFA44F26592A1566838 /* SupportReactionBar.swift */; };
 		ACF81B2997A1D5C0ACDBC0F6 /* MockDataSeeder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CAFFA9571D6FE98390D2404 /* MockDataSeeder.swift */; };
 		B11F5AD61DA53FABC6AD4392 /* Patient.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFA31E65F98AFD8EE30AEAC9 /* Patient.swift */; };
+		B151BE7A3FFEA40E847744F7 /* DataSourceMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 168B2FFA6EB835C40FCB46EE /* DataSourceMode.swift */; };
 		B675344B15620386F03AA3C9 /* AISmartSummaryFeatureCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CEF16F38DA4DE75261F69B3 /* AISmartSummaryFeatureCard.swift */; };
+		B6F373E1FF2B7DED7E993894 /* PushService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17B990AEDE9E3432CCF8FE19 /* PushService.swift */; };
 		B8E70F05F9AF320102E8EBFA /* FamilyMember.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A983DA54EAAD9A9406F1FE3 /* FamilyMember.swift */; };
 		B9181CA50449F1E76B9AE033 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CB733615A2381C58E7BCF67 /* APIClient.swift */; };
+		B9322FBE69B895152C49BF92 /* CaregiverService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 775EDD0D7FF57919FAC7FD1A /* CaregiverService.swift */; };
+		BADC9D7C9D5BD072AB42A4CB /* MedicationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB0B856F0345A7F3751C013 /* MedicationService.swift */; };
 		BB21B93A0BF3EC5C01E60A60 /* CaregiverTranslationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8375E716C87DF2A58DDAA7FF /* CaregiverTranslationService.swift */; };
 		BF5EA2527981FD869EF4881E /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 9FC800ACA334E92B17C1DF8B /* Supabase */; };
+		BF96BABA5EB8DD9833D9E725 /* ScheduleService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 892C67F6A569E41A2436DF2D /* ScheduleService.swift */; };
 		C3AA40C22E8CB4DF567565C6 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FC66681BA60961ABB812B9E /* Theme.swift */; };
 		C522CDEB0739C86D63AD92A7 /* CircleOfTrustViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC7A942A33EB9A5AD4939E56 /* CircleOfTrustViewModel.swift */; };
 		C8CBEDC4DCE867E7D0223B0D /* SplashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F46B3F859BD8FCE958737FF6 /* SplashView.swift */; };
@@ -73,11 +91,13 @@
 		C975B03722410885A1730525 /* BeaconCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECDB6DC4C825AD4E2FAF01E8 /* BeaconCard.swift */; };
 		CA52C4FBBD85A6D2F36CA95C /* PatientProfileSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DEACBBFB6F7D6388DE90FE0 /* PatientProfileSheet.swift */; };
 		CDB80CA909FFA23AB38187B2 /* BeaconEmptyState.swift in Sources */ = {isa = PBXBuildFile; fileRef = D419B22759A3D410D4272FA0 /* BeaconEmptyState.swift */; };
+		CFA629B52404E5D9C439D3E6 /* IndependentIntakeSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EA093596060DC6C90D012CE /* IndependentIntakeSheet.swift */; };
 		DADF23637CC0833A2603577A /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47FFEEBCD29D3C9F544E2E0B /* LoginView.swift */; };
 		DC04F2E44D086487A813E8AA /* Permissions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48B8292AD67748E25CA1CBF8 /* Permissions.swift */; };
 		DC56475C775B753A8D2864B4 /* HospitalSyncAlert.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B614363992D0BF88A9F06B5 /* HospitalSyncAlert.swift */; };
 		DEDD266E1467AD55CDC84176 /* BackendDocumentService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FC4C2407A4B93FA8542C1FB /* BackendDocumentService.swift */; };
 		E0B1ABADAE871D35A2FBDC96 /* QuickSymptomLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7793D8588DE8B1D1DE4C9DCD /* QuickSymptomLogger.swift */; };
+		E1612F78252C5861E0765EFC /* LegalTextSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F21CE402E32A85FB6CE6AC15 /* LegalTextSheet.swift */; };
 		E3AFC74E55E3F56F2401A743 /* MedicationDose.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB34D05A1F50F0A83D1BD4AA /* MedicationDose.swift */; };
 		E8D442D4E1AEF59E1030C37B /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C68D6C52088F166414EABD7A /* OnboardingView.swift */; };
 		E98E842F6698C04041EF47C2 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0B9B7813400C9BF60735AA5 /* RootTabView.swift */; };
@@ -87,10 +107,14 @@
 		EE00289B95E8A9C022D65B5C /* Secrets.plist in Resources */ = {isa = PBXBuildFile; fileRef = C44AC1B127F6645CAA34893E /* Secrets.plist */; };
 		EEE9501A68D824595975F723 /* DocumentFilterChips.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66A1B103839EE3E689B69B48 /* DocumentFilterChips.swift */; };
 		EFD1597FB95006ED0A43DC7A /* UploadActionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF1883732ACBDAC4F150389A /* UploadActionSheet.swift */; };
+		F105B33480EBE6A65170FF3A /* SymptomService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64FE9EDA3EECE9099565026E /* SymptomService.swift */; };
+		F372B52308E82D7A4CD9DE11 /* IntakeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9234361B2F8EBC42FF9E090 /* IntakeViewModel.swift */; };
 		F3BC506846D1F9DD54C72EE7 /* BackendUser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6671671702BA11743FF0EF41 /* BackendUser.swift */; };
 		F7358AB52F931997389CBD35 /* UploadMetadataSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FCFE4422D80D776DC31BBA8 /* UploadMetadataSheet.swift */; };
 		F877B9E9603C4E85D06B6080 /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4353EEB3FB5F09F42A12A762 /* AuthService.swift */; };
 		F972D8F62254B58F5F38F7F8 /* SymptomEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42C17F0FBD5D4F5CFBCEA476 /* SymptomEntry.swift */; };
+		FDBC9C539AC5AF1C8D80794C /* CaregiverHubCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7374AE4418932733A1798D9B /* CaregiverHubCard.swift */; };
+		FE96195FA74C32E34388510B /* AppointmentIntakeSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62C6AA6E1D76E2F4379E3ED1 /* AppointmentIntakeSheet.swift */; };
 		FF61F6AC77AB72657477474C /* BeaconApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5315C8C1882D3E0B9BF6645C /* BeaconApp.swift */; };
 /* End PBXBuildFile section */
 
@@ -99,17 +123,23 @@
 		015532BAD922E49277A7A3E4 /* HospitalSyncAlertCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HospitalSyncAlertCard.swift; sourceTree = "<group>"; };
 		078563B590794C5B0FD3462A /* BeaconScreenHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeaconScreenHeader.swift; sourceTree = "<group>"; };
 		097E12FC8A26CF20E5D73791 /* SecretsLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecretsLoader.swift; sourceTree = "<group>"; };
+		09911C72523247439456EA90 /* CaregiverInstruction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaregiverInstruction.swift; sourceTree = "<group>"; };
 		0CD9053EE7454B822068C971 /* MedicationDoseCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicationDoseCard.swift; sourceTree = "<group>"; };
 		0E18E9EDD72BC878D1AD717A /* DocumentCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentCard.swift; sourceTree = "<group>"; };
 		0FC456572853A99FA938AA2B /* Medication.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Medication.swift; sourceTree = "<group>"; };
 		107C3EE894A89FFCBDA9A605 /* CaregiverLayerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaregiverLayerViewModel.swift; sourceTree = "<group>"; };
+		1188235A41C4C201AB977A99 /* PushAppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushAppDelegate.swift; sourceTree = "<group>"; };
 		13000A200DBC313BFF4263AD /* LowStockCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LowStockCard.swift; sourceTree = "<group>"; };
+		168B2FFA6EB835C40FCB46EE /* DataSourceMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataSourceMode.swift; sourceTree = "<group>"; };
+		17B990AEDE9E3432CCF8FE19 /* PushService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushService.swift; sourceTree = "<group>"; };
 		19F054CB36712B90E05C2097 /* InviteService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InviteService.swift; sourceTree = "<group>"; };
 		1A4CC9A25A3ED3635483E71E /* APIConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIConfig.swift; sourceTree = "<group>"; };
 		2021D46C7A30B54C5BF79DDD /* CaregiverCheckInDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaregiverCheckInDetailView.swift; sourceTree = "<group>"; };
 		2A8ECCF5B51508DFBF371768 /* PermissionsSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionsSettingsView.swift; sourceTree = "<group>"; };
 		2B614363992D0BF88A9F06B5 /* HospitalSyncAlert.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HospitalSyncAlert.swift; sourceTree = "<group>"; };
 		2CB733615A2381C58E7BCF67 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
+		2EA093596060DC6C90D012CE /* IndependentIntakeSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IndependentIntakeSheet.swift; sourceTree = "<group>"; };
+		374EE8310068FE0EEE3EE09F /* MedicationManagerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicationManagerSheet.swift; sourceTree = "<group>"; };
 		3CEF16F38DA4DE75261F69B3 /* AISmartSummaryFeatureCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AISmartSummaryFeatureCard.swift; sourceTree = "<group>"; };
 		3FC4C2407A4B93FA8542C1FB /* BackendDocumentService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendDocumentService.swift; sourceTree = "<group>"; };
 		4077B22820F3A38252C5FC45 /* TodayTasksCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayTasksCard.swift; sourceTree = "<group>"; };
@@ -120,13 +150,19 @@
 		48B8292AD67748E25CA1CBF8 /* Permissions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Permissions.swift; sourceTree = "<group>"; };
 		4E9A198932A1A09554399772 /* BackendDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendDocument.swift; sourceTree = "<group>"; };
 		5315C8C1882D3E0B9BF6645C /* BeaconApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeaconApp.swift; sourceTree = "<group>"; };
+		552F2F61B2A02B3657A2ED80 /* MedicationLabelIntakeSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicationLabelIntakeSheet.swift; sourceTree = "<group>"; };
 		56A752E57A8303FBFB599480 /* DocumentDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentDetailView.swift; sourceTree = "<group>"; };
+		575A908B90C6FF2AA6838066 /* DocumentScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentScannerView.swift; sourceTree = "<group>"; };
 		58BCE94B12A2BBB83E5155BD /* SupabaseClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseClient.swift; sourceTree = "<group>"; };
 		5A03967CC5DCF1E133BCFEB6 /* AppEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppEnvironment.swift; sourceTree = "<group>"; };
+		5A0D777BC687A6F4F0404003 /* BatchScanSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatchScanSheet.swift; sourceTree = "<group>"; };
 		5C190E771BCB6DA8AF607EF0 /* BeaconAvatar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeaconAvatar.swift; sourceTree = "<group>"; };
 		5CAFFA9571D6FE98390D2404 /* MockDataSeeder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockDataSeeder.swift; sourceTree = "<group>"; };
 		614BB94435A0C811AB480290 /* FeedPostCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedPostCard.swift; sourceTree = "<group>"; };
+		62C6AA6E1D76E2F4379E3ED1 /* AppointmentIntakeSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppointmentIntakeSheet.swift; sourceTree = "<group>"; };
 		6375F6AB417A84933678DAEA /* CircleOfTrustView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CircleOfTrustView.swift; sourceTree = "<group>"; };
+		646FDFECA0F553B28FD1A16B /* HouseholdService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HouseholdService.swift; sourceTree = "<group>"; };
+		64FE9EDA3EECE9099565026E /* SymptomService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SymptomService.swift; sourceTree = "<group>"; };
 		660B9F61ED3B6B000BB2DD2A /* CaregiverSetupSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaregiverSetupSheet.swift; sourceTree = "<group>"; };
 		6640C66E84816E3973783718 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		6671671702BA11743FF0EF41 /* BackendUser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendUser.swift; sourceTree = "<group>"; };
@@ -135,18 +171,24 @@
 		6DB1D7BC22BC631D9A54E814 /* CaregiverUpdateCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaregiverUpdateCard.swift; sourceTree = "<group>"; };
 		6E16643D75AD21FDA8F135F7 /* MissedDoseAlertCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MissedDoseAlertCard.swift; sourceTree = "<group>"; };
 		7096D5F72765693FD7C8CBC9 /* CaregiverProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaregiverProfile.swift; sourceTree = "<group>"; };
+		7374AE4418932733A1798D9B /* CaregiverHubCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaregiverHubCard.swift; sourceTree = "<group>"; };
 		73D42EB6FC0A6545FE2DB9CC /* BeaconBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeaconBadge.swift; sourceTree = "<group>"; };
+		775EDD0D7FF57919FAC7FD1A /* CaregiverService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaregiverService.swift; sourceTree = "<group>"; };
 		7793D8588DE8B1D1DE4C9DCD /* QuickSymptomLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickSymptomLogger.swift; sourceTree = "<group>"; };
 		7A983DA54EAAD9A9406F1FE3 /* FamilyMember.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyMember.swift; sourceTree = "<group>"; };
 		7C665F4A537D982750F291E6 /* BeaconSectionHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeaconSectionHeader.swift; sourceTree = "<group>"; };
 		8193FB8F9AD2731143790BFB /* MedicalVaultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicalVaultView.swift; sourceTree = "<group>"; };
 		8375E716C87DF2A58DDAA7FF /* CaregiverTranslationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaregiverTranslationService.swift; sourceTree = "<group>"; };
+		892C67F6A569E41A2436DF2D /* ScheduleService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleService.swift; sourceTree = "<group>"; };
 		8D2CC982904CB9662CFDC2D1 /* CaregiverReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaregiverReportView.swift; sourceTree = "<group>"; };
+		8DBEC99460201F41F18B5539 /* CaregiverInstructionsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaregiverInstructionsSheet.swift; sourceTree = "<group>"; };
 		8F83128B780C0D00ABB510D2 /* BeaconPrimaryButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeaconPrimaryButton.swift; sourceTree = "<group>"; };
 		8FC66681BA60961ABB812B9E /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		9DEACBBFB6F7D6388DE90FE0 /* PatientProfileSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatientProfileSheet.swift; sourceTree = "<group>"; };
 		9FCFE4422D80D776DC31BBA8 /* UploadMetadataSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UploadMetadataSheet.swift; sourceTree = "<group>"; };
 		A0417A6C76E26CF25D8B918E /* TokenStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenStore.swift; sourceTree = "<group>"; };
+		A44D38B8F798663CD236E165 /* JoinWithCodeSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoinWithCodeSheet.swift; sourceTree = "<group>"; };
+		AAB0B856F0345A7F3751C013 /* MedicationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicationService.swift; sourceTree = "<group>"; };
 		AB34D05A1F50F0A83D1BD4AA /* MedicationDose.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicationDose.swift; sourceTree = "<group>"; };
 		AD23852701146BC018F7CB6B /* PatientStatusStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatientStatusStrip.swift; sourceTree = "<group>"; };
 		AF38341DECE69B8F95351FF1 /* GreetingHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GreetingHeader.swift; sourceTree = "<group>"; };
@@ -156,12 +198,14 @@
 		B3214AF0014A25C940D09278 /* DailyTask.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyTask.swift; sourceTree = "<group>"; };
 		B662F5D3DB888F2DD1D722C7 /* CustomSymptomSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomSymptomSheet.swift; sourceTree = "<group>"; };
 		B7182B2ABF9924D3001A3BE6 /* BackendAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendAuthService.swift; sourceTree = "<group>"; };
+		B82F47DB76137CA1121BF48F /* IntakeOCRService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntakeOCRService.swift; sourceTree = "<group>"; };
 		BBBE678970282D86ABEDB483 /* DiagnosticView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticView.swift; sourceTree = "<group>"; };
 		BF237F2ED03B834113BB6BDD /* ScheduleEventRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleEventRow.swift; sourceTree = "<group>"; };
 		C064591FE9E537BDB2069C28 /* APIError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIError.swift; sourceTree = "<group>"; };
 		C0B9B7813400C9BF60735AA5 /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
 		C3EB4A270A951D8A190540B2 /* ScheduleEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleEvent.swift; sourceTree = "<group>"; };
 		C44AC1B127F6645CAA34893E /* Secrets.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Secrets.plist; sourceTree = "<group>"; };
+		C646A4F2356076505F5A6376 /* FeedService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedService.swift; sourceTree = "<group>"; };
 		C68D6C52088F166414EABD7A /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		C8238D03B87D5A25D2D9ED51 /* CaregiverCheckIn.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaregiverCheckIn.swift; sourceTree = "<group>"; };
 		CC533BFA44F26592A1566838 /* SupportReactionBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportReactionBar.swift; sourceTree = "<group>"; };
@@ -170,12 +214,17 @@
 		CF1883732ACBDAC4F150389A /* UploadActionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UploadActionSheet.swift; sourceTree = "<group>"; };
 		D06B3BBC8EE30000B1023F13 /* MedicalVaultViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicalVaultViewModel.swift; sourceTree = "<group>"; };
 		D419B22759A3D410D4272FA0 /* BeaconEmptyState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeaconEmptyState.swift; sourceTree = "<group>"; };
+		D4D99DB1DEC84F27B9EE16EB /* Beacon.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Beacon.entitlements; sourceTree = "<group>"; };
+		D52C6E240F2A83C60C6ACCB4 /* TaskService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskService.swift; sourceTree = "<group>"; };
 		D869DF3CD79EBDFF97A1E152 /* CaregiverLocalization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaregiverLocalization.swift; sourceTree = "<group>"; };
+		D9234361B2F8EBC42FF9E090 /* IntakeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntakeViewModel.swift; sourceTree = "<group>"; };
 		DF31D05BD0096CD5AB95E48C /* CameraPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPicker.swift; sourceTree = "<group>"; };
 		DF5A55C7F6F77BE372066710 /* FamilyScheduleCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyScheduleCard.swift; sourceTree = "<group>"; };
 		E03024AB9780926E666D981E /* FeedPost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedPost.swift; sourceTree = "<group>"; };
+		EBFE0203473B44CC1F611940 /* DoseReminderService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DoseReminderService.swift; sourceTree = "<group>"; };
 		ECDB6DC4C825AD4E2FAF01E8 /* BeaconCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeaconCard.swift; sourceTree = "<group>"; };
 		EFA31E65F98AFD8EE30AEAC9 /* Patient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Patient.swift; sourceTree = "<group>"; };
+		F21CE402E32A85FB6CE6AC15 /* LegalTextSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegalTextSheet.swift; sourceTree = "<group>"; };
 		F3F190BF934C72E1601D3F2B /* Beacon.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Beacon.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F46B3F859BD8FCE958737FF6 /* SplashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashView.swift; sourceTree = "<group>"; };
 		FC7A942A33EB9A5AD4939E56 /* CircleOfTrustViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CircleOfTrustViewModel.swift; sourceTree = "<group>"; };
@@ -218,12 +267,22 @@
 				B7182B2ABF9924D3001A3BE6 /* BackendAuthService.swift */,
 				3FC4C2407A4B93FA8542C1FB /* BackendDocumentService.swift */,
 				D869DF3CD79EBDFF97A1E152 /* CaregiverLocalization.swift */,
+				775EDD0D7FF57919FAC7FD1A /* CaregiverService.swift */,
 				8375E716C87DF2A58DDAA7FF /* CaregiverTranslationService.swift */,
+				EBFE0203473B44CC1F611940 /* DoseReminderService.swift */,
+				C646A4F2356076505F5A6376 /* FeedService.swift */,
 				010DD3E2BCABF22437857F45 /* GoogleSignInService.swift */,
+				646FDFECA0F553B28FD1A16B /* HouseholdService.swift */,
+				B82F47DB76137CA1121BF48F /* IntakeOCRService.swift */,
 				19F054CB36712B90E05C2097 /* InviteService.swift */,
+				AAB0B856F0345A7F3751C013 /* MedicationService.swift */,
 				5CAFFA9571D6FE98390D2404 /* MockDataSeeder.swift */,
+				17B990AEDE9E3432CCF8FE19 /* PushService.swift */,
+				892C67F6A569E41A2436DF2D /* ScheduleService.swift */,
 				097E12FC8A26CF20E5D73791 /* SecretsLoader.swift */,
 				58BCE94B12A2BBB83E5155BD /* SupabaseClient.swift */,
+				64FE9EDA3EECE9099565026E /* SymptomService.swift */,
+				D52C6E240F2A83C60C6ACCB4 /* TaskService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -240,6 +299,8 @@
 			isa = PBXGroup;
 			children = (
 				2021D46C7A30B54C5BF79DDD /* CaregiverCheckInDetailView.swift */,
+				7374AE4418932733A1798D9B /* CaregiverHubCard.swift */,
+				8DBEC99460201F41F18B5539 /* CaregiverInstructionsSheet.swift */,
 				8D2CC982904CB9662CFDC2D1 /* CaregiverReportView.swift */,
 				660B9F61ED3B6B000BB2DD2A /* CaregiverSetupSheet.swift */,
 				6DB1D7BC22BC631D9A54E814 /* CaregiverUpdateCard.swift */,
@@ -247,9 +308,22 @@
 			path = Caregiver;
 			sourceTree = "<group>";
 		};
+		5598529151AB30B1F5A66A45 /* Intake */ = {
+			isa = PBXGroup;
+			children = (
+				62C6AA6E1D76E2F4379E3ED1 /* AppointmentIntakeSheet.swift */,
+				5A0D777BC687A6F4F0404003 /* BatchScanSheet.swift */,
+				575A908B90C6FF2AA6838066 /* DocumentScannerView.swift */,
+				2EA093596060DC6C90D012CE /* IndependentIntakeSheet.swift */,
+				552F2F61B2A02B3657A2ED80 /* MedicationLabelIntakeSheet.swift */,
+			);
+			path = Intake;
+			sourceTree = "<group>";
+		};
 		55A515E450F1A8F5C07F4D91 /* App */ = {
 			isa = PBXGroup;
 			children = (
+				1188235A41C4C201AB977A99 /* PushAppDelegate.swift */,
 				C0B9B7813400C9BF60735AA5 /* RootTabView.swift */,
 				8FC66681BA60961ABB812B9E /* Theme.swift */,
 			);
@@ -271,6 +345,7 @@
 				107C3EE894A89FFCBDA9A605 /* CaregiverLayerViewModel.swift */,
 				FC7A942A33EB9A5AD4939E56 /* CircleOfTrustViewModel.swift */,
 				6A457F261A0B846D07BE71D5 /* DashboardViewModel.swift */,
+				D9234361B2F8EBC42FF9E090 /* IntakeViewModel.swift */,
 				D06B3BBC8EE30000B1023F13 /* MedicalVaultViewModel.swift */,
 				CD2B5D7288A3C97C9A578F43 /* ProactiveCareViewModel.swift */,
 			);
@@ -283,6 +358,7 @@
 				B662F5D3DB888F2DD1D722C7 /* CustomSymptomSheet.swift */,
 				13000A200DBC313BFF4263AD /* LowStockCard.swift */,
 				0CD9053EE7454B822068C971 /* MedicationDoseCard.swift */,
+				374EE8310068FE0EEE3EE09F /* MedicationManagerSheet.swift */,
 				6E16643D75AD21FDA8F135F7 /* MissedDoseAlertCard.swift */,
 				B07765B8C82C626881F34CEE /* ProactiveCareView.swift */,
 				7793D8588DE8B1D1DE4C9DCD /* QuickSymptomLogger.swift */,
@@ -312,6 +388,8 @@
 		84D6CAEA69FDA3ABF1B76311 /* Auth */ = {
 			isa = PBXGroup;
 			children = (
+				A44D38B8F798663CD236E165 /* JoinWithCodeSheet.swift */,
+				F21CE402E32A85FB6CE6AC15 /* LegalTextSheet.swift */,
 				47FFEEBCD29D3C9F544E2E0B /* LoginView.swift */,
 				C68D6C52088F166414EABD7A /* OnboardingView.swift */,
 				F46B3F859BD8FCE958737FF6 /* SplashView.swift */,
@@ -336,8 +414,10 @@
 				4E9A198932A1A09554399772 /* BackendDocument.swift */,
 				6671671702BA11743FF0EF41 /* BackendUser.swift */,
 				C8238D03B87D5A25D2D9ED51 /* CaregiverCheckIn.swift */,
+				09911C72523247439456EA90 /* CaregiverInstruction.swift */,
 				7096D5F72765693FD7C8CBC9 /* CaregiverProfile.swift */,
 				B3214AF0014A25C940D09278 /* DailyTask.swift */,
+				168B2FFA6EB835C40FCB46EE /* DataSourceMode.swift */,
 				7A983DA54EAAD9A9406F1FE3 /* FamilyMember.swift */,
 				E03024AB9780926E666D981E /* FeedPost.swift */,
 				2B614363992D0BF88A9F06B5 /* HospitalSyncAlert.swift */,
@@ -361,6 +441,7 @@
 				F02FCB3E5EF21BDD050503FA /* Components */,
 				D1AAE6F8D4D2F7863246D6C2 /* Dashboard */,
 				D0A32EE4E6A21BE1E5C83B88 /* Debug */,
+				5598529151AB30B1F5A66A45 /* Intake */,
 				25A1D9EE8F73CA59C79C4807 /* MedicalVault */,
 				7353188DD96B8728C3F8270F /* ProactiveCare */,
 				58FEAF9022C331B28DD1AD9B /* Settings */,
@@ -408,6 +489,7 @@
 			isa = PBXGroup;
 			children = (
 				6640C66E84816E3973783718 /* Assets.xcassets */,
+				D4D99DB1DEC84F27B9EE16EB /* Beacon.entitlements */,
 				5315C8C1882D3E0B9BF6645C /* BeaconApp.swift */,
 				B088C0722EF75E8A074D62DC /* Info.plist */,
 				C44AC1B127F6645CAA34893E /* Secrets.plist */,
@@ -505,11 +587,13 @@
 				55E3DB5F740BBAB7CEB79C95 /* APIConfig.swift in Sources */,
 				0A1E6E7DD7404594932DC25E /* APIError.swift in Sources */,
 				5D416DFAF7A7196521865340 /* AppEnvironment.swift in Sources */,
+				FE96195FA74C32E34388510B /* AppointmentIntakeSheet.swift in Sources */,
 				F877B9E9603C4E85D06B6080 /* AuthService.swift in Sources */,
 				75F14F86DE6619BCE438D16E /* BackendAuthService.swift in Sources */,
 				2F147C3C6A0AF9AF99E3544D /* BackendDocument.swift in Sources */,
 				DEDD266E1467AD55CDC84176 /* BackendDocumentService.swift in Sources */,
 				F3BC506846D1F9DD54C72EE7 /* BackendUser.swift in Sources */,
+				9846859E9419A17B1F8CC0A8 /* BatchScanSheet.swift in Sources */,
 				FF61F6AC77AB72657477474C /* BeaconApp.swift in Sources */,
 				3B2A579B9EDD59191E49F861 /* BeaconAvatar.swift in Sources */,
 				8CBB8B5858648893D5D73AA7 /* BeaconBadge.swift in Sources */,
@@ -521,10 +605,14 @@
 				45FDF1CD8A9C28ECEF89D5FB /* CameraPicker.swift in Sources */,
 				6D8695255BE764D3DD453BFA /* CaregiverCheckIn.swift in Sources */,
 				2C3F092188EF1537A5F8DB69 /* CaregiverCheckInDetailView.swift in Sources */,
+				FDBC9C539AC5AF1C8D80794C /* CaregiverHubCard.swift in Sources */,
+				5CFD89CD7F5AF07A74EC40BF /* CaregiverInstruction.swift in Sources */,
+				31930C7A301F8B0126EDE37F /* CaregiverInstructionsSheet.swift in Sources */,
 				27728725E60604C9592CBD56 /* CaregiverLayerViewModel.swift in Sources */,
 				928B4C0189CB7F818C1821A9 /* CaregiverLocalization.swift in Sources */,
 				0CF4427F3CED50543C4C3095 /* CaregiverProfile.swift in Sources */,
 				32754104DB7E59D68F4D906D /* CaregiverReportView.swift in Sources */,
+				B9322FBE69B895152C49BF92 /* CaregiverService.swift in Sources */,
 				5F2E844CF99BE063A6D2D0AA /* CaregiverSetupSheet.swift in Sources */,
 				BB21B93A0BF3EC5C01E60A60 /* CaregiverTranslationService.swift in Sources */,
 				102F1FA50B2EF9C7CB03F23F /* CaregiverUpdateCard.swift in Sources */,
@@ -535,19 +623,29 @@
 				8704C1E150D64E475539E4A4 /* DailyTask.swift in Sources */,
 				EA6CE44C8A6C41FBC8D2AFF0 /* DashboardView.swift in Sources */,
 				2D8E32864899E31CFBCAAB35 /* DashboardViewModel.swift in Sources */,
+				B151BE7A3FFEA40E847744F7 /* DataSourceMode.swift in Sources */,
 				7BD78F6AFEF1DEAF5DFE086A /* DiagnosticView.swift in Sources */,
 				5FAD9EAE5248DEAA3C04BC3F /* DocumentCard.swift in Sources */,
 				82BBCDFD863996EE74719B35 /* DocumentDetailView.swift in Sources */,
 				EEE9501A68D824595975F723 /* DocumentFilterChips.swift in Sources */,
+				A84A09386FA52B4DD6D14DC6 /* DocumentScannerView.swift in Sources */,
+				87EA1B84EFD5806D20B4C52B /* DoseReminderService.swift in Sources */,
 				B8E70F05F9AF320102E8EBFA /* FamilyMember.swift in Sources */,
 				1315AFCF0FCA0C440DC3DE0C /* FamilyScheduleCard.swift in Sources */,
 				6C198B0DF181B83D3565443C /* FeedPost.swift in Sources */,
 				09B9BC34539E2E16A98AA5F5 /* FeedPostCard.swift in Sources */,
+				2E52D6BF699D20D7CAF5AA9C /* FeedService.swift in Sources */,
 				316CD91CA6106B5E41468F5A /* GoogleSignInService.swift in Sources */,
 				20358DCCDA3FA6B157631871 /* GreetingHeader.swift in Sources */,
 				DC56475C775B753A8D2864B4 /* HospitalSyncAlert.swift in Sources */,
 				610CCEE7B78203615FE516A4 /* HospitalSyncAlertCard.swift in Sources */,
+				250836991B630CEC2FE4A54D /* HouseholdService.swift in Sources */,
+				CFA629B52404E5D9C439D3E6 /* IndependentIntakeSheet.swift in Sources */,
+				02CC2A64FB4F90D51A8B2DCB /* IntakeOCRService.swift in Sources */,
+				F372B52308E82D7A4CD9DE11 /* IntakeViewModel.swift in Sources */,
 				69CA1E05F9777899F0B0AFD7 /* InviteService.swift in Sources */,
+				32ED47C40B0BBF8465CC4790 /* JoinWithCodeSheet.swift in Sources */,
+				E1612F78252C5861E0765EFC /* LegalTextSheet.swift in Sources */,
 				DADF23637CC0833A2603577A /* LoginView.swift in Sources */,
 				1880B9384B2DA04FCE3CBE6B /* LowStockCard.swift in Sources */,
 				3A2ABFB59DDD015FFF590107 /* MedicalVaultView.swift in Sources */,
@@ -555,6 +653,9 @@
 				59A2232B9B1309D6F39303EF /* Medication.swift in Sources */,
 				E3AFC74E55E3F56F2401A743 /* MedicationDose.swift in Sources */,
 				ECC4CD472F45BED9B6B972A1 /* MedicationDoseCard.swift in Sources */,
+				6584B2F30F4029CF147B2128 /* MedicationLabelIntakeSheet.swift in Sources */,
+				84F04620D5CD12765C4413E2 /* MedicationManagerSheet.swift in Sources */,
+				BADC9D7C9D5BD072AB42A4CB /* MedicationService.swift in Sources */,
 				6E99C5656525799F647743C7 /* MissedDoseAlertCard.swift in Sources */,
 				ACF81B2997A1D5C0ACDBC0F6 /* MockDataSeeder.swift in Sources */,
 				E8D442D4E1AEF59E1030C37B /* OnboardingView.swift in Sources */,
@@ -565,16 +666,21 @@
 				C90FFCBEC595476DA3FDEEBD /* PermissionsSettingsView.swift in Sources */,
 				5B5CEC3FA5B3DB0F55ABB77F /* ProactiveCareView.swift in Sources */,
 				2E036D2FB0F123289270FE72 /* ProactiveCareViewModel.swift in Sources */,
+				6CE5FD2A640B8CC46E7ED36D /* PushAppDelegate.swift in Sources */,
+				B6F373E1FF2B7DED7E993894 /* PushService.swift in Sources */,
 				E0B1ABADAE871D35A2FBDC96 /* QuickSymptomLogger.swift in Sources */,
 				E98E842F6698C04041EF47C2 /* RootTabView.swift in Sources */,
 				0A1243F852D3658E9091B7BF /* ScheduleEvent.swift in Sources */,
 				0A46C54481E2C2DF457D13C7 /* ScheduleEventRow.swift in Sources */,
+				BF96BABA5EB8DD9833D9E725 /* ScheduleService.swift in Sources */,
 				1312EEE4CB509D91D3B738D0 /* SecretsLoader.swift in Sources */,
 				C8CBEDC4DCE867E7D0223B0D /* SplashView.swift in Sources */,
 				968540490383EF0F089B01F2 /* SupabaseClient.swift in Sources */,
 				2F9F262C0531A3753F181B6B /* SupportReaction.swift in Sources */,
 				A91BF1BF5FA7A552B8451D2B /* SupportReactionBar.swift in Sources */,
 				F972D8F62254B58F5F38F7F8 /* SymptomEntry.swift in Sources */,
+				F105B33480EBE6A65170FF3A /* SymptomService.swift in Sources */,
+				200DB26A07E2EEB89D96F301 /* TaskService.swift in Sources */,
 				C3AA40C22E8CB4DF567565C6 /* Theme.swift in Sources */,
 				73D6ADE383B1BC549896C548 /* TodayTasksCard.swift in Sources */,
 				23B3E49D7D73B1964CE600C0 /* TokenStore.swift in Sources */,

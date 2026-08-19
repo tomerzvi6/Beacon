@@ -26,10 +26,37 @@ final class MedicalVaultViewModel {
     var searchText: String = ""
     var selectedCategory: BackendDocumentCategory? = nil
 
-    // Marketing-demo AI summary: intentionally static until the real
-    // AI service is wired in.
-    var featuredSummary: AISummary { SampleAISummaries.dashboardFeatured }
+    // Suggested tasks returned by the most recent successful parse.
+    // Stored so featuredAISummary can include them without a second API call.
+    var lastParsedSuggestedTasks: [BackendSuggestedTask] = []
     var lastImportedTaskTitles: [String] = []
+
+    /// Live AISummary built from the most recently parsed backend document.
+    /// Returns nil when no parsed document exists yet — callers fall back to
+    /// the static demo summary in that case.
+    var featuredAISummary: AISummary? {
+        guard let doc = featuredDocument,
+              let simpleSummary = doc.parsed_summary_simple_he, !simpleSummary.isEmpty
+        else { return nil }
+
+        let headline = doc.typedCategory?.displayLabel
+            ?? doc.filename?.replacingOccurrences(of: "_", with: " ")
+            ?? "מסמך רפואי"
+        let tasks = lastParsedSuggestedTasks.map {
+            AISuggestedTask(id: $0.title_he, title: $0.title_he, detail: $0.due_hint)
+        }
+        return AISummary(
+            id: doc.id.uuidString,
+            headline: headline,
+            summaryText: simpleSummary,
+            keyPoints: [],
+            recommendation: nil,
+            suggestedTasks: tasks
+        )
+    }
+
+    // Fallback demo summary shown before the first real document is parsed.
+    var featuredSummary: AISummary { SampleAISummaries.dashboardFeatured }
 
     // MARK: - Upload flow state (Phase 9.2)
     enum UploadPhase: Equatable {
@@ -58,12 +85,16 @@ final class MedicalVaultViewModel {
     // from `status` on every refresh tick.
     var pollingDocumentIds: Set<UUID> = []
 
+    private let taskService: TaskService
+
     init(
         context: ModelContext,
-        documentService: BackendDocumentService = BackendDocumentService()
+        documentService: BackendDocumentService = BackendDocumentService(),
+        taskService: TaskService = TaskService()
     ) {
         self.context = context
         self.documentService = documentService
+        self.taskService = taskService
         refreshAlert()
     }
 
@@ -78,8 +109,9 @@ final class MedicalVaultViewModel {
             .first
     }
 
+    @MainActor
     @discardableResult
-    func addSuggestedTasksToCalendar(from summary: AISummary) -> [String] {
+    func addSuggestedTasksToCalendar(from summary: AISummary) async -> [String] {
         var added: [String] = []
         for suggestion in summary.suggestedTasks {
             let targetTitle = suggestion.title
@@ -89,13 +121,14 @@ final class MedicalVaultViewModel {
             let existing = (try? context.fetch(FetchDescriptor<DailyTask>(predicate: predicate))) ?? []
             guard existing.isEmpty else { continue }
 
-            let task = DailyTask(
-                title: suggestion.title,
-                detail: suggestion.detail,
-                kind: .medical,
-                origin: .aiSuggestion
+            let created = await taskService.createAndInsert(
+                title: suggestion.title, detail: suggestion.detail, kind: .medical, origin: .aiSuggestion, in: context
             )
-            context.insert(task)
+            if created == nil {
+                context.insert(DailyTask(
+                    title: suggestion.title, detail: suggestion.detail, kind: .medical, origin: .aiSuggestion
+                ))
+            }
             added.append(suggestion.title)
         }
         try? context.save()
@@ -186,6 +219,57 @@ final class MedicalVaultViewModel {
         uploadPhase = .idle
     }
 
+    /// Sequential upload of a scanned pile (independent-mode batch intake).
+    /// One summary alert at the end instead of one per page; every uploaded
+    /// page still enters the regular parse + poll pipeline.
+    @MainActor
+    func uploadBatch(
+        _ files: [PendingUploadFile],
+        onFileFinished: (Int) -> Void = { _ in }
+    ) async -> (succeeded: Int, failed: Int) {
+        guard !files.isEmpty else { return (0, 0) }
+        var succeeded = 0
+        var failed = 0
+        var newDocumentIds: [UUID] = []
+
+        for (index, file) in files.enumerated() {
+            uploadPhase = .uploading(progress: Double(index) / Double(files.count))
+            do {
+                let outcome = try await documentService.upload(
+                    data: file.data,
+                    filename: file.filename,
+                    mimeType: file.mimeType,
+                    category: nil,
+                    isPrivate: false,
+                    onProgress: { _ in }
+                )
+                if case .success(let documentId) = outcome {
+                    newDocumentIds.append(documentId)
+                }
+                succeeded += 1
+            } catch {
+                failed += 1
+            }
+            onFileFinished(index + 1)
+        }
+        uploadPhase = .idle
+
+        if failed == 0 {
+            uploadAlert = .success(
+                filename: "\(succeeded) דפים",
+                documentId: newDocumentIds.first ?? UUID()
+            )
+        } else {
+            uploadAlert = .failure(message: "הועלו \(succeeded) דפים, \(failed) נכשלו. אפשר לנסות שוב את הדפים שנכשלו.")
+        }
+
+        await refresh()
+        for documentId in newDocumentIds {
+            Task { [weak self] in await self?.startParseAndPoll(documentId: documentId) }
+        }
+        return (succeeded, failed)
+    }
+
     // MARK: - Parse + poll
 
     /// Trigger backend parsing and then poll for status. Idempotent —
@@ -196,9 +280,11 @@ final class MedicalVaultViewModel {
         defer { pollingDocumentIds.remove(documentId) }
 
         // Fire parse. Backend route is currently synchronous; awaiting
-        // it gives us the parsed payload directly. Errors here are
-        // non-fatal — the polling loop reconciles state regardless.
-        _ = try? await documentService.parse(documentId: documentId)
+        // it gives us the parsed payload directly. Capture suggested tasks
+        // so the AI feature card can display them immediately after parsing.
+        if let response = try? await documentService.parse(documentId: documentId) {
+            lastParsedSuggestedTasks = response.suggested_tasks
+        }
 
         // Poll up to ~60s (20 ticks × 3s) for status to settle.
         let maxTicks = 20

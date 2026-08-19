@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from parser_api.auth import TokenPayload
 from parser_api.dependencies import get_session, get_user_context
+from parser_api.middleware import limiter
 from parser_api.services.storage_service import get_storage_service
 from shared.models import AuditLog, Document
 from shared.schemas import (
@@ -33,7 +34,9 @@ router = APIRouter(prefix="/v1/uploads", tags=["uploads"])
 
 
 @router.post("/presign", response_model=PresignResponse)
+@limiter.limit("20/minute")
 def presign_upload(
+    request: Request,
     body: PresignRequest,
     session: Session = Depends(get_session),
     user: TokenPayload = Depends(get_user_context),
@@ -41,6 +44,8 @@ def presign_upload(
     """
     Generate a presigned PUT URL for direct iOS upload.
     Creates a Document record in 'uploaded' state; client finalizes after PUT.
+    Rate-limited (20/min/IP) to bound Document-row / storage churn from a
+    single misbehaving client.
     """
     if body.mime_type not in ALLOWED_MIME_TYPES:
         raise HTTPException(
@@ -190,11 +195,27 @@ def finalize_batch(
 # ---------------------------------------------------------------------------
 
 
+MAX_UPLOAD_BYTES = 26_214_400  # 25 MB — matches StorageService.generate_presigned_url default
+
+
 @router.put("/local/{document_id}", include_in_schema=False)
-async def local_upload(document_id: str, request: Request) -> dict:
+@limiter.limit("20/minute")
+async def local_upload(
+    document_id: str,
+    request: Request,
+    session: Session = Depends(get_session),
+    user: TokenPayload = Depends(get_user_context),
+) -> dict:
     """
-    Receives raw bytes PUT by the iOS client during local dev.
-    In production this path is never hit — S3 receives the direct PUT.
+    Receives raw bytes PUT by the iOS client. Despite the name this is the
+    real production upload path whenever STORAGE_BACKEND=local (no S3
+    configured) — it is NOT dev-only, so it needs the same auth and
+    ownership checks as every other document-touching route: the caller
+    must hold a valid JWT for the household that owns the document (i.e.
+    they called POST /presign first), and the document must still be
+    'uploaded' (not already finalized). Size is capped and streamed to a
+    temp file so we never buffer more than MAX_UPLOAD_BYTES in memory and
+    never leave a truncated file at the final path.
     """
     from parser_api.services.storage_service import LocalDiskStorageService, get_storage_service
 
@@ -205,10 +226,44 @@ async def local_upload(document_id: str, request: Request) -> dict:
             detail="Local upload endpoint only available in local storage mode",
         )
 
-    data = await request.body()
-    if not data:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty body")
+    try:
+        doc_uuid = uuid.UUID(document_id)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
 
-    storage.store_bytes(document_id, data)
-    logger.info("local_upload stored", extra={"document_id": document_id, "bytes": len(data)})
-    return {"status": "ok", "document_id": document_id, "bytes": len(data)}
+    doc = session.scalar(
+        select(Document).where(
+            Document.id == doc_uuid,
+            Document.household_id == uuid.UUID(user.household_id),
+        )
+    )
+    if doc is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    if doc.status != "uploaded":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Document {document_id} already finalized",
+        )
+
+    dest = storage.path_for(document_id)
+    tmp_path = dest.with_name(dest.name + ".part")
+    total = 0
+    try:
+        with tmp_path.open("wb") as f:
+            async for chunk in request.stream():
+                total += len(chunk)
+                if total > MAX_UPLOAD_BYTES:
+                    raise HTTPException(
+                        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                        detail=f"Upload exceeds {MAX_UPLOAD_BYTES} byte limit",
+                    )
+                f.write(chunk)
+        if total == 0:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty body")
+        tmp_path.replace(dest)
+    except Exception:
+        tmp_path.unlink(missing_ok=True)
+        raise
+
+    logger.info("local_upload stored", extra={"document_id": document_id, "bytes": total})
+    return {"status": "ok", "document_id": document_id, "bytes": total}

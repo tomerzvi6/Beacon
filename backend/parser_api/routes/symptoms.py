@@ -1,7 +1,9 @@
 """Symptom reporting (דיווח מהיר)."""
 import uuid
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from parser_api.auth import TokenPayload
@@ -12,6 +14,21 @@ from shared.schemas import SymptomReportIn, SymptomReportOut
 router = APIRouter(prefix="/v1/symptoms", tags=["symptoms"])
 
 
+@router.get("/", response_model=list[SymptomReportOut])
+def list_symptoms(
+    limit: int = 20,
+    session: Session = Depends(get_session),
+    user: TokenPayload = Depends(get_user_context),
+) -> list[SymptomReportOut]:
+    reports = session.scalars(
+        select(SymptomReport)
+        .where(SymptomReport.household_id == uuid.UUID(user.household_id))
+        .order_by(SymptomReport.created_at.desc())
+        .limit(limit)
+    ).all()
+    return [SymptomReportOut.model_validate(r) for r in reports]
+
+
 @router.post("/", response_model=SymptomReportOut)
 def report_symptom(
     payload: SymptomReportIn,
@@ -20,10 +37,12 @@ def report_symptom(
 ) -> SymptomReportOut:
     """Record a quick symptom report (nausea, fatigue, pain)."""
     report = SymptomReport(
+        id=uuid.uuid4(),
         household_id=uuid.UUID(user.household_id),
         kind=payload.kind,
         severity=payload.severity,
         note_he=payload.note_he,
+        created_at=datetime.now(tz=timezone.utc),
     )
     session.add(report)
     session.commit()

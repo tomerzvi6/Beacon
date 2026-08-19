@@ -43,7 +43,7 @@ struct CaregiverSetupSheet: View {
                 titleVisibility: .visible
             ) {
                 Button("כבה את השכבה", role: .destructive) {
-                    viewModel.deactivateCaregiver()
+                    Task { await viewModel.deactivateCaregiver() }
                     dismiss()
                 }
                 Button("ביטול", role: .cancel) { }
@@ -92,12 +92,14 @@ struct CaregiverSetupSheet: View {
                 isEnabled: !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             ) {
                 let wasActive = viewModel.isCaregiverLayerActive
-                viewModel.activateCaregiver(
-                    name: name,
-                    relationTitle: relationTitle,
-                    language: language
-                )
-                if !wasActive { dismiss() }
+                Task {
+                    await viewModel.activateCaregiver(
+                        name: name,
+                        relationTitle: relationTitle,
+                        language: language
+                    )
+                    if !wasActive { dismiss() }
+                }
             }
             .listRowBackground(Color.clear)
             .listRowInsets(EdgeInsets())

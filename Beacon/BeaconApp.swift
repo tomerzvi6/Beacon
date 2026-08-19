@@ -1,8 +1,10 @@
 import SwiftUI
 import SwiftData
+import UserNotifications
 
 @main
 struct BeaconApp: App {
+    @UIApplicationDelegateAdaptor(PushAppDelegate.self) private var pushAppDelegate
     let modelContainer: ModelContainer
     @State private var environment = AppEnvironment.live()
 
@@ -20,7 +22,8 @@ struct BeaconApp: App {
             FeedPost.self,
             FeedComment.self,
             CaregiverProfile.self,
-            CaregiverCheckIn.self
+            CaregiverCheckIn.self,
+            CaregiverInstruction.self
         ])
         if let container = try? ModelContainer(
             for: schema,
@@ -46,8 +49,22 @@ struct BeaconApp: App {
                 .environment(\.layoutDirection, .rightToLeft)
                 .tint(Theme.Palette.deepTeal)
                 .task {
-                    MockDataSeeder.seedIfNeeded(in: modelContainer.mainContext)
+                    // Demo data is opt-in only (כרטיס רפואי ← נתוני הדגמה).
+                    // Real families must start with a clean, empty app.
+                    if MockDataSeeder.isDemoDataEnabled {
+                        MockDataSeeder.seedIfNeeded(in: modelContainer.mainContext)
+                    }
                     await environment.checkSession()
+                }
+                .onChange(of: environment.authState, initial: true) {
+                    guard environment.authState == .authenticated else { return }
+                    Task {
+                        await DoseReminderService.requestAuthorizationIfNeeded()
+                        let settings = await UNUserNotificationCenter.current().notificationSettings()
+                        guard settings.authorizationStatus == .authorized
+                            || settings.authorizationStatus == .provisional else { return }
+                        await MainActor.run { UIApplication.shared.registerForRemoteNotifications() }
+                    }
                 }
                 .onOpenURL { url in
                     // Google Sign-In OAuth redirect — must run before

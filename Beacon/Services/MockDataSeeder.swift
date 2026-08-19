@@ -3,6 +3,30 @@ import SwiftData
 
 enum MockDataSeeder {
     private static let seedFlagKey = "beacon.mockData.v1.seeded"
+    private static let demoModeKey = "beacon.demoData.enabled.v1"
+
+    /// Demo data is opt-in. Fresh installs for real families stay clean;
+    /// the toggle lives in the patient profile sheet (full-access users).
+    static var isDemoDataEnabled: Bool {
+        UserDefaults.standard.bool(forKey: demoModeKey)
+    }
+
+    /// Loads the demo data set (idempotent — clears previous demo state first).
+    @MainActor
+    static func enableDemoData(in context: ModelContext) {
+        UserDefaults.standard.set(true, forKey: demoModeKey)
+        seedIfNeeded(in: context, force: true)
+    }
+
+    /// Wipes all local care data and turns demo mode off. Used both to
+    /// exit demo mode and to hand a clean device to a pilot family.
+    @MainActor
+    static func disableDemoData(in context: ModelContext) {
+        UserDefaults.standard.set(false, forKey: demoModeKey)
+        UserDefaults.standard.set(false, forKey: seedFlagKey)
+        clearAll(context: context)
+        try? context.save()
+    }
 
     @MainActor
     static func seedIfNeeded(in context: ModelContext, force: Bool = false) {
@@ -121,6 +145,43 @@ enum MockDataSeeder {
         // The Medical Vault renders an empty state on a fresh install
         // until the user uploads or has a household with existing docs.
 
+        // MARK: Home caregiver (demo) — active profile + this morning's
+        // check-in + two standing instructions, so the caregiver loop is
+        // demonstrable end-to-end out of the box.
+        let maria = CaregiverProfile(
+            displayName: "Maria",
+            relationTitle: "מטפלת סיעודית",
+            preferredLanguage: .tagalog
+        )
+        context.insert(maria)
+
+        context.insert(CaregiverCheckIn(
+            caregiverId: maria.id,
+            createdAt: calendar.date(byAdding: .minute, value: 8 * 60 + 30, to: today)!,
+            mealStatus: .ateLittle,
+            hydrationStatus: .drankEnough,
+            sleepStatus: .sleptWell,
+            painLevel: 3,
+            nauseaLevel: 2,
+            fatigueLevel: 4,
+            medicationStatus: .taken,
+            freeTextOriginal: "Medyo pagod siya pagkatapos ng almusal, pero maganda ang mood niya.",
+            originalLanguage: .tagalog,
+            translatedSummaryHebrew: "אכל/ה מעט, שתה/תה מספיק, ישן/ה טוב, כאב 3/10, בחילה 2/10, חולשה 4/10, התרופות נלקחו. הודעה מהמטפלת (טגלוג): ”קצת עייף אחרי ארוחת הבוקר, אבל במצב רוח טוב.”",
+            attentionLevel: .ok
+        ))
+
+        context.insert(CaregiverInstruction(
+            kind: .giveMedication,
+            detail: "Acamol בשעה 14:00",
+            createdByName: FamilyMember.primaryCaregiver.displayName
+        ))
+        context.insert(CaregiverInstruction(
+            kind: .callFamilyIf,
+            detail: "חום מעל 38 או כאב חזק",
+            createdByName: FamilyMember.primaryCaregiver.displayName
+        ))
+
         // MARK: Feed posts
         let post1 = FeedPost(
             authorMemberId: FamilyMember.primaryCaregiver.id,
@@ -167,6 +228,9 @@ enum MockDataSeeder {
         try? context.delete(model: HospitalSyncAlert.self)
         try? context.delete(model: FeedComment.self)
         try? context.delete(model: FeedPost.self)
+        try? context.delete(model: CaregiverProfile.self)
+        try? context.delete(model: CaregiverCheckIn.self)
+        try? context.delete(model: CaregiverInstruction.self)
     }
 
     @MainActor
@@ -181,7 +245,8 @@ enum MockDataSeeder {
             FeedPost.self,
             FeedComment.self,
             CaregiverProfile.self,
-            CaregiverCheckIn.self
+            CaregiverCheckIn.self,
+            CaregiverInstruction.self
         ])
         let config = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try! ModelContainer(for: schema, configurations: [config])

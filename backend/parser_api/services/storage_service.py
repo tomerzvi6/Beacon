@@ -72,9 +72,15 @@ class LocalDiskStorageService(StorageService):
         if path.exists():
             path.unlink()
 
+    def path_for(self, document_id: str) -> Path:
+        """Final on-disk path for a document. `document_id` must already be
+        validated (e.g. parsed as a UUID matching a real row) by the caller —
+        this does no sanitization of its own."""
+        return self._base / document_id
+
     def store_bytes(self, document_id: str, data: bytes) -> None:
         """Called by the local PUT endpoint to persist uploaded bytes."""
-        (self._base / document_id).write_bytes(data)
+        self.path_for(document_id).write_bytes(data)
 
 
 # ---------------------------------------------------------------------------

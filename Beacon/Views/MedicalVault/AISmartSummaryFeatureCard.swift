@@ -44,6 +44,11 @@ struct AISmartSummaryFeatureCard: View {
                 .multilineTextAlignment(.trailing)
                 .frame(maxWidth: .infinity, alignment: .trailing)
 
+            Text("סיכום אוטומטי — אינו ייעוץ רפואי. בכל שאלה פנו לצוות המטפל.")
+                .font(.system(size: 11))
+                .foregroundStyle(.white.opacity(0.65))
+                .frame(maxWidth: .infinity, alignment: .trailing)
+
             Button(action: onReadFullSummary) {
                 HStack {
                     Image(systemName: "arrow.forward")

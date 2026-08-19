@@ -42,7 +42,6 @@ enum Theme {
     }
 
     enum Layout {
-        static let edgeBarHalfCentimeterOffset = Spacing.l
         static let edgeBarHorizontalInset = Spacing.m
         static let topStatusStripTopInset: CGFloat = 0
         static let topStatusStripBottomGap = Spacing.s
@@ -63,7 +62,15 @@ enum Theme {
         static let prominentControlVerticalPadding = Spacing.m - Spacing.xxs
         static let minimumTouchTarget = Spacing.xxl + Spacing.xs
         static let floatingActionButtonSize = Spacing.xxl + Spacing.m
-        static let medicalVaultBottomContentInset = Spacing.xxl + Spacing.xl + Spacing.l
+        // Clears the floating bottom tab bar + home indicator. Used as the
+        // trailing bottom padding on every tab's scrollable content so the
+        // last card (or a floating action button) never renders behind it.
+        static let scrollContentBottomClearance = Spacing.xxl * 3
+        // Clears the floating top status strip + status bar/Dynamic Island.
+        // Used as the leading top padding on every tab's scrollable content
+        // so the first card never scrolls up behind it (BeaconEdgeTopBar is
+        // an opaque overlay, not a safeAreaInset — see RootTabView).
+        static let scrollContentTopClearance = Spacing.xxl * 2
     }
 
     enum CornerRadius {

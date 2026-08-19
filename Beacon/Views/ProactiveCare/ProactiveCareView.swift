@@ -7,6 +7,7 @@ struct ProactiveCareView: View {
     @State private var viewModel: ProactiveCareViewModel?
     @State private var toastMessage: String?
     @State private var showingCustomSymptomSheet = false
+    @State private var showingMedicationManager = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -20,8 +21,10 @@ struct ProactiveCareView: View {
 
                         ForEach(vm.lowStockMedications) { med in
                             LowStockCard(medication: med, canCreateRefillTask: canWriteMedications) {
-                                vm.createRefillTask(for: med)
-                                toastMessage = "נוספה משימת קנייה ל\(med.name)."
+                                Task {
+                                    await vm.createRefillTask(for: med)
+                                    toastMessage = "נוספה משימת קנייה ל\(med.name)."
+                                }
                             }
                         }
 
@@ -30,12 +33,16 @@ struct ProactiveCareView: View {
                                 dose: missed,
                                 canResolve: canWriteMedications,
                                 onMarkTaken: {
-                                    vm.resolveMissed(missed, markAsTaken: true)
-                                    toastMessage = "המינון עודכן כנלקח."
+                                    Task {
+                                        await vm.resolveMissed(missed, markAsTaken: true)
+                                        toastMessage = "המינון עודכן כנלקח."
+                                    }
                                 },
                                 onAddNote: {
-                                    vm.resolveMissed(missed, markAsTaken: false, note: "נרשם על ידי המטפל/ת.")
-                                    toastMessage = "ההערה נרשמה."
+                                    Task {
+                                        await vm.resolveMissed(missed, markAsTaken: false, note: "נרשם על ידי המטפל/ת.")
+                                        toastMessage = "ההערה נרשמה."
+                                    }
                                 }
                             )
                         }
@@ -43,7 +50,24 @@ struct ProactiveCareView: View {
                         VStack(alignment: .trailing, spacing: Theme.Spacing.m) {
                             BeaconSectionHeader(
                                 title: "תרופות להיום",
-                                accessory: AnyView(BeaconBadge(text: "\(vm.remainingCount) נותרו", tone: .softBlue))
+                                accessory: AnyView(
+                                    HStack(spacing: Theme.Spacing.s) {
+                                        if canWriteMedications {
+                                            Button {
+                                                showingMedicationManager = true
+                                            } label: {
+                                                Image(systemName: "slider.horizontal.3")
+                                                    .font(.system(size: 15, weight: .semibold))
+                                                    .foregroundStyle(Theme.Palette.deepTeal)
+                                                    .frame(width: Theme.Spacing.xl, height: Theme.Spacing.xl)
+                                                    .background(Theme.Palette.softBlue.opacity(0.35), in: Circle())
+                                            }
+                                            .buttonStyle(.plain)
+                                            .accessibilityLabel("ניהול תרופות")
+                                        }
+                                        BeaconBadge(text: "\(vm.remainingCount) נותרו", tone: .softBlue)
+                                    }
+                                )
                             )
                             ForEach(vm.upcomingDoses) { dose in
                                 MedicationDoseCard(
@@ -51,10 +75,12 @@ struct ProactiveCareView: View {
                                     isPatientView: environment.isPatientView,
                                     canMarkTaken: canWriteMedications
                                 ) {
-                                    vm.markTaken(dose)
-                                    toastMessage = environment.isPatientView
-                                        ? "כל הכבוד! \(dose.medicationName) נלקח."
-                                        : "\(dose.medicationName) סומן כנלקח."
+                                    Task {
+                                        await vm.markTaken(dose)
+                                        toastMessage = environment.isPatientView
+                                            ? "כל הכבוד! \(dose.medicationName) נלקח."
+                                            : "\(dose.medicationName) סומן כנלקח."
+                                    }
                                 }
                             }
                         }
@@ -64,8 +90,10 @@ struct ProactiveCareView: View {
                                 if symptom == .custom {
                                     showingCustomSymptomSheet = true
                                 } else {
-                                    vm.logSymptom(symptom)
-                                    toastMessage = "נרשם: \(symptom.displayLabel)."
+                                    Task {
+                                        await vm.logSymptom(symptom)
+                                        toastMessage = "נרשם: \(symptom.displayLabel)."
+                                    }
                                 }
                             }
                         } else {
@@ -78,7 +106,8 @@ struct ProactiveCareView: View {
                     }
                 }
                 .padding(.horizontal, Theme.Spacing.m)
-                .padding(.bottom, Theme.Spacing.m)
+                .padding(.top, Theme.Layout.scrollContentTopClearance)
+                .padding(.bottom, Theme.Layout.scrollContentBottomClearance)
             }
         }
         .beaconScreenBackground()
@@ -93,8 +122,17 @@ struct ProactiveCareView: View {
         .sensoryFeedback(.success, trigger: toastMessage)
         .sheet(isPresented: $showingCustomSymptomSheet) {
             CustomSymptomSheet { label, severity, note in
-                viewModel?.logCustomSymptom(label: label, severity: severity, note: note)
-                toastMessage = "נרשם: \(label)."
+                Task {
+                    await viewModel?.logCustomSymptom(label: label, severity: severity, note: note)
+                    toastMessage = "נרשם: \(label)."
+                }
+            }
+        }
+        .sheet(isPresented: $showingMedicationManager, onDismiss: {
+            viewModel?.refresh()
+        }) {
+            if let vm = viewModel {
+                MedicationManagerSheet(viewModel: vm)
             }
         }
         .task(id: toastMessage) {
@@ -108,6 +146,12 @@ struct ProactiveCareView: View {
             } else {
                 viewModel?.refresh()
             }
+        }
+        .onChange(of: environment.contentRevision) {
+            viewModel?.refresh()
+        }
+        .task {
+            await viewModel?.syncWithBackend()
         }
     }
 

@@ -9,6 +9,8 @@ struct DashboardView: View {
     @State private var caregiverViewModel: CaregiverLayerViewModel?
     @State private var toastMessage: String?
     @State private var selectedCheckIn: CaregiverCheckIn?
+    @State private var showingCaregiverReport = false
+    @State private var showingCaregiverInstructions = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -20,6 +22,19 @@ struct DashboardView: View {
                             name: environment.greetingName,
                             dateString: environment.todayHebrewDate
                         )
+
+                        if let caregiverVM = caregiverViewModel,
+                           caregiverVM.isCaregiverLayerActive,
+                           let caregiver = caregiverVM.activeCaregiver {
+                            CaregiverHubCard(
+                                caregiverName: caregiver.displayName,
+                                languageName: caregiver.preferredLanguage.hebrewName,
+                                isMissingTodaysCheckIn: caregiverVM.isMissingTodaysCheckIn,
+                                activeInstructionCount: caregiverVM.activeInstructions.count,
+                                onOpenReport: { showingCaregiverReport = true },
+                                onOpenInstructions: { showingCaregiverInstructions = true }
+                            )
+                        }
 
                         if let caregiverVM = caregiverViewModel,
                            caregiverVM.hasDashboardUpdate,
@@ -42,15 +57,21 @@ struct DashboardView: View {
                                 tasks: vm.tasks.filter { !$0.isCompleted } + vm.tasks.filter { $0.isCompleted },
                                 currentUser: environment.currentUser,
                                 canWrite: environment.canWrite(.tasks),
-                                onClaim: {
-                                    vm.claim($0)
-                                    toastMessage = "המשימה שויכה אליך ✓"
+                                onClaim: { task in
+                                    Task {
+                                        await vm.claim(task)
+                                        toastMessage = "המשימה שויכה אליך ✓"
+                                    }
                                 },
-                                onRelease: {
-                                    vm.release($0)
-                                    toastMessage = "המשימה שוחררה."
+                                onRelease: { task in
+                                    Task {
+                                        await vm.release(task)
+                                        toastMessage = "המשימה שוחררה."
+                                    }
                                 },
-                                onToggleComplete: { vm.toggleCompletion($0) }
+                                onToggleComplete: { task in
+                                    Task { await vm.toggleCompletion(task) }
+                                }
                             )
                         } else {
                             PermissionNoticeCard(module: .tasks)
@@ -58,7 +79,8 @@ struct DashboardView: View {
                     }
                 }
                 .padding(.horizontal, Theme.Spacing.m)
-                .padding(.bottom, Theme.Spacing.m)
+                .padding(.top, Theme.Layout.scrollContentTopClearance)
+                .padding(.bottom, Theme.Layout.scrollContentBottomClearance)
             }
         }
         .beaconScreenBackground()
@@ -88,6 +110,21 @@ struct DashboardView: View {
                     .environment(environment)
             }
         }
+        .fullScreenCover(isPresented: $showingCaregiverReport, onDismiss: {
+            caregiverViewModel?.refresh()
+        }) {
+            if let caregiverVM = caregiverViewModel {
+                CaregiverReportView(viewModel: caregiverVM)
+            }
+        }
+        .sheet(isPresented: $showingCaregiverInstructions, onDismiss: {
+            caregiverViewModel?.refresh()
+        }) {
+            if let caregiverVM = caregiverViewModel {
+                CaregiverInstructionsSheet(viewModel: caregiverVM)
+                    .environment(environment)
+            }
+        }
         .onAppear {
             if viewModel == nil {
                 viewModel = DashboardViewModel(context: context, environment: environment)
@@ -99,6 +136,14 @@ struct DashboardView: View {
             } else {
                 caregiverViewModel?.refresh()
             }
+        }
+        .onChange(of: environment.contentRevision) {
+            viewModel?.refresh()
+            caregiverViewModel?.refresh()
+        }
+        .task {
+            await viewModel?.syncWithBackend()
+            await caregiverViewModel?.syncWithBackend()
         }
     }
 }

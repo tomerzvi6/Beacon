@@ -18,8 +18,26 @@ from shared.models import (
     Task,
     User,
 )
+from shared.schemas import PushTokenIn
 
 router = APIRouter(prefix="/v1/me", tags=["users"])
+
+
+@router.put("/push-token", status_code=status.HTTP_204_NO_CONTENT)
+def set_push_token(
+    body: PushTokenIn,
+    session: Session = Depends(get_session),
+    user: TokenPayload = Depends(get_user_context),
+) -> None:
+    """Register (or clear, with an empty string) this device's APNs token
+    for remote push. Overwrites any previous token for the user — a device
+    reinstall issues a new token, and the old one would otherwise keep
+    receiving pushes that silently fail once APNs invalidates it."""
+    db_user = session.query(User).filter(User.id == uuid.UUID(user.user_id)).first()
+    if not db_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    db_user.push_token = body.device_token or None
+    session.commit()
 
 
 @router.delete("", status_code=204)

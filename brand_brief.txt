@@ -1,0 +1,343 @@
+================================================================================
+BEACON — BRAND BRIEF
+Reference document for the ad campaign
+================================================================================
+Source: PRD.md (product capabilities), in-app Theme tokens (visual identity),
+Rambam feasibility one-pager (positioning), and product context.
+Market: Israel · Primary language: Hebrew (RTL-first)
+Document language: English (campaign sample copy given in Hebrew, since ads run in Hebrew)
+================================================================================
+
+
+--------------------------------------------------------------------------------
+1. BRAND SNAPSHOT
+--------------------------------------------------------------------------------
+Beacon is a Hebrew, RTL-first iOS app that gives a family one shared, calm place
+to manage a loved one's cancer care — documents, medications, symptoms,
+appointments, and coordination between family members.
+
+Name meaning: A beacon is a guiding light in the dark. For families navigating a
+frightening, chaotic diagnosis, Beacon is the steady light that helps them find
+their way and act together.
+
+One-liner (HE):  ביקון — האור שמלווה את המשפחה לאורך הטיפול.
+One-liner (EN):  Beacon — one calm place for your family to manage care, together.
+
+
+--------------------------------------------------------------------------------
+2. MISSION & PURPOSE
+--------------------------------------------------------------------------------
+Reduce the logistical and emotional chaos around cancer care so families can
+spend less energy on coordination and more on each other.
+
+Why it matters: 30–50% of treatment non-adherence stems from logistical
+disorder — not resistance to treatment. Beacon attacks the disorder.
+
+North-star definition of success: families using Beacon every day and feeling
+that it genuinely helps them manage their loved one's care.
+
+
+--------------------------------------------------------------------------------
+3. THE PROBLEM WE SOLVE
+--------------------------------------------------------------------------------
+Families of cancer patients carry a heavy medical-logistical load under intense
+emotional stress:
+  • Medical documents scattered across folders, emails, and WhatsApp threads.
+  • No single source of truth — who took which medication, when is the next scan.
+  • Coordination friction between family members, often across distance.
+  • The primary caregiver and patient are exhausted and overloaded.
+  • Critical information arrives in dense clinical language nobody has energy to read.
+
+Beacon turns that scatter into one shared, organized, calm hub.
+
+
+--------------------------------------------------------------------------------
+4. TARGET CUSTOMER
+--------------------------------------------------------------------------------
+PRIMARY PERSONA — "The Primary Caregiver"
+  • A family member (often an adult child or spouse) managing the patient's care.
+  • Emotionally stretched, time-poor, carrying the mental load for the whole family.
+  • Tech level: BASIC. If they use WhatsApp and Facebook, they can use Beacon.
+    Never assume more.
+  • Wants: control, clarity, to stop dropping balls, to share the load.
+  • Fears: missing something important, making a mistake, being alone with it.
+
+SECONDARY PERSONA — "The Patient"
+  • The person whose care is being managed — an ACTIVE participant, not just observed.
+  • Wants dignity, to stay informed, and to retain a sense of agency over their care.
+  • Beacon treats the patient as the ultimate owner of their own record.
+
+SUPPORTING PERSONA — "The Wider Family / Circle"
+  • Siblings, children, close relatives — often remote — who want to help and stay
+    informed without overwhelming the primary caregiver.
+  • Role-based access lets them contribute at the right level.
+
+SUPPORTING PERSONA — "The Home Caregiver" (e.g., a hired/foreign caregiver)
+  • Physically with the patient, no app account, may not speak Hebrew.
+  • Uses a simple kiosk-style check-in screen in their own language
+    (English, Tagalog, Hindi, Malayalam, Tamil); the family gets a Hebrew summary.
+  • Campaign relevance: a proof point of inclusivity and real-world fit, not a
+    primary ad target.
+
+INSTITUTIONAL CONTEXT (B2B2C, not the consumer ad target)
+  • Hospitals and oncology departments (e.g., the Rambam POC) are a distribution
+    and credibility channel. Keep this in mind for trust/credibility messaging.
+
+CAMPAIGN TARGETING SUMMARY
+  • Who to address in ads: the Primary Caregiver first, the Patient second.
+  • Where they are: Israeli, Hebrew-speaking, on the platforms they already trust —
+    Facebook, Instagram, WhatsApp-shared content.
+  • Mindset at point of contact: overwhelmed, searching for control and relief.
+
+
+--------------------------------------------------------------------------------
+5. BRAND POSITIONING STATEMENT
+--------------------------------------------------------------------------------
+For families managing a loved one's cancer care, who are drowning in scattered
+documents and coordination stress, Beacon is a Hebrew, family-first care hub that
+turns chaos into one calm, shared, organized place — unlike group chats and paper
+folders, Beacon understands medical documents, tracks the care, and keeps the
+whole family aligned, with the patient at the center.
+
+
+--------------------------------------------------------------------------------
+6. VALUE PROPOSITION & DIFFERENTIATORS
+--------------------------------------------------------------------------------
+Core promise: "Everything about the care, in one calm place the whole family shares."
+
+Differentiators:
+  1. UNDERSTANDS medical documents — not just storage. Upload a document and get a
+     clear summary in plain Hebrew (the heart of the product).
+  2. FAMILY-FIRST, with graded roles — everyone helps at the right level; the
+     patient stays the owner of their own record.
+  3. HEBREW & RTL-NATIVE — built for Israeli families, not a translated afterthought.
+  4. CALM BY DESIGN — made for people under stress and with basic tech skills.
+  5. PRIVACY-SERIOUS — sensitive data handled with care, encryption, and audit trails.
+  6. INCLUSIVE — even a non-Hebrew-speaking home caregiver can contribute.
+
+
+--------------------------------------------------------------------------------
+7. CORE FEATURES (framed as campaign benefits)
+--------------------------------------------------------------------------------
+THE MEDICAL VAULT — "Understands your documents, not just stores them"
+  • Upload from camera, photos, or files; or receive documents.
+  • Automatic reading (OCR + AI) returns a clear Hebrew summary, a simple summary,
+    a detected category, and even suggested next tasks.
+  • This is the hero feature. Lead the campaign with it.
+
+PROACTIVE CARE — "Never miss a dose or a symptom"
+  • Medication tracking, dose reminders, low-stock alerts, refill prompts.
+  • Quick symptom logging with severity — ready data for the next doctor visit.
+
+THE CIRCLE OF TRUST — "Carry it together, not alone"
+  • A private family support feed: updates, reactions (heart / hug), comments.
+  • Post as yourself or, with permission, on behalf of the patient.
+
+THE DASHBOARD — "Your day, at a glance"
+  • Time-aware greeting, today's schedule, today's tasks, latest caregiver update.
+  • Claim / release / complete tasks so the family shares the load clearly.
+
+ACCESS & CONSENT — "The patient stays in control"
+  • Graded, per-module permissions (schedule, tasks, medications, vault, feed).
+  • Patient consent gates sensitive areas; access can be granted or revoked.
+
+HOME CAREGIVER CHECK-IN — "Everyone can contribute, in their own language"
+  • A simple, large-button check-in screen in the caregiver's language.
+  • The family receives a Hebrew summary with an attention/alert level.
+
+(For campaign honesty: lead with the document-understanding + family-coordination
+story. Avoid over-claiming hospital data integration as live — the hospital sync
+is a roadmap/POC item, not a shipped consumer feature.)
+
+
+--------------------------------------------------------------------------------
+8. BRAND VOICE & TONE
+--------------------------------------------------------------------------------
+PERSONALITY (archetype): The Caregiver, with a touch of the Guide.
+Warm, steady, competent, human. The calm friend who happens to be organized and
+knows their way around a hospital — never cold, never clinical, never salesy.
+
+VOICE PRINCIPLES
+  • Warm, not sentimental. Acknowledge the hard reality without dramatizing it.
+  • Calm and reassuring. Lower the reader's heart rate, don't raise it.
+  • Clear and plain. Short sentences. Zero medical jargon. Zero tech jargon.
+  • Respectful and dignified. The patient is a person, not a "case."
+  • Empowering. Speak to capability and control, not helplessness.
+  • Quietly confident. We are competent and trustworthy; we don't need to shout.
+
+TONE DO'S
+  • "הכול במקום אחד, שקט ומסודר."
+  • "כל המשפחה רואה את אותו הדבר."
+  • "מעלים מסמך — מקבלים סיכום ברור בעברית."
+  • Use "אנחנו" / "ביחד" — togetherness.
+  • Speak directly and kindly to "you" (אתם / את / אתה).
+
+TONE DON'TS
+  • No fear-mongering, no scare tactics, no guilt ("if you forget, you fail them").
+  • No false hope or medical promises about outcomes/cure/survival.
+  • No cold corporate or hyper-technical language ("platform", "synergy", "AI-powered
+    solution"). Say what it does in human words.
+  • No pity or victim framing. Families are strong; we support, not rescue.
+  • Never trivialize cancer or use it as a punchline / growth-hack hook.
+
+SAMPLE LINES (HE)
+  • "כשהכול מסודר במקום אחד, יש יותר מקום פשוט להיות ביחד."
+  • "מעלים את המסמך. ביקון קורא אותו, ומסביר בעברית פשוטה."
+  • "אתם לא צריכים לזכור הכול לבד."
+
+
+--------------------------------------------------------------------------------
+9. MESSAGING PILLARS (the few things every ad should ladder up to)
+--------------------------------------------------------------------------------
+  PILLAR 1 — CLARITY:   "From scattered chaos to one calm, organized place."
+  PILLAR 2 — TOGETHER:  "The whole family, aligned — carry it together."
+  PILLAR 3 — UNDERSTANDS: "It reads the medical documents and explains them in Hebrew."
+  PILLAR 4 — DIGNITY:   "The patient stays at the center, in control."
+  PILLAR 5 — TRUST:     "Private, secure, and built with real care."
+
+
+--------------------------------------------------------------------------------
+10. TAGLINE & HEADLINE DIRECTIONS
+--------------------------------------------------------------------------------
+TAGLINE CANDIDATES (HE)
+  • "ביקון — האור שמלווה את המשפחה."
+  • "הכול על הטיפול, במקום אחד שקט."
+  • "מנהלים את הטיפול. ביחד."
+  • "פחות בלגן. יותר ביחד."
+
+TAGLINE CANDIDATES (EN, for decks/institutional)
+  • "One calm place for the whole family."
+  • "Light through the hardest journey."
+  • "Care, organized. Family, together."
+
+HEADLINE STARTERS (HE)
+  • "המסמכים, התרופות, התורים — סוף סוף במקום אחד."
+  • "ביקון קורא את המסמך הרפואי, ומסביר בעברית."
+  • "כל המשפחה על אותו עמוד. תרתי משמע."
+
+
+--------------------------------------------------------------------------------
+11. VISUAL IDENTITY
+--------------------------------------------------------------------------------
+(Grounded in the app's real Theme tokens — keep ads consistent with the product.)
+
+COLOR PALETTE
+  PRIMARY / BRAND
+    Deep Teal        #16475A   Primary brand color & accent. Trust, calm, depth,
+                               medical-competence without coldness. Hero color.
+    Deep Teal (dark) #0F2E3D   Darkest teal for depth/gradients.
+    Deep Teal (mid)  #38728C   Mid teal for gradients/secondary surfaces.
+    Deep Teal (light)#578F9E   Light teal accent.
+
+  SUPPORTING / CALM
+    Sage             #DCEEDD   Pale healing green — nature, calm, recovery.
+    Sage Dark        #5C8A6E   Deeper sage for icons/accents/positive states.
+    Soft Blue        #C5DCE0   Gentle, airy, supportive secondary.
+
+  ACCENT / EMOTIONAL (use sparingly)
+    Coral Accent     #B22D3F   Warm red — used for alerts/urgency & moments of
+                               human warmth/heart. High-impact, low-frequency.
+    Coral Background #FBE4E4   Soft pink wash for warm/alert backgrounds.
+
+  NEUTRALS / SURFACES
+    Background       #EFF4F4   Warm off-white app background. Airy, calm canvas.
+    Card Background  #FFFFFF   Clean white cards.
+    Text Primary     #1F3845   Dark slate-teal for body text (not pure black).
+    Text Secondary   #6F7E84   Muted gray for secondary text.
+
+  COLOR USAGE GUIDANCE
+    • Lead with Deep Teal + warm off-white + sage. This is the calm, trustworthy core.
+    • Use Coral ONLY as a sparing accent — a heart, a highlight, a moment of warmth.
+      Never flood a layout with red; it reads as alarm in a medical context.
+    • Avoid pure black and harsh pure white pairings; the brand is soft and warm.
+    • Maintain generous whitespace — calm comes from breathing room.
+
+TYPOGRAPHY
+    • System font, ROUNDED variant (Apple SF Pro Rounded) for titles & key numbers
+      — friendly, soft, approachable, never institutional.
+    • Standard system font for body — clean and highly legible.
+    • Weights: Bold/Semibold for titles, Regular for body.
+    • Hebrew-first; ensure any custom display font renders Hebrew beautifully.
+    • Reference scale: titles ~26pt bold rounded, section ~19pt, body ~15–16pt.
+
+SHAPE & UI LANGUAGE
+    • Soft, generous rounded corners (cards ~20pt, chips ~16pt, pill buttons ~24pt).
+    • Soft, subtle shadows (black ~6% opacity) — gentle elevation, never harsh.
+    • Roomy 8pt spacing rhythm (2 / 4 / 8 / 16 / 24 / 32 / 40).
+    • Large, comfortable touch targets — designed for tired, basic-tech users.
+    • RTL-first composition: everything flows right-to-left; mirror layouts in ads.
+
+LAYOUT / RTL
+    • All Hebrew creative is right-to-left. Logos, CTAs, and reading order mirror.
+    • Keep layouts uncluttered — one clear message per frame.
+
+IMAGERY & PHOTOGRAPHY DIRECTION
+    • Real, warm, intergenerational Israeli family moments — hands, presence,
+      togetherness, quiet relief. Not stock-clinical.
+    • Soft natural light, warm tones that sit with the off-white/teal/sage palette.
+    • Show the patient with dignity and agency — included, not pitied.
+    • Avoid: hospital-horror imagery, IV drips, distress close-ups, sad-music tropes.
+    • Device shots: show the calm, organized Hebrew UI as a hero — the product is
+      itself a source of reassurance.
+
+ICONOGRAPHY
+    • Simple, rounded, friendly line/solid icons consistent with SF Symbols feel.
+    • A lighthouse / guiding-light motif fits the name where a light touch is wanted.
+
+
+--------------------------------------------------------------------------------
+12. EMOTIONAL DRIVERS
+--------------------------------------------------------------------------------
+Move the audience FROM → TO:
+    Overwhelmed        →  In control
+    Alone with it      →  Carrying it together
+    Confused by docs   →  Understanding, in plain Hebrew
+    Afraid of mistakes →  Confident nothing slips
+    Chaos              →  Calm
+
+The feeling we want after seeing an ad: "Oh — finally, something that gets it and
+could actually make this easier. I can breathe a little."
+
+
+--------------------------------------------------------------------------------
+13. SENSITIVITIES & THINGS TO AVOID (critical for this category)
+--------------------------------------------------------------------------------
+  • NO medical claims about treatment outcomes, survival, or cure. Beacon organizes
+    and clarifies care; it does not treat or promise results.
+  • NO fear, guilt, or shame as motivators. The audience is already frightened.
+  • NO exploitation of grief or cancer for attention/virality.
+  • NO over-claiming features that aren't live for consumers (e.g., automatic
+    hospital/EMR sync is a POC/roadmap item — don't present it as shipped).
+  • RESPECT privacy in creative: never imply we read or expose data carelessly.
+  • Keep AI framed as "reads and explains your documents," not as a doctor or a
+    decision-maker.
+  • Dignity for the patient at all times — active participant, never a prop.
+
+
+--------------------------------------------------------------------------------
+14. TRUST & CREDIBILITY SIGNALS (use where appropriate)
+--------------------------------------------------------------------------------
+  • Privacy & security: Apple-first stack, encryption for sensitive data, full
+    audit trail of access, account deletion / data erasure supported.
+  • Compliance posture: aligns with Israeli Ministry of Health guidance; option for
+    data residency in Israel.
+  • Institutional credibility: hospital feasibility track (Rambam POC) — use as a
+    trust signal once formally underway, not before.
+  • Cost-of-entry reassurance: built for basic-tech users; nothing to "figure out."
+
+
+--------------------------------------------------------------------------------
+15. CHANNEL NOTES FOR THE CAMPAIGN
+--------------------------------------------------------------------------------
+  • Primary platforms: Facebook & Instagram (where the caregiver persona lives),
+    plus highly shareable WhatsApp-friendly creative (families forward to family).
+  • Format priorities: short vertical video (the document → Hebrew summary "aha"),
+    carousel (the four pillars), single-image (one calm promise).
+  • Always Hebrew, always RTL, always one clear idea per asset.
+  • CTA tone: gentle and low-pressure — "נסו את ביקון", "מתחילים בשקט",
+    not "Download now!!!".
+  • Landing experience must match: calm, Hebrew, reassuring — no bait-and-switch.
+
+================================================================================
+END OF BRAND BRIEF
+================================================================================

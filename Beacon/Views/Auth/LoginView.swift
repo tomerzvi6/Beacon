@@ -6,6 +6,7 @@ struct LoginView: View {
     @State private var nonce: (raw: String, hashed: String) = AuthService.makeNonce()
     @State private var isWorking = false
     @State private var showDevSheet = false
+    @State private var openedLegalDocument: LegalDocument? = nil
 
     var body: some View {
         ZStack {
@@ -57,7 +58,7 @@ struct LoginView: View {
                     Button {
                         showDevSheet = true
                     } label: {
-                        Text("התחברות לפיתוח (Email)")
+                        Text("התחברות עם אימייל")
                             .font(Theme.Typography.captionEmphasis)
                             .foregroundStyle(.white.opacity(0.75))
                             .underline()
@@ -90,13 +91,25 @@ struct LoginView: View {
                         .background(.white.opacity(0.95), in: RoundedRectangle(cornerRadius: Theme.CornerRadius.chip))
                 }
 
-                Text("בעצם ההתחברות אתה מסכים לתנאי השימוש ומדיניות הפרטיות.")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.white.opacity(0.5))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, Theme.Spacing.l)
-                    .padding(.bottom, Theme.Spacing.l)
+                VStack(spacing: Theme.Spacing.xxs) {
+                    Text("בעצם ההתחברות אתה מסכים ל:")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.white.opacity(0.5))
+                    HStack(spacing: Theme.Spacing.s) {
+                        Button("תנאי השימוש") { openedLegalDocument = .termsOfUse }
+                        Text("·").foregroundStyle(.white.opacity(0.5))
+                        Button("מדיניות הפרטיות") { openedLegalDocument = .privacyPolicy }
+                    }
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.75))
+                }
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, Theme.Spacing.l)
+                .padding(.bottom, Theme.Spacing.l)
             }
+        }
+        .sheet(item: $openedLegalDocument) { document in
+            LegalTextSheet(document: document)
         }
         .sheet(isPresented: $showDevSheet) {
             DevEmailSignInSheet()
@@ -244,13 +257,8 @@ private struct DevEmailSignInSheet: View {
                             .foregroundStyle(Theme.Palette.sageDark)
                     }
                 }
-                Section {
-                    Text("מסך זה מיועד לפיתוח ובדיקה בלבד. בייצור — Apple Sign-In בלבד.")
-                        .font(.footnote)
-                        .foregroundStyle(Theme.Palette.textSecondary)
-                }
             }
-            .navigationTitle("התחברות פיתוח")
+            .navigationTitle("התחברות עם אימייל")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
