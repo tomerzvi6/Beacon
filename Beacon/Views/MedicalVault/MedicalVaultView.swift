@@ -77,7 +77,8 @@ struct MedicalVaultView: View {
                                     },
                                     importedTaskCount: vm.lastImportedTaskTitles.isEmpty
                                         ? nil
-                                        : vm.lastImportedTaskTitles.count
+                                        : vm.lastImportedTaskTitles.count,
+                                    isExample: vm.featuredAISummary == nil
                                 )
                             }
 
@@ -144,7 +145,10 @@ struct MedicalVaultView: View {
                     summary: summary,
                     onAddSuggestedTasks: { _ in
                         Task { _ = await viewModel?.addSuggestedTasksToCalendar(from: summary) }
-                    }
+                    },
+                    // Reached only via the fallback path in the closure
+                    // above (no real parsed document) — always the demo.
+                    isExample: true
                 )
             }
         }
@@ -192,8 +196,12 @@ struct MedicalVaultView: View {
         }
         .sheet(isPresented: $showingBatchScan) {
             if let vm = viewModel {
-                BatchScanSheet(viewModel: vm) { succeeded, _ in
-                    if succeeded > 0 {
+                BatchScanSheet(viewModel: vm) { succeeded, failed in
+                    // Only celebrate a clean run — showing a green "success"
+                    // toast at the same moment a failure alert pops up
+                    // (MedicalVaultViewModel.uploadBatch sets one whenever
+                    // failed > 0) reads as the app contradicting itself.
+                    if succeeded > 0 && failed == 0 {
                         intakeToast = "\(succeeded) דפים נכנסו לתיק ומעובדים ברקע ✓"
                     }
                 }
@@ -270,7 +278,7 @@ struct MedicalVaultView: View {
         .alert("נדרשת התחברות מלאה", isPresented: $showingBackendAuthAlert) {
             Button("סגור", role: .cancel) {}
         } message: {
-            Text("כדי להעלות PDF או תמונה, התחבר/י עם Apple או Google כדי ש-Beacon יקבל הרשאת backend.")
+            Text("כדי להעלות PDF או תמונה, צריך להתחבר עם Apple או Google. ההתחברות המלאה מאפשרת ל-Beacon לשמור ולעבד את המסמך בבטחה.")
         }
     }
 
@@ -286,7 +294,9 @@ struct MedicalVaultView: View {
             BeaconCard {
                 BeaconEmptyState(
                     systemImage: "doc.badge.plus",
-                    title: vm.searchText.isEmpty ? "אין מסמכים בקטגוריה" : "לא נמצאו תוצאות",
+                    title: vm.searchText.isEmpty
+                        ? (vm.selectedCategory != nil ? "אין מסמכים בקטגוריה זו" : "אין מסמכים עדיין")
+                        : "לא נמצאו תוצאות",
                     message: vm.searchText.isEmpty
                         ? (environment.isIndependentMode
                             ? "אל תסדרו כלום — רק תצלמו. כל דף שתצלמו יזוהה, יתויק ויסוכם בעברית פשוטה."

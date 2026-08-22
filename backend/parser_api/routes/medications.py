@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from parser_api.auth import TokenPayload
-from parser_api.dependencies import get_session, get_user_context
+from parser_api.dependencies import get_session, require_module_access
 from shared.models import Medication
 from shared.schemas import MedicationIn, MedicationOut, MedicationPatchIn
 
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/v1/medications", tags=["medications"])
 @router.get("/", response_model=list[MedicationOut])
 def list_medications(
     session: Session = Depends(get_session),
-    user: TokenPayload = Depends(get_user_context),
+    user: TokenPayload = Depends(require_module_access("medications", 1)),
 ) -> list[MedicationOut]:
     meds = session.scalars(
         select(Medication).where(Medication.household_id == uuid.UUID(user.household_id))
@@ -28,7 +28,7 @@ def list_medications(
 def create_medication(
     body: MedicationIn,
     session: Session = Depends(get_session),
-    user: TokenPayload = Depends(get_user_context),
+    user: TokenPayload = Depends(require_module_access("medications", 2)),
 ) -> MedicationOut:
     med = Medication(
         id=uuid.uuid4(),
@@ -51,7 +51,7 @@ def patch_medication(
     medication_id: str,
     body: MedicationPatchIn,
     session: Session = Depends(get_session),
-    user: TokenPayload = Depends(get_user_context),
+    user: TokenPayload = Depends(require_module_access("medications", 2)),
 ) -> MedicationOut:
     med = session.scalar(
         select(Medication).where(
@@ -78,7 +78,7 @@ def patch_medication(
 def delete_medication(
     medication_id: str,
     session: Session = Depends(get_session),
-    user: TokenPayload = Depends(get_user_context),
+    user: TokenPayload = Depends(require_module_access("medications", 2)),
 ) -> None:
     med = session.scalar(
         select(Medication).where(

@@ -110,7 +110,7 @@ struct DocumentCard: View {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(Theme.Palette.coralAccent)
             VStack(alignment: .trailing, spacing: Theme.Spacing.xxs) {
-                Text("פרסור נכשל — נסה שוב")
+                Text("לא הצלחנו לעבד — נסו שוב")
                     .font(Theme.Typography.bodyEmphasis)
                     .foregroundStyle(Theme.Palette.textPrimary)
                     .beaconHorizontalText(minScale: 0.7)
@@ -122,7 +122,7 @@ struct DocumentCard: View {
                     .font(.system(size: 22, weight: .semibold))
                     .foregroundStyle(Theme.Palette.deepTeal)
             }
-            .accessibilityLabel("נסה שוב לפרסר את המסמך")
+            .accessibilityLabel("נסו שוב לעבד את המסמך")
         }
         .padding(.vertical, Theme.Spacing.xs)
     }
@@ -164,7 +164,7 @@ struct DocumentCard: View {
     private var openRow: some View {
         Button(action: onOpen) {
             HStack {
-                Image(systemName: "arrow.down.circle")
+                Image(systemName: "eye.fill")
                 Text("צפה במסמך")
                     .font(Theme.Typography.bodyEmphasis)
                     .beaconHorizontalText()

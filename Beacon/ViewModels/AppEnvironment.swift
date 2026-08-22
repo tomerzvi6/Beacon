@@ -5,8 +5,10 @@ import AuthenticationServices
 struct PatientProfileDraft: Codable, Equatable {
     var displayName: String
     var age: Int?
+    var gender: PatientGender
     var primaryDoctor: String
     var primaryHospital: String
+    var healthFund: String
     var bloodType: String
     var allergies: [String]
     var emergencyContactName: String
@@ -176,6 +178,11 @@ final class AppEnvironment {
                 self?.handleSessionExpired()
             }
         }
+        APIClient.onAccessRevoked = { [weak self] in
+            Task { @MainActor in
+                self?.handleAccessRevoked()
+            }
+        }
     }
 
     @MainActor
@@ -186,6 +193,20 @@ final class AppEnvironment {
         backendUser = nil
         authState = .unauthenticated
         authErrorMessage = "ההתחברות פגה. יש להתחבר מחדש."
+    }
+
+    /// A patient/co_owner revoked this device's access from elsewhere in
+    /// the household — the next request this device makes 403s (see
+    /// APIClient.onAccessRevoked). Signs out with an explanation instead of
+    /// leaving every screen quietly failing.
+    @MainActor
+    private func handleAccessRevoked() {
+        guard authState == .authenticated || authState == .needsOnboarding else { return }
+        TokenStore.clear()
+        clearCachedBackendUser()
+        backendUser = nil
+        authState = .unauthenticated
+        authErrorMessage = "הגישה שלך לתיק הוסרה על ידי המטופל/ת או מנהל/ת התיק."
     }
 
     /// Preview / mock initializer — bypasses Supabase entirely.
@@ -305,8 +326,10 @@ final class AppEnvironment {
                     ?? PatientProfileDraft(
                         displayName: user.full_name.isEmpty ? patient.displayName : user.full_name,
                         age: nil,
+                        gender: patient.gender,
                         primaryDoctor: "",
                         primaryHospital: "",
+                        healthFund: "",
                         bloodType: "",
                         allergies: [],
                         emergencyContactName: "",
@@ -354,34 +377,43 @@ final class AppEnvironment {
         }
     }
 
+    /// Email/password is the dev-only fallback (see CLAUDE.md). It used to
+    /// only authenticate against Supabase and never exchange for a Beacon
+    /// backend JWT — every screen's sync would 401 forever afterward, which
+    /// used to fail silently and now (correctly) bounces back to login via
+    /// `handleSessionExpired`. Both sign-in and sign-up now go straight to
+    /// `POST /v1/auth/dev` — a find-or-create backend path mirroring
+    /// Google's, refused outside development — so this path is actually
+    /// exercisable, in particular on a personal (unpaid) Apple ID where
+    /// Sign In with Apple's entitlement can't be provisioned at all.
     @MainActor
     func signInWithEmail(email: String, password: String) async {
-        guard let authService else { return }
-        authErrorMessage = nil
-        signUpSuccessMessage = nil
-        do {
-            try await authService.signInWithEmail(email: email, password: password)
-            await loadUserContextAndRoute(using: authService)
-        } catch {
-            authErrorMessage = error.localizedDescription
-        }
+        await authenticateWithDevBackend(email: email)
     }
 
     @MainActor
-    func signUpWithEmail(email: String, password: String) async {
-        guard let authService else { return }
+    func signUpWithEmail(email: String, password: String, displayName: String = "") async {
+        let trimmedName = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        await authenticateWithDevBackend(email: email, displayName: trimmedName.isEmpty ? nil : trimmedName)
+    }
+
+    @MainActor
+    private func authenticateWithDevBackend(email: String, displayName: String? = nil) async {
         authErrorMessage = nil
         signUpSuccessMessage = nil
+        backendAuthErrorMessage = nil
         do {
-            try await authService.signUpWithEmail(email: email, password: password)
-            guard await authService.currentSession() != nil else {
-                authState = .unauthenticated
-                signUpSuccessMessage = "ההרשמה נוצרה. בדוק/י את המייל שלך ואשר/י את החשבון, ואז התחבר/י."
-                return
-            }
-            await loadUserContextAndRoute(using: authService)
+            let response = try await backendAuthService.exchangeDevToken(email: email, displayName: displayName)
+            self.backendUser = response.user
+            cacheBackendUser(response.user)
+            self.applyBackendUserToDisplay(response.user)
+            self.authState = .authenticated
+        } catch let error as APIError {
+            backendAuthErrorMessage = error.diagnosticDescription
+            authErrorMessage = error.userMessage
         } catch {
-            authErrorMessage = error.localizedDescription
+            backendAuthErrorMessage = error.localizedDescription
+            authErrorMessage = "ההתחברות לא הצליחה. בדוק/י את החיבור לאינטרנט ונסה/י שוב."
         }
     }
 
@@ -390,8 +422,10 @@ final class AppEnvironment {
         let profile = PatientProfileDraft(
             displayName: patientName,
             age: nil,
+            gender: .male,
             primaryDoctor: "",
             primaryHospital: "",
+            healthFund: "",
             bloodType: "",
             allergies: [],
             emergencyContactName: "",
@@ -414,8 +448,10 @@ final class AppEnvironment {
         let normalizedProfile = PatientProfileDraft(
             displayName: trimmedPatientName,
             age: patientProfile.age,
+            gender: patientProfile.gender,
             primaryDoctor: patientProfile.primaryDoctor.trimmingCharacters(in: .whitespacesAndNewlines),
             primaryHospital: patientProfile.primaryHospital.trimmingCharacters(in: .whitespacesAndNewlines),
+            healthFund: patientProfile.healthFund.trimmingCharacters(in: .whitespacesAndNewlines),
             bloodType: patientProfile.bloodType.trimmingCharacters(in: .whitespacesAndNewlines),
             allergies: patientProfile.allergies
                 .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -644,15 +680,28 @@ final class AppEnvironment {
                 // Keep the signed-in user's own live entry (local permission
                 // edits shouldn't be clobbered by the server's coarser role).
                 guard member.userId != backendUser.id else { return nil }
-                let role: MemberRole = member.role == "patient" ? .patient
-                                      : member.role == "co_owner" ? .admin
-                                      : .defaultMember
+                let role: MemberRole
+                switch member.role {
+                case "patient": role = .patient
+                case "co_owner": role = .admin
+                default:
+                    // Real per-module levels from the server, not the
+                    // always-read-only local default — a promoted/limited
+                    // caregiver should show their actual current access.
+                    let permissions = Dictionary(
+                        uniqueKeysWithValues: AppModule.allCases.map { module in
+                            (module.rawValue, member.permissions?[module.rawValue] ?? AccessLevel.read.rawValue)
+                        }
+                    )
+                    role = .member(permissions: permissions)
+                }
                 return FamilyMember(
                     id: member.userId.uuidString,
                     displayName: member.displayName.isEmpty ? "בן/בת משפחה" : member.displayName,
                     relation: role.isPatient ? "חולה" : "מטפל/ת",
                     avatarSymbol: "person.crop.circle",
-                    role: role
+                    role: role,
+                    membershipId: member.id.uuidString
                 )
             }
             updated.append(currentUser)
@@ -714,6 +763,18 @@ final class AppEnvironment {
             targetId: memberId,
             summary: "\(module.rawValue) permission changed to \(level.rawValue)."
         )
+        // Optimistic local update above keeps the UI responsive; this is
+        // what actually makes the new level take effect for the caregiver's
+        // own device (get_session/require_module_access enforce it
+        // server-side on every call they make).
+        guard let membershipId = members[index].membershipId, let uuid = UUID(uuidString: membershipId) else { return }
+        Task {
+            do {
+                _ = try await HouseholdService().updatePermission(memberId: uuid, module: module, level: level)
+            } catch {
+                authErrorMessage = "עדכון ההרשאה לא נשמר בשרת: \(error.localizedDescription)"
+            }
+        }
     }
 
     func revokeAccess(for memberId: String) {
@@ -729,6 +790,17 @@ final class AppEnvironment {
             targetId: memberId,
             summary: "Family member access revoked immediately."
         )
+        // Real revocation: without this, removing them here only updates
+        // this device's local list — their own device keeps full backend
+        // access until their JWT naturally expires.
+        guard let membershipId = member.membershipId, let uuid = UUID(uuidString: membershipId) else { return }
+        Task {
+            do {
+                try await HouseholdService().removeMember(id: uuid)
+            } catch {
+                authErrorMessage = "הסרת הגישה לא הושלמה בשרת: \(error.localizedDescription)"
+            }
+        }
     }
 
     func approvePatientConsent() {
@@ -814,8 +886,10 @@ final class AppEnvironment {
         patient = patientWithUpdatedProfile(
             displayName: displayNameOverride ?? profile.displayName,
             age: profile.age,
+            gender: profile.gender,
             primaryDoctor: profile.primaryDoctor,
             primaryHospital: profile.primaryHospital,
+            healthFund: profile.healthFund,
             bloodType: profile.bloodType,
             allergies: profile.allergies,
             emergencyContactName: profile.emergencyContactName,
@@ -826,8 +900,10 @@ final class AppEnvironment {
     private func patientWithUpdatedProfile(
         displayName: String? = nil,
         age: Int? = nil,
+        gender: PatientGender? = nil,
         primaryDoctor: String? = nil,
         primaryHospital: String? = nil,
+        healthFund: String? = nil,
         bloodType: String? = nil,
         allergies: [String]? = nil,
         emergencyContactName: String? = nil,
@@ -839,9 +915,11 @@ final class AppEnvironment {
             relationToCaregiver: patient.relationToCaregiver,
             avatarSymbol: patient.avatarSymbol,
             age: age ?? patient.age,
+            gender: gender ?? patient.gender,
             condition: patient.condition,
             primaryDoctor: primaryDoctor?.isEmpty == false ? primaryDoctor! : patient.primaryDoctor,
             primaryHospital: primaryHospital?.isEmpty == false ? primaryHospital! : patient.primaryHospital,
+            healthFund: healthFund?.isEmpty == false ? healthFund! : patient.healthFund,
             bloodType: bloodType?.isEmpty == false ? bloodType! : patient.bloodType,
             allergies: allergies?.isEmpty == false ? allergies! : patient.allergies,
             emergencyContactName: emergencyContactName?.isEmpty == false ? emergencyContactName! : patient.emergencyContactName,

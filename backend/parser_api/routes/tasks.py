@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from parser_api.auth import TokenPayload
-from parser_api.dependencies import get_session, get_user_context
+from parser_api.dependencies import get_session, require_module_access
 from shared.models import AuditLog, Task
 from shared.schemas import TaskCreateIn, TaskOut, TaskPatchIn
 
@@ -17,7 +17,7 @@ router = APIRouter(prefix="/v1/tasks", tags=["tasks"])
 def list_tasks(
     status_filter: str = "approved",
     session: Session = Depends(get_session),
-    user: TokenPayload = Depends(get_user_context),
+    user: TokenPayload = Depends(require_module_access("tasks", 1)),
 ) -> list[TaskOut]:
     """List tasks for the user's household, filtered by status."""
     tasks = (
@@ -36,7 +36,7 @@ def list_tasks(
 def create_task(
     body: TaskCreateIn,
     session: Session = Depends(get_session),
-    user: TokenPayload = Depends(get_user_context),
+    user: TokenPayload = Depends(require_module_access("tasks", 2)),
 ) -> TaskOut:
     """Family member creates a task directly (mirrors DailyTask) — no
     suggested→approve step since there's no AI draft behind it."""
@@ -66,7 +66,7 @@ def create_task(
 def approve_task(
     task_id: str,
     session: Session = Depends(get_session),
-    user: TokenPayload = Depends(get_user_context),
+    user: TokenPayload = Depends(require_module_access("tasks", 2)),
 ) -> TaskOut:
     """
     User approves a suggested task.
@@ -111,7 +111,7 @@ def patch_task(
     task_id: str,
     body: TaskPatchIn,
     session: Session = Depends(get_session),
-    user: TokenPayload = Depends(get_user_context),
+    user: TokenPayload = Depends(require_module_access("tasks", 2)),
 ) -> TaskOut:
     """Edit a task's title/description/due date; captures audit trail in edit_history."""
     task = session.query(Task).filter(
@@ -166,7 +166,7 @@ def patch_task(
 def claim_task(
     task_id: str,
     session: Session = Depends(get_session),
-    user: TokenPayload = Depends(get_user_context),
+    user: TokenPayload = Depends(require_module_access("tasks", 2)),
 ) -> TaskOut:
     """User claims ownership of a task (mirrors 'קח על עצמך משימה')."""
     task = session.query(Task).filter(
@@ -199,7 +199,7 @@ def claim_task(
 def complete_task(
     task_id: str,
     session: Session = Depends(get_session),
-    user: TokenPayload = Depends(get_user_context),
+    user: TokenPayload = Depends(require_module_access("tasks", 2)),
 ) -> TaskOut:
     """Mark a task done (mirrors DailyTask.isCompleted)."""
     task = session.query(Task).filter(
@@ -232,7 +232,7 @@ def complete_task(
 def dismiss_task(
     task_id: str,
     session: Session = Depends(get_session),
-    user: TokenPayload = Depends(get_user_context),
+    user: TokenPayload = Depends(require_module_access("tasks", 2)),
 ) -> TaskOut:
     """Dismiss a suggested/approved task without completing it."""
     task = session.query(Task).filter(
@@ -264,7 +264,7 @@ def dismiss_task(
 def unclaim_task(
     task_id: str,
     session: Session = Depends(get_session),
-    user: TokenPayload = Depends(get_user_context),
+    user: TokenPayload = Depends(require_module_access("tasks", 2)),
 ) -> TaskOut:
     """Release a claimed task back to the household pool."""
     task = session.query(Task).filter(
@@ -284,7 +284,7 @@ def unclaim_task(
 def reopen_task(
     task_id: str,
     session: Session = Depends(get_session),
-    user: TokenPayload = Depends(get_user_context),
+    user: TokenPayload = Depends(require_module_access("tasks", 2)),
 ) -> TaskOut:
     """Undo a completion (mirrors DailyTask.isCompleted toggling back off)."""
     task = session.query(Task).filter(

@@ -5,6 +5,7 @@ struct SupportReactionBar: View {
     var hugCount: Int
     var commentCount: Int
     var canReplyWithText: Bool
+    var reactedTypes: Set<SupportReaction> = []
     var onReact: (SupportReaction) -> Void
 
     var body: some View {
@@ -35,7 +36,8 @@ struct SupportReactionBar: View {
     }
 
     private func reactionButton(_ reaction: SupportReaction, count: Int) -> some View {
-        Button {
+        let isActive = reactedTypes.contains(reaction)
+        return Button {
             onReact(reaction)
         } label: {
             HStack(spacing: Theme.Spacing.xs) {
@@ -46,16 +48,16 @@ struct SupportReactionBar: View {
                     .font(Theme.Typography.bodyEmphasis)
                     .contentTransition(.numericText(value: Double(count)))
             }
-            .foregroundStyle(tint(for: reaction))
+            .foregroundStyle(isActive ? .white : tint(for: reaction))
             .padding(.vertical, 10)
             .padding(.horizontal, Theme.Spacing.m)
-            .background(tint(for: reaction).opacity(0.1))
+            .background(isActive ? tint(for: reaction) : tint(for: reaction).opacity(0.1))
             .clipShape(Capsule())
             .frame(minHeight: 44)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(reaction == .heart ? "אהבתי" : "חיבוק") — \(count)")
+        .accessibilityLabel("\(reaction == .heart ? "אהבתי" : "חיבוק") — \(count)\(isActive ? ", כבר הגבת" : "")")
     }
 
     private func tint(for reaction: SupportReaction) -> Color {

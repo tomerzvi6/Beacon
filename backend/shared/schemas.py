@@ -409,6 +409,12 @@ class HouseholdMemberOut(_Base):
     role: str
     joined_at: datetime
     display_name: str = ""
+    permissions: dict[str, int] | None = None
+
+
+class MemberPermissionPatchIn(BaseModel):
+    module: str = Field(..., pattern="^(schedule|tasks|medications|medicalVault|feed)$")
+    level: int = Field(..., ge=0, le=2)
 
 
 class CoOwnerInviteIn(BaseModel):
@@ -513,6 +519,15 @@ class AppleAuthOut(BaseModel):
     token_type: str = "bearer"
     user: AppleAuthUserOut
     expires_in_seconds: int
+
+
+class DevAuthIn(BaseModel):
+    """Local-only auth path for testing without Sign In with Apple (which
+    requires a paid Apple Developer Program membership even for a
+    personal-team device install). The backend refuses this outside
+    ENVIRONMENT=development."""
+    email: str
+    display_name: str | None = None
 
 
 # Google Sign-In token exchange (POST /v1/auth/google)

@@ -20,6 +20,9 @@ struct CaregiverSetupSheet: View {
                 if viewModel.isCaregiverLayerActive {
                     activeSection
                 }
+                if !viewModel.isCaregiverLayerActive {
+                    explanationSection
+                }
                 detailsSection
                 if viewModel.isCaregiverLayerActive {
                     reportEntrySection
@@ -52,6 +55,25 @@ struct CaregiverSetupSheet: View {
             }
         }
         .environment(\.layoutDirection, .rightToLeft)
+    }
+
+    /// Answers "who sees what, does the aide need their own login" — a
+    /// rushed first-time user is likely to tap "activate" before ever
+    /// reading a footer, so this needs to sit before the form, not after it.
+    private var explanationSection: some View {
+        Section {
+            HStack(alignment: .top, spacing: Theme.Spacing.m) {
+                Image(systemName: "info.circle.fill")
+                    .font(.system(size: 20))
+                    .foregroundStyle(Theme.Palette.deepTeal)
+                Text("המטפל/ת מדווח/ת דרך מסך פשוט בשפה שלו/ה, וביקון מסכמת לעברית עבור המשפחה. למטפל/ת אין גישה לתיק הרפואי או לשאר האפליקציה — אין למטפל/ת חשבון או התחברות משלו/ה.")
+                    .font(Theme.Typography.caption)
+                    .foregroundStyle(Theme.Palette.textPrimary)
+                    .multilineTextAlignment(.trailing)
+            }
+            .padding(.vertical, Theme.Spacing.xs)
+        }
+        .listRowBackground(Theme.Palette.softBlue.opacity(0.2))
     }
 
     private var activeSection: some View {
@@ -105,8 +127,6 @@ struct CaregiverSetupSheet: View {
             .listRowInsets(EdgeInsets())
         } header: {
             Text("פרטי המטפל/ת")
-        } footer: {
-            Text("המטפל/ת מדווח/ת דרך מסך פשוט בשפה שלו/ה. Beacon מסכמת לעברית עבור המשפחה. למטפל/ת אין גישה לתיק הרפואי או לשאר האפליקציה.")
         }
     }
 

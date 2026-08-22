@@ -57,7 +57,7 @@ struct UploadMetadataSheet: View {
                 } header: {
                     Text("קטגוריה (לא חובה)")
                 } footer: {
-                    Text("ללא בחירה — המודל יקטלג אוטומטית בעת ההעלאה.")
+                    Text("ללא בחירה — ביקון יקטלג את המסמך אוטומטית בעת ההעלאה.")
                 }
 
                 if canMarkPrivate {

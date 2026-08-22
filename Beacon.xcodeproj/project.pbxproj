@@ -69,7 +69,6 @@
 		9846859E9419A17B1F8CC0A8 /* BatchScanSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A0D777BC687A6F4F0404003 /* BatchScanSheet.swift */; };
 		9C05FA6D76AEA40749658C51 /* ComposePostCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4777B97E6EB709C91BFE921C /* ComposePostCard.swift */; };
 		9F706E22D37CB148876751AA /* BeaconSectionHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C665F4A537D982750F291E6 /* BeaconSectionHeader.swift */; };
-		A48A8D861DF68E401FC2B529 /* CustomSymptomSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B662F5D3DB888F2DD1D722C7 /* CustomSymptomSheet.swift */; };
 		A84A09386FA52B4DD6D14DC6 /* DocumentScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 575A908B90C6FF2AA6838066 /* DocumentScannerView.swift */; };
 		A91BF1BF5FA7A552B8451D2B /* SupportReactionBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC533BFA44F26592A1566838 /* SupportReactionBar.swift */; };
 		ACF81B2997A1D5C0ACDBC0F6 /* MockDataSeeder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CAFFA9571D6FE98390D2404 /* MockDataSeeder.swift */; };
@@ -96,7 +95,6 @@
 		DC04F2E44D086487A813E8AA /* Permissions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48B8292AD67748E25CA1CBF8 /* Permissions.swift */; };
 		DC56475C775B753A8D2864B4 /* HospitalSyncAlert.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B614363992D0BF88A9F06B5 /* HospitalSyncAlert.swift */; };
 		DEDD266E1467AD55CDC84176 /* BackendDocumentService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FC4C2407A4B93FA8542C1FB /* BackendDocumentService.swift */; };
-		E0B1ABADAE871D35A2FBDC96 /* QuickSymptomLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7793D8588DE8B1D1DE4C9DCD /* QuickSymptomLogger.swift */; };
 		E1612F78252C5861E0765EFC /* LegalTextSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F21CE402E32A85FB6CE6AC15 /* LegalTextSheet.swift */; };
 		E3AFC74E55E3F56F2401A743 /* MedicationDose.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB34D05A1F50F0A83D1BD4AA /* MedicationDose.swift */; };
 		E8D442D4E1AEF59E1030C37B /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C68D6C52088F166414EABD7A /* OnboardingView.swift */; };
@@ -174,7 +172,6 @@
 		7374AE4418932733A1798D9B /* CaregiverHubCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaregiverHubCard.swift; sourceTree = "<group>"; };
 		73D42EB6FC0A6545FE2DB9CC /* BeaconBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeaconBadge.swift; sourceTree = "<group>"; };
 		775EDD0D7FF57919FAC7FD1A /* CaregiverService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaregiverService.swift; sourceTree = "<group>"; };
-		7793D8588DE8B1D1DE4C9DCD /* QuickSymptomLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickSymptomLogger.swift; sourceTree = "<group>"; };
 		7A983DA54EAAD9A9406F1FE3 /* FamilyMember.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyMember.swift; sourceTree = "<group>"; };
 		7C665F4A537D982750F291E6 /* BeaconSectionHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeaconSectionHeader.swift; sourceTree = "<group>"; };
 		8193FB8F9AD2731143790BFB /* MedicalVaultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicalVaultView.swift; sourceTree = "<group>"; };
@@ -196,7 +193,6 @@
 		B088C0722EF75E8A074D62DC /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		B09F3295FA581082A0FE12A5 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
 		B3214AF0014A25C940D09278 /* DailyTask.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyTask.swift; sourceTree = "<group>"; };
-		B662F5D3DB888F2DD1D722C7 /* CustomSymptomSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomSymptomSheet.swift; sourceTree = "<group>"; };
 		B7182B2ABF9924D3001A3BE6 /* BackendAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendAuthService.swift; sourceTree = "<group>"; };
 		B82F47DB76137CA1121BF48F /* IntakeOCRService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntakeOCRService.swift; sourceTree = "<group>"; };
 		BBBE678970282D86ABEDB483 /* DiagnosticView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticView.swift; sourceTree = "<group>"; };
@@ -355,13 +351,11 @@
 		7353188DD96B8728C3F8270F /* ProactiveCare */ = {
 			isa = PBXGroup;
 			children = (
-				B662F5D3DB888F2DD1D722C7 /* CustomSymptomSheet.swift */,
 				13000A200DBC313BFF4263AD /* LowStockCard.swift */,
 				0CD9053EE7454B822068C971 /* MedicationDoseCard.swift */,
 				374EE8310068FE0EEE3EE09F /* MedicationManagerSheet.swift */,
 				6E16643D75AD21FDA8F135F7 /* MissedDoseAlertCard.swift */,
 				B07765B8C82C626881F34CEE /* ProactiveCareView.swift */,
-				7793D8588DE8B1D1DE4C9DCD /* QuickSymptomLogger.swift */,
 			);
 			path = ProactiveCare;
 			sourceTree = "<group>";
@@ -619,7 +613,6 @@
 				0811ACE333F8097B7FB7301F /* CircleOfTrustView.swift in Sources */,
 				C522CDEB0739C86D63AD92A7 /* CircleOfTrustViewModel.swift in Sources */,
 				9C05FA6D76AEA40749658C51 /* ComposePostCard.swift in Sources */,
-				A48A8D861DF68E401FC2B529 /* CustomSymptomSheet.swift in Sources */,
 				8704C1E150D64E475539E4A4 /* DailyTask.swift in Sources */,
 				EA6CE44C8A6C41FBC8D2AFF0 /* DashboardView.swift in Sources */,
 				2D8E32864899E31CFBCAAB35 /* DashboardViewModel.swift in Sources */,
@@ -668,7 +661,6 @@
 				2E036D2FB0F123289270FE72 /* ProactiveCareViewModel.swift in Sources */,
 				6CE5FD2A640B8CC46E7ED36D /* PushAppDelegate.swift in Sources */,
 				B6F373E1FF2B7DED7E993894 /* PushService.swift in Sources */,
-				E0B1ABADAE871D35A2FBDC96 /* QuickSymptomLogger.swift in Sources */,
 				E98E842F6698C04041EF47C2 /* RootTabView.swift in Sources */,
 				0A1243F852D3658E9091B7BF /* ScheduleEvent.swift in Sources */,
 				0A46C54481E2C2DF457D13C7 /* ScheduleEventRow.swift in Sources */,

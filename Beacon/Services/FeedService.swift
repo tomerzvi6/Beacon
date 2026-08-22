@@ -77,6 +77,15 @@ struct FeedService {
         try await client.post("/v1/feed/\(postId.uuidString)/react", body: ReactionBody(reaction: reaction))
     }
 
+    /// Undo a reaction already given — lets the UI toggle instead of only
+    /// ever incrementing a counter that never reflects the viewer's own state.
+    func removeReaction(postId: UUID, reaction: String) async throws -> PostDTO {
+        guard let encodedReaction = reaction.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
+            throw APIError.invalidURL
+        }
+        return try await client.delete("/v1/feed/\(postId.uuidString)/react?reaction=\(encodedReaction)")
+    }
+
     /// Posts to the backend feed and inserts the confirmed row into local
     /// SwiftData under the backend-issued id. Used by callers outside
     /// `CircleOfTrustViewModel` (e.g. sharing a caregiver check-in summary)
@@ -101,7 +110,9 @@ struct FeedService {
             postedAt: dto.postedAt,
             heartCount: dto.heartCount,
             hugCount: dto.hugCount,
-            audience: FeedPostAudience(rawValue: dto.audience) ?? .familyOnly
+            audience: FeedPostAudience(rawValue: dto.audience) ?? .familyOnly,
+            trueAuthorMemberId: dto.authorUserId.uuidString,
+            myReactionsRaw: dto.myReactions
         )
         context.insert(post)
         try? context.save()

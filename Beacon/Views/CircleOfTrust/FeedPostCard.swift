@@ -43,6 +43,7 @@ struct FeedPostCard: View {
                     hugCount: post.hugCount,
                     commentCount: post.comments.count,
                     canReplyWithText: currentUser.hasFullAccess,
+                    reactedTypes: Set(post.myReactionsRaw.compactMap(SupportReaction.init(rawValue:))),
                     onReact: onReact
                 )
 
@@ -120,25 +121,26 @@ struct FeedPostCard: View {
                         .beaconHorizontalText(minScale: 0.62)
                 }
             }
-            Button { } label: {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(Theme.Palette.textSecondary)
-                    .padding(Theme.Spacing.xs)
-            }
-            .buttonStyle(.plain)
         }
     }
 
     private var authorDisplay: String {
         guard let author = post.author else { return "עדכון משפחתי" }
+        let baseLabel: String
         if author.isPatient {
-            return "\(author.displayName) (מטופל/ת)"
+            baseLabel = "\(author.displayName) (מטופל/ת)"
+        } else if author.isAdmin {
+            baseLabel = "\(author.displayName) (מטפל/ת ראשי/ת)"
+        } else {
+            baseLabel = author.displayName
         }
-        if author.isAdmin {
-            return "\(author.displayName) (מטפל/ת ראשי/ת)"
+        // "Post as patient" attributes the post to the patient for display,
+        // but whoever actually typed it should stay visible to the family —
+        // otherwise a caregiver-written update reads as the patient's own words.
+        if let trueAuthor = post.trueAuthor, trueAuthor.id != author.id {
+            return "\(baseLabel) — פורסם על ידי \(trueAuthor.displayName)"
         }
-        return author.displayName
+        return baseLabel
     }
 
     private func tone(for status: FeedPostStatus) -> BeaconBadge.Tone {

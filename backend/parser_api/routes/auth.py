@@ -17,6 +17,7 @@ from shared.schemas import (
     AppleAuthOut,
     AppleAuthUserOut,
     AppleFullName,
+    DevAuthIn,
     GoogleAuthIn,
     GoogleAuthOut,
 )
@@ -286,6 +287,88 @@ def exchange_google_token(
         user_id=str(user.id),
         google_user_id=google_user_id,
     )
+
+    return GoogleAuthOut(
+        access_token=token,
+        token_type="bearer",
+        user=AppleAuthUserOut(
+            id=user.id,
+            household_id=user.household_id,
+            role=role,
+            full_name=user.display_name,
+        ),
+        expires_in_seconds=ttl,
+    )
+
+
+# ---------------------------------------------------------------------------
+# POST /v1/auth/dev — local-only, no real provider
+# ---------------------------------------------------------------------------
+
+
+@router.post("/dev", response_model=GoogleAuthOut)
+def exchange_dev_token(
+    body: DevAuthIn,
+    session: Session = Depends(get_session_no_auth),
+) -> GoogleAuthOut:
+    """Trusts a client-supplied email outright and issues a real Beacon JWT
+    — no provider verification at all. Exists because Sign In with Apple
+    needs a paid Apple Developer Program membership even to test on a
+    personal-team device install, and this is the only way to exercise the
+    real backend-synced app without one. Refuses outside development so it
+    can never reach a real deployment.
+
+    Reuses the `google_user_id` unique column with a "dev:" prefix rather
+    than adding a schema column for a path that only ever runs locally.
+    """
+    if settings.environment != "development":
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+
+    email = body.email.strip().lower()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid email")
+    dev_id = f"dev:{email}"
+
+    user = session.scalar(select(User).where(User.google_user_id == dev_id))
+    is_new = user is None
+
+    if is_new:
+        household_id = uuid.uuid4()
+        user_id = uuid.uuid4()
+        member_id = uuid.uuid4()
+
+        session.add(Household(id=household_id))
+
+        display_name = (body.display_name or email.split("@")[0]).strip() or "משתמש בדיקה"
+        user = User(
+            id=user_id,
+            google_user_id=dev_id,
+            household_id=household_id,
+            display_name=display_name,
+            role="patient",
+        )
+        session.add(user)
+        session.add(HouseholdMember(id=member_id, household_id=household_id, user_id=user_id, role="patient"))
+        session.add(AuditLog(
+            actor_type="parser_api",
+            actor_id=str(user_id),
+            action="dev_signup",
+            target_table="users",
+            target_id=user_id,
+            household_id=household_id,
+        ))
+        session.commit()
+        logger.info("dev_signup", extra={"user_id": str(user_id), "household_id": str(household_id)})
+
+    member = session.scalar(
+        select(HouseholdMember).where(
+            HouseholdMember.household_id == user.household_id,
+            HouseholdMember.user_id == user.id,
+        )
+    )
+    role = member.role if member else "patient"
+
+    token, ttl = create_token(household_id=str(user.household_id), user_id=str(user.id))
 
     return GoogleAuthOut(
         access_token=token,

@@ -4,7 +4,9 @@ struct MedicationDoseCard: View {
     var dose: MedicationDose
     var isPatientView: Bool = false
     var canMarkTaken: Bool = true
+    var onUndoTaken: (() -> Void)? = nil
     var onMarkTaken: () -> Void
+    @State private var showingUndoConfirm = false
 
     private var timeString: String {
         let formatter = DateFormatter()
@@ -66,27 +68,47 @@ struct MedicationDoseCard: View {
                 readOnlyStatus("ממתין לנטילה", systemImage: "clock.fill")
             }
         case .taken:
-            HStack(spacing: Theme.Spacing.xs) {
-                Image(systemName: "checkmark.seal.fill")
-                    .foregroundStyle(Theme.Palette.sageDark)
-                    .symbolEffect(.bounce, value: dose.status)
-                Text("נלקח")
-                    .font(Theme.Typography.bodyEmphasis)
-                    .foregroundStyle(Theme.Palette.sageDark)
-                    .beaconHorizontalText()
-                Spacer()
+            Button {
+                if onUndoTaken != nil { showingUndoConfirm = true }
+            } label: {
+                HStack(spacing: Theme.Spacing.xs) {
+                    Image(systemName: "checkmark.seal.fill")
+                        .foregroundStyle(Theme.Palette.sageDark)
+                        .symbolEffect(.bounce, value: dose.status)
+                    Text("נלקח")
+                        .font(Theme.Typography.bodyEmphasis)
+                        .foregroundStyle(Theme.Palette.sageDark)
+                        .beaconHorizontalText()
+                    if onUndoTaken != nil {
+                        Text("· לביטול הקש כאן")
+                            .font(Theme.Typography.caption)
+                            .foregroundStyle(Theme.Palette.sageDark.opacity(0.7))
+                            .beaconHorizontalText(minScale: 0.6)
+                    }
+                    Spacer()
+                }
+                .padding(.vertical, Theme.Layout.controlVerticalPadding)
+                .padding(.horizontal, Theme.Spacing.m)
+                .background(Theme.Palette.sage)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.chip, style: .continuous))
             }
-            .padding(.vertical, Theme.Layout.controlVerticalPadding)
-            .padding(.horizontal, Theme.Spacing.m)
-            .background(Theme.Palette.sage)
-            .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.chip, style: .continuous))
-            .accessibilityLabel("מינון \(dose.medicationName) נלקח")
+            .buttonStyle(.plain)
+            .disabled(onUndoTaken == nil)
+            .accessibilityLabel("מינון \(dose.medicationName) נלקח\(onUndoTaken != nil ? ", הקש לביטול הסימון" : "")")
+            .confirmationDialog(
+                "לבטל את הסימון שהמינון נלקח?",
+                isPresented: $showingUndoConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("בטל סימון", role: .destructive) { onUndoTaken?() }
+                Button("השאר מסומן כנלקח", role: .cancel) { }
+            }
         case .scheduledLater:
             HStack(spacing: Theme.Spacing.xs) {
                 Spacer()
                 Image(systemName: "clock.fill")
                     .font(.system(size: 14, weight: .semibold))
-                Text("מתוכנן לערב")
+                Text("מתוכנן ל-\(timeString)")
                     .font(Theme.Typography.bodyEmphasis)
                     .beaconHorizontalText()
             }

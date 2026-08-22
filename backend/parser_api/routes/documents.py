@@ -10,9 +10,9 @@ from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
 from parser_api.auth import TokenPayload
-from parser_api.dependencies import get_session, get_user_context, require_roles
+from parser_api.dependencies import get_session, get_user_context, require_module_access, require_roles
 from parser_api.middleware import limiter
-from parser_api.services.claude_parser import ClaudeParser
+from parser_api.services.grok_parser import GrokParser
 from parser_api.services.name_detector import should_flag
 from parser_api.services.ocr_service import OCRService
 from parser_api.services.storage_service import get_storage_service
@@ -84,6 +84,7 @@ def list_documents(
     cursor: str | None = Query(default=None),
     session: Session = Depends(get_session),
     user: TokenPayload = Depends(get_user_context),
+    _module: TokenPayload = Depends(require_module_access("medicalVault", 1)),
 ) -> list[DocumentOut]:
     role = _caller_role(session, user)
 
@@ -147,6 +148,7 @@ def delete_document(
     document_id: str,
     session: Session = Depends(get_session),
     user: TokenPayload = Depends(get_user_context),
+    _module: TokenPayload = Depends(require_module_access("medicalVault", 2)),
 ) -> None:
     role = _caller_role(session, user)
     doc = session.scalar(
@@ -258,6 +260,7 @@ def get_document(
     document_id: str,
     session: Session = Depends(get_session),
     user: TokenPayload = Depends(get_user_context),
+    _module: TokenPayload = Depends(require_module_access("medicalVault", 1)),
 ) -> DocumentOut:
     """Return a single document. Used by the iOS client to poll parse
     progress (status transitions uploaded → parsing → parsed/failed).
@@ -287,6 +290,7 @@ def patch_document(
     body: DocumentPatchIn,
     session: Session = Depends(get_session),
     user: TokenPayload = Depends(get_user_context),
+    _module: TokenPayload = Depends(require_module_access("medicalVault", 2)),
 ) -> DocumentOut:
     role = _caller_role(session, user)
     doc = session.scalar(
@@ -331,6 +335,7 @@ def parse_document(
     document_id: str,
     session: Session = Depends(get_session),
     user: TokenPayload = Depends(get_user_context),
+    _module: TokenPayload = Depends(require_module_access("medicalVault", 2)),
 ) -> ParseResponse:
     """
     Parse a medical document. Rate-limited (10/min/IP) — each call runs OCR
@@ -374,8 +379,11 @@ def parse_document(
         ocr_text = ocr.extract_text(file_bytes, doc.mime_type)
         doc.raw_ocr_text = ocr_text
 
-        # Category-routed parse (Haiku for admin, Sonnet otherwise)
-        parser = ClaudeParser()
+        # Category-routed parse via Grok (grok-4.3 for every category —
+        # see services/grok_parser.py for why; swap back to
+        # parser_api.services.claude_parser.ClaudeParser to return to
+        # Anthropic, its tests and prompts are untouched and still work)
+        parser = GrokParser()
         full_summary, simple_summary, suggested_tasks, model_cat = (
             parser.parse_medical_document(ocr_text, category=doc.category)
         )

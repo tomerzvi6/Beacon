@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from parser_api.auth import TokenPayload
-from parser_api.dependencies import get_session, get_user_context
+from parser_api.dependencies import get_session, require_module_access
 from shared.models import AuditLog, DoseEvent, Medication
 from shared.schemas import DoseEventOut
 
@@ -38,7 +38,7 @@ def list_doses(
     from_date: datetime | None = None,
     to_date: datetime | None = None,
     session: Session = Depends(get_session),
-    user: TokenPayload = Depends(get_user_context),
+    user: TokenPayload = Depends(require_module_access("medications", 1)),
 ) -> list[DoseEventOut]:
     """List dose events for the household, optionally bounded by a date range.
     Defaults to today (00:00–24:00 UTC) when no range is given, matching the
@@ -65,7 +65,7 @@ def list_doses(
 @router.post("/materialize-today", response_model=list[DoseEventOut])
 def materialize_today(
     session: Session = Depends(get_session),
-    user: TokenPayload = Depends(get_user_context),
+    user: TokenPayload = Depends(require_module_access("medications", 2)),
 ) -> list[DoseEventOut]:
     """Create today's DoseEvent rows from each medication's recurring
     schedule (schedule.dosing_times = ["HH:MM", ...]). Idempotent: skips any
@@ -120,7 +120,7 @@ def mark_dose_taken(
     dose_event_id: str,
     note_he: str | None = None,
     session: Session = Depends(get_session),
-    user: TokenPayload = Depends(get_user_context),
+    user: TokenPayload = Depends(require_module_access("medications", 2)),
 ) -> dict:
     """Mark a scheduled dose as taken."""
     dose = (
@@ -152,3 +152,42 @@ def mark_dose_taken(
     session.commit()
 
     return {"dose_event_id": str(dose_event_id), "taken_at": dose.taken_at}
+
+
+@router.post("/{dose_event_id}/untake")
+def undo_dose_taken(
+    dose_event_id: str,
+    session: Session = Depends(get_session),
+    user: TokenPayload = Depends(require_module_access("medications", 2)),
+) -> dict:
+    """Reverse an accidental 'mark as taken' tap — the dose card has no
+    other way to correct a mistaken tap once a dose reads 'taken'."""
+    dose = (
+        session.query(DoseEvent)
+        .join(Medication, DoseEvent.medication_id == Medication.id)
+        .filter(
+            DoseEvent.id == dose_event_id,
+            Medication.household_id == uuid.UUID(user.household_id),
+        )
+        .first()
+    )
+    if not dose:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dose event not found")
+
+    dose.taken_at = None
+    dose.note_he = None
+    session.commit()
+
+    session.add(
+        AuditLog(
+            actor_type="parser_api",
+            actor_id=user.user_id,
+            action="undo_dose_taken",
+            target_table="dose_events",
+            target_id=dose.id,
+            household_id=dose.medication.household_id,
+        )
+    )
+    session.commit()
+
+    return {"dose_event_id": str(dose_event_id), "taken_at": None}

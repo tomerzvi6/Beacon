@@ -4,6 +4,7 @@ struct PatientStatusStrip: View {
     @Environment(AppEnvironment.self) private var environment
     @State private var showingProfile = false
     @State private var showingWellnessPicker = false
+    @State private var viewerToggleToast: String?
 
     var body: some View {
         HStack(spacing: Theme.Spacing.s) {
@@ -45,11 +46,17 @@ struct PatientStatusStrip: View {
                     .contentShape(Circle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("מצב היום: \(environment.patient.todaysWellness.displayLabel). לחיצה לשינוי")
+            .accessibilityLabel("מצב היום: \(environment.patient.todaysWellness.displayLabel(for: environment.patient.gender)). לחיצה לשינוי")
 
             Button {
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
                     environment.toggleViewer()
+                }
+                let nowInPatientView = environment.isPatientView
+                viewerToggleToast = nowInPatientView ? "עברת לתצוגת חולה" : "עברת לתצוגת מטפל/ת"
+                Task {
+                    try? await Task.sleep(nanoseconds: 1_600_000_000)
+                    withAnimation { viewerToggleToast = nil }
                 }
             } label: {
                 Image(systemName: environment.isPatientView ? "person.fill" : "heart.text.square.fill")
@@ -68,17 +75,30 @@ struct PatientStatusStrip: View {
         .background(Theme.Palette.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.card, style: .continuous))
         .beaconCardShadow()
+        .overlay(alignment: .top) {
+            if let viewerToggleToast {
+                Text(viewerToggleToast)
+                    .font(Theme.Typography.captionEmphasis)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, Theme.Spacing.m)
+                    .padding(.vertical, Theme.Spacing.xs)
+                    .background(Theme.Palette.deepTeal, in: Capsule())
+                    .offset(y: -Theme.Layout.minimumTouchTarget)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+                    .allowsHitTesting(false)
+            }
+        }
         .sheet(isPresented: $showingProfile) {
             PatientProfileSheet()
                 .environment(environment)
         }
         .confirmationDialog(
-            "איך \(environment.patient.displayName) מרגיש היום?",
+            "איך \(environment.patient.displayName) \(environment.patient.gender == .male ? "מרגיש" : "מרגישה") היום?",
             isPresented: $showingWellnessPicker,
             titleVisibility: .visible
         ) {
             ForEach(PatientWellness.allCases) { wellness in
-                Button("\(wellness.emoji)  \(wellness.displayLabel)") {
+                Button("\(wellness.emoji)  \(wellness.displayLabel(for: environment.patient.gender))") {
                     var updated = environment.patient
                     updated.todaysWellness = wellness
                     environment.patient = updated

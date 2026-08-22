@@ -15,9 +15,11 @@ struct PatientProfileSheet: View {
             ScrollView {
                 VStack(spacing: Theme.Spacing.l) {
                     headerCard
+                    #if DEBUG
                     if environment.currentUser.hasFullAccess {
                         modeControlCard
                     }
+                    #endif
                     emergencyCard
                     medicalCard
                 }
@@ -62,7 +64,7 @@ struct PatientProfileSheet: View {
 
                 HStack(spacing: Theme.Spacing.xs) {
                     Text(patient.todaysWellness.emoji)
-                    Text("היום: \(patient.todaysWellness.displayLabel)")
+                    Text("היום: \(patient.todaysWellness.displayLabel(for: patient.gender))")
                         .font(Theme.Typography.captionEmphasis)
                 }
                 .padding(.vertical, Theme.Layout.compactPillVerticalPadding)
@@ -95,7 +97,7 @@ struct PatientProfileSheet: View {
                             .font(Theme.Typography.bodyEmphasis)
                             .foregroundStyle(Theme.Palette.textPrimary)
                     }
-                    Text(patient.allergies.joined(separator: ", "))
+                    Text(patient.allergies.isEmpty ? "לא ידוע / לא הוזן" : patient.allergies.joined(separator: ", "))
                         .font(Theme.Typography.body)
                         .foregroundStyle(Theme.Palette.coralAccent)
                         .frame(maxWidth: .infinity, alignment: .trailing)
@@ -146,6 +148,7 @@ struct PatientProfileSheet: View {
                 BeaconSectionHeader(title: "צוות רפואי", systemImage: "stethoscope")
                 infoRow(label: "רופא ראשי", value: patient.primaryDoctor, icon: "person.text.rectangle")
                 infoRow(label: "בית חולים", value: patient.primaryHospital, icon: "building.2")
+                infoRow(label: "קופת חולים", value: patient.healthFund, icon: "cross.case")
             }
         }
     }
@@ -246,9 +249,9 @@ struct PatientProfileSheet: View {
 
     private func infoRow(label: String, value: String, icon: String) -> some View {
         HStack {
-            Text(value)
+            Text(value.isEmpty ? "לא הוגדר" : value)
                 .font(Theme.Typography.bodyEmphasis)
-                .foregroundStyle(Theme.Palette.textPrimary)
+                .foregroundStyle(value.isEmpty ? Theme.Palette.textSecondary : Theme.Palette.textPrimary)
             Spacer()
             HStack(spacing: Theme.Spacing.xs) {
                 Text(label)

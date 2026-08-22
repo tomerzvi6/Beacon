@@ -20,8 +20,24 @@ struct CaregiverReportView: View {
     @State private var freeText: String = ""
     @State private var isSubmitting = false
     @State private var showingThanks = false
+    @State private var showingSubmitError = false
+    @State private var showingDiscardConfirm = false
 
     private var strings: CaregiverStrings { CaregiverStrings.strings(for: language) }
+
+    /// Any field that differs from its default means real data would be
+    /// lost by dismissing without submitting — worth a confirmation before
+    /// a long multi-field form silently discards it.
+    private var hasUnsavedChanges: Bool {
+        mealStatus != .ateWell
+            || hydrationStatus != .drankEnough
+            || sleepStatus != .sleptWell
+            || painLevel != 0
+            || nauseaLevel != 0
+            || fatigueLevel != 0
+            || medicationStatus != .taken
+            || !freeText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
 
     var body: some View {
         NavigationStack {
@@ -77,7 +93,13 @@ struct CaregiverReportView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(strings.closeButton) { dismiss() }
+                    Button(strings.closeButton) {
+                        if hasUnsavedChanges {
+                            showingDiscardConfirm = true
+                        } else {
+                            dismiss()
+                        }
+                    }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     languagePicker
@@ -87,6 +109,21 @@ struct CaregiverReportView: View {
                 Button(strings.closeButton) { dismiss() }
             } message: {
                 Text(strings.submittedMessage)
+            }
+            .alert(strings.submitErrorTitle, isPresented: $showingSubmitError) {
+                Button(strings.closeButton, role: .cancel) { }
+            } message: {
+                Text(strings.submitErrorMessage)
+            }
+            .confirmationDialog(
+                strings.discardChangesTitle,
+                isPresented: $showingDiscardConfirm,
+                titleVisibility: .visible
+            ) {
+                Button(strings.discardButton, role: .destructive) { dismiss() }
+                Button(strings.keepEditingButton, role: .cancel) { }
+            } message: {
+                Text(strings.discardChangesMessage)
             }
         }
         .environment(\.layoutDirection, language.isRightToLeft ? .rightToLeft : .leftToRight)
@@ -321,7 +358,10 @@ struct CaregiverReportView: View {
             freeTextOriginal: trimmedNote.isEmpty ? nil : trimmedNote,
             originalLanguage: language
         )
-        guard await viewModel.submitCheckIn(draft) != nil else { return }
+        guard await viewModel.submitCheckIn(draft) != nil else {
+            showingSubmitError = true
+            return
+        }
         showingThanks = true
     }
 

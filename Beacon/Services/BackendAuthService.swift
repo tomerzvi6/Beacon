@@ -76,6 +76,25 @@ struct BackendAuthService {
         return response
     }
 
+    // MARK: - Dev (local-only, no real provider)
+
+    /// Backend refuses this outside `ENVIRONMENT=development` — exists so
+    /// the app can be fully exercised on a personal (unpaid) Apple ID,
+    /// where Sign In with Apple's entitlement can't be provisioned at all.
+    func exchangeDevToken(email: String, displayName: String? = nil) async throws -> BackendAuthResponse {
+        struct Body: Encodable {
+            let email: String
+            let display_name: String?
+        }
+        let response: BackendAuthResponse = try await client.post(
+            "/v1/auth/dev",
+            body: Body(email: email, display_name: displayName),
+            authenticated: false
+        )
+        TokenStore.save(response.access_token)
+        return response
+    }
+
     // MARK: - Helpers
 
     private func makeFullName(

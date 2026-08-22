@@ -14,7 +14,7 @@ struct CircleOfTrustView: View {
                     if let vm = viewModel {
                         BeaconScreenHeader(
                             title: "מעגל תמיכה",
-                            subtitle: "עדכונים על \(environment.patient.displayName) וחיזוקים מהמשפחה."
+                            subtitle: "עדכונים על \(environment.patient.displayName) מהמשפחה."
                         )
 
                         if vm.canCompose {
@@ -56,9 +56,11 @@ struct CircleOfTrustView: View {
                                         post: post,
                                         currentUser: environment.currentUser,
                                         onReact: { reaction in
+                                            let wasReacted = post.myReactionsRaw.contains(reaction.rawValue)
                                             Task {
-                                                await vm.incrementReaction(reaction, on: post)
-                                                toastMessage = reaction == .heart ? "❤ נשלח" : "🤗 נשלח"
+                                                await vm.toggleReaction(reaction, on: post)
+                                                let emoji = reaction == .heart ? "❤" : "🤗"
+                                                toastMessage = wasReacted ? "\(emoji) הוסר" : "\(emoji) נשלח"
                                             }
                                         },
                                         onAddComment: { body in

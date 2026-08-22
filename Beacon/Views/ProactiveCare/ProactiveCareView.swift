@@ -6,7 +6,6 @@ struct ProactiveCareView: View {
     @Environment(AppEnvironment.self) private var environment
     @State private var viewModel: ProactiveCareViewModel?
     @State private var toastMessage: String?
-    @State private var showingCustomSymptomSheet = false
     @State private var showingMedicationManager = false
 
     var body: some View {
@@ -31,6 +30,7 @@ struct ProactiveCareView: View {
                         if let missed = vm.missedDose {
                             MissedDoseAlertCard(
                                 dose: missed,
+                                additionalMissedCount: max(0, vm.missedDoseCount - 1),
                                 canResolve: canWriteMedications,
                                 onMarkTaken: {
                                     Task {
@@ -40,8 +40,9 @@ struct ProactiveCareView: View {
                                 },
                                 onAddNote: {
                                     Task {
-                                        await vm.resolveMissed(missed, markAsTaken: false, note: "נרשם על ידי המטפל/ת.")
-                                        toastMessage = "ההערה נרשמה."
+                                        let note = "סומן כטופל ללא נטילה על ידי \(environment.currentUser.displayName)."
+                                        await vm.resolveMissed(missed, markAsTaken: false, note: note)
+                                        toastMessage = "נרשם: טופל בלי נטילה."
                                     }
                                 }
                             )
@@ -56,11 +57,16 @@ struct ProactiveCareView: View {
                                             Button {
                                                 showingMedicationManager = true
                                             } label: {
-                                                Image(systemName: "slider.horizontal.3")
-                                                    .font(.system(size: 15, weight: .semibold))
-                                                    .foregroundStyle(Theme.Palette.deepTeal)
-                                                    .frame(width: Theme.Spacing.xl, height: Theme.Spacing.xl)
-                                                    .background(Theme.Palette.softBlue.opacity(0.35), in: Circle())
+                                                HStack(spacing: Theme.Spacing.xxs) {
+                                                    Text("ניהול")
+                                                        .font(Theme.Typography.captionEmphasis)
+                                                    Image(systemName: "pencil.and.list.clipboard")
+                                                        .font(.system(size: 13, weight: .semibold))
+                                                }
+                                                .foregroundStyle(Theme.Palette.deepTeal)
+                                                .padding(.horizontal, Theme.Spacing.s)
+                                                .frame(height: Theme.Spacing.xl)
+                                                .background(Theme.Palette.softBlue.opacity(0.35), in: Capsule())
                                             }
                                             .buttonStyle(.plain)
                                             .accessibilityLabel("ניהול תרופות")
@@ -73,7 +79,13 @@ struct ProactiveCareView: View {
                                 MedicationDoseCard(
                                     dose: dose,
                                     isPatientView: environment.isPatientView,
-                                    canMarkTaken: canWriteMedications
+                                    canMarkTaken: canWriteMedications,
+                                    onUndoTaken: canWriteMedications ? {
+                                        Task {
+                                            await vm.undoTaken(dose)
+                                            toastMessage = "הסימון בוטל."
+                                        }
+                                    } : nil
                                 ) {
                                     Task {
                                         await vm.markTaken(dose)
@@ -85,18 +97,7 @@ struct ProactiveCareView: View {
                             }
                         }
 
-                        if canWriteMedications {
-                            QuickSymptomLogger { symptom in
-                                if symptom == .custom {
-                                    showingCustomSymptomSheet = true
-                                } else {
-                                    Task {
-                                        await vm.logSymptom(symptom)
-                                        toastMessage = "נרשם: \(symptom.displayLabel)."
-                                    }
-                                }
-                            }
-                        } else {
+                        if !canWriteMedications {
                             readOnlyMedicationNotice
                         }
 
@@ -120,14 +121,6 @@ struct ProactiveCareView: View {
         }
         .animation(.spring(response: 0.4, dampingFraction: 0.75), value: toastMessage)
         .sensoryFeedback(.success, trigger: toastMessage)
-        .sheet(isPresented: $showingCustomSymptomSheet) {
-            CustomSymptomSheet { label, severity, note in
-                Task {
-                    await viewModel?.logCustomSymptom(label: label, severity: severity, note: note)
-                    toastMessage = "נרשם: \(label)."
-                }
-            }
-        }
         .sheet(isPresented: $showingMedicationManager, onDismiss: {
             viewModel?.refresh()
         }) {
@@ -188,7 +181,7 @@ struct ProactiveCareView: View {
             BeaconEmptyState(
                 systemImage: "eye.fill",
                 title: "צפייה בלבד",
-                message: "אפשר לראות תרופות ומדדים, אבל רק משתמש עם הרשאת עריכה יכול לסמן מינון, ליצור משימת קנייה או לרשום מדד חדש."
+                message: "אפשר לראות תרופות ומדדים, אבל רק משתמש עם הרשאת עריכה יכול לסמן מינון או ליצור משימת קנייה."
             )
         }
     }

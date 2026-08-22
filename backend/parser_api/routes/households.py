@@ -19,9 +19,17 @@ from shared.schemas import (
     CoOwnerAcceptIn,
     CoOwnerInviteIn,
     HouseholdMemberOut,
+    MemberPermissionPatchIn,
     RedeemInviteIn,
     RedeemInviteOut,
 )
+
+# Default per-module access for a newly-joined caregiver — matches
+# MemberRole.defaultMember on iOS (read-only everywhere until the
+# patient/co_owner grants more).
+_DEFAULT_CAREGIVER_PERMISSIONS = {
+    "schedule": 1, "tasks": 1, "medications": 1, "medicalVault": 1, "feed": 1,
+}
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +90,7 @@ def list_members(
             role=member.role,
             joined_at=member.joined_at,
             display_name=display_name,
+            permissions=member.permissions,
         )
         for member, display_name in rows
     ]
@@ -269,6 +278,7 @@ def redeem_invite(
         role=invite.role,
         invited_by=invite.created_by,
         joined_at=now,
+        permissions=dict(_DEFAULT_CAREGIVER_PERMISSIONS) if invite.role == "caregiver" else None,
     )
     session.add(member)
 
@@ -300,4 +310,99 @@ def redeem_invite(
         member=HouseholdMemberOut.model_validate(member),
         access_token=token,
         expires_in_seconds=ttl,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Revoke access / edit permissions (patient or co_owner only)
+# ---------------------------------------------------------------------------
+
+
+@router.delete("/members/{member_id}", status_code=status.HTTP_204_NO_CONTENT)
+def remove_member(
+    member_id: str,
+    session: Session = Depends(get_session),
+    user: TokenPayload = Depends(require_roles("patient", "co_owner")),
+) -> None:
+    """Revoke a member's access. The next request from that member's device
+    (any endpoint — they all go through get_session) 403s immediately, since
+    get_session re-checks household_members on every call. Real revocation,
+    not just a local-device UI change.
+    """
+    member = session.scalar(
+        select(HouseholdMember).where(
+            HouseholdMember.id == uuid.UUID(member_id),
+            HouseholdMember.household_id == uuid.UUID(user.household_id),
+        )
+    )
+    if member is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found")
+    if member.role == "patient":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot remove the patient")
+    if str(member.user_id) == user.user_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot remove yourself")
+
+    session.add(
+        AuditLog(
+            actor_type="parser_api",
+            actor_id=user.user_id,
+            action="member_removed",
+            target_table="household_members",
+            target_id=member.id,
+            household_id=member.household_id,
+        )
+    )
+    session.delete(member)
+    session.commit()
+
+
+@router.patch("/members/{member_id}/permissions", response_model=HouseholdMemberOut)
+def patch_member_permissions(
+    member_id: str,
+    body: MemberPermissionPatchIn,
+    session: Session = Depends(get_session),
+    user: TokenPayload = Depends(require_roles("patient", "co_owner")),
+) -> HouseholdMemberOut:
+    """Set one module's access level for a caregiver. patient/co_owner rows
+    ignore `permissions` entirely (always full access), so this only makes
+    sense for role='caregiver'."""
+    member = session.scalar(
+        select(HouseholdMember).where(
+            HouseholdMember.id == uuid.UUID(member_id),
+            HouseholdMember.household_id == uuid.UUID(user.household_id),
+        )
+    )
+    if member is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found")
+    if member.role != "caregiver":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only caregiver members have editable per-module permissions",
+        )
+
+    current = dict(member.permissions or _DEFAULT_CAREGIVER_PERMISSIONS)
+    current[body.module] = body.level
+    member.permissions = current
+
+    session.add(
+        AuditLog(
+            actor_type="parser_api",
+            actor_id=user.user_id,
+            action="member_permissions_updated",
+            target_table="household_members",
+            target_id=member.id,
+            household_id=member.household_id,
+            metadata_={"module": body.module, "level": body.level},
+        )
+    )
+    session.commit()
+    joined_display_name = session.scalar(select(User.display_name).where(User.id == member.user_id))
+    return HouseholdMemberOut(
+        id=member.id,
+        user_id=member.user_id,
+        household_id=member.household_id,
+        role=member.role,
+        joined_at=member.joined_at,
+        display_name=joined_display_name or "",
+        permissions=member.permissions,
     )

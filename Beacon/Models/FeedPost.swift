@@ -32,6 +32,17 @@ final class FeedPost {
     var heartCount: Int
     var hugCount: Int
     var audienceRaw: String
+    /// The real backend author — the server always attributes authorship to
+    /// the caller's own token, even when `authorMemberId` above is
+    /// overridden to the patient for "post as patient" display. nil for
+    /// posts synced before this field existed. Used only to show "פורסם על
+    /// ידי X" when the two differ.
+    var trueAuthorMemberId: String?
+    /// Reaction types (SupportReaction.rawValue) the signed-in user has
+    /// already given this post, from the backend's per-viewer `my_reactions`
+    /// — lets the reaction bar show an active state instead of a bare
+    /// counter that never reflects "did my tap register."
+    var myReactionsRaw: [String] = []
 
     @Relationship(deleteRule: .cascade) var comments: [FeedComment] = []
 
@@ -46,6 +57,7 @@ final class FeedPost {
     }
 
     var author: FamilyMember? { FamilyMember.find(id: authorMemberId) }
+    var trueAuthor: FamilyMember? { trueAuthorMemberId.flatMap(FamilyMember.find(id:)) }
 
     init(
         id: String = UUID().uuidString,
@@ -56,6 +68,8 @@ final class FeedPost {
         heartCount: Int = 0,
         hugCount: Int = 0,
         audience: FeedPostAudience = .familyOnly,
+        trueAuthorMemberId: String? = nil,
+        myReactionsRaw: [String] = [],
         comments: [FeedComment] = []
     ) {
         self.id = id
@@ -66,6 +80,8 @@ final class FeedPost {
         self.heartCount = heartCount
         self.hugCount = hugCount
         self.audienceRaw = audience.rawValue
+        self.trueAuthorMemberId = trueAuthorMemberId
+        self.myReactionsRaw = myReactionsRaw
         self.comments = comments
     }
 }

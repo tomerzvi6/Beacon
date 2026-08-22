@@ -94,6 +94,12 @@ class HouseholdMember(Base):
     invited_by: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id"), nullable=True
     )
+    # Per-module access for role="caregiver" only (ignored for patient/co_owner,
+    # who always have full access). Keys are AppModule.rawValue from the iOS
+    # client (schedule|tasks|medications|medicalVault|feed); values are
+    # AccessLevel.rawValue (0=none, 1=read, 2=readWrite). A module missing
+    # from the dict defaults to read (1) — matches MemberRole.defaultMember.
+    permissions: Mapped[dict | None] = mapped_column(JSONB, nullable=True, default=None)
     joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 

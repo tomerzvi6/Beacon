@@ -31,6 +31,13 @@ final class ProactiveCareViewModel {
         doses.first { $0.status == .missed }
     }
 
+    /// The banner only ever surfaces `missedDose` (the first one), so
+    /// without this a second/third missed dose has no visible sign it
+    /// exists beyond a red-tinted row further down the list.
+    var missedDoseCount: Int {
+        doses.filter { $0.status == .missed }.count
+    }
+
     var upcomingDoses: [MedicationDose] {
         doses.filter { $0.status != .missed }
     }
@@ -345,6 +352,27 @@ final class ProactiveCareViewModel {
         refresh()
     }
 
+    /// Reverses a mistaken "mark as taken" tap. Symmetric with `markTaken`:
+    /// restores the stock count it deducted, and recomputes whether the
+    /// dose is now upcoming or missed from its scheduled time (there's no
+    /// stored "previous status" to just restore).
+    @MainActor
+    func undoTaken(_ dose: MedicationDose) async {
+        if let id = UUID(uuidString: dose.id) {
+            _ = try? await medicationService.undoTaken(doseId: id)
+        }
+        dose.status = dose.scheduledAt > Date() ? .upcoming : .missed
+        dose.takenAt = nil
+        if let medication = medications.first(where: { $0.name == dose.medicationName }) {
+            medication.stockCount += 1
+            if let medId = UUID(uuidString: medication.id) {
+                _ = try? await medicationService.update(medicationId: medId, stockCount: medication.stockCount)
+            }
+        }
+        try? context.save()
+        refresh()
+    }
+
     @MainActor
     func resolveMissed(_ dose: MedicationDose, markAsTaken: Bool, note: String? = nil) async {
         if markAsTaken {
@@ -355,32 +383,6 @@ final class ProactiveCareViewModel {
             dose.takenAt = Date()
         }
         if let note { dose.note = note }
-        try? context.save()
-        refresh()
-    }
-
-    @MainActor
-    func logSymptom(_ type: SymptomType, severity: Int = 3, customLabel: String? = nil) async {
-        let kindForWire = type == .custom ? (customLabel ?? "מדד") : type.rawValue
-        if let dto = try? await symptomService.report(kind: kindForWire, severity: severity, noteHe: nil) {
-            upsertLocalSymptom(from: dto)
-        } else {
-            context.insert(SymptomEntry(type: type, customLabel: customLabel, severity: severity))
-        }
-        try? context.save()
-        refresh()
-    }
-
-    @MainActor
-    func logCustomSymptom(label: String, severity: Int, note: String?) async {
-        let trimmed = label.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        if let dto = try? await symptomService.report(kind: trimmed, severity: severity, noteHe: note) {
-            let entry = upsertLocalSymptom(from: dto)
-            entry.note = note
-        } else {
-            context.insert(SymptomEntry(type: .custom, customLabel: trimmed, severity: severity, note: note))
-        }
         try? context.save()
         refresh()
     }

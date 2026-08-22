@@ -41,6 +41,15 @@ struct CaregiverStrings {
     let submittedMessage: String
     let closeButton: String
 
+    // Failure/discard — a rushed, possibly non-Hebrew-speaking aide handed
+    // this screen needs to see these, not just have the screen sit inert.
+    let submitErrorTitle: String
+    let submitErrorMessage: String
+    let discardChangesTitle: String
+    let discardChangesMessage: String
+    let discardButton: String
+    let keepEditingButton: String
+
     static func strings(for language: CaregiverLanguage) -> CaregiverStrings {
         switch language {
         case .english:   return english
@@ -81,7 +90,13 @@ struct CaregiverStrings {
         submitButton: "Send update",
         submittedTitle: "Thank you!",
         submittedMessage: "The family received your update.",
-        closeButton: "Close"
+        closeButton: "Close",
+        submitErrorTitle: "Couldn't send",
+        submitErrorMessage: "Please check your connection and try again.",
+        discardChangesTitle: "Discard this update?",
+        discardChangesMessage: "What you entered will be lost.",
+        discardButton: "Discard",
+        keepEditingButton: "Keep editing"
     )
 
     // MARK: - Tagalog
@@ -114,7 +129,13 @@ struct CaregiverStrings {
         submitButton: "Ipadala ang ulat",
         submittedTitle: "Salamat!",
         submittedMessage: "Natanggap ng pamilya ang iyong ulat.",
-        closeButton: "Isara"
+        closeButton: "Isara",
+        submitErrorTitle: "Hindi naipadala",
+        submitErrorMessage: "Pakisuri ang iyong koneksyon at subukan muli.",
+        discardChangesTitle: "Ihinto ang ulat na ito?",
+        discardChangesMessage: "Mawawala ang mga inilagay mo.",
+        discardButton: "Ihinto",
+        keepEditingButton: "Ipagpatuloy"
     )
 
     // MARK: - Hindi
@@ -147,7 +168,13 @@ struct CaregiverStrings {
         submitButton: "रिपोर्ट भेजें",
         submittedTitle: "धन्यवाद!",
         submittedMessage: "परिवार को आपकी रिपोर्ट मिल गई।",
-        closeButton: "बंद करें"
+        closeButton: "बंद करें",
+        submitErrorTitle: "भेजा नहीं जा सका",
+        submitErrorMessage: "कृपया अपना कनेक्शन जांचें और फिर से कोशिश करें।",
+        discardChangesTitle: "यह रिपोर्ट रद्द करें?",
+        discardChangesMessage: "आपने जो भरा है वह मिट जाएगा।",
+        discardButton: "रद्द करें",
+        keepEditingButton: "जारी रखें"
     )
 
     // MARK: - Malayalam
@@ -180,7 +207,13 @@ struct CaregiverStrings {
         submitButton: "റിപ്പോർട്ട് അയയ്ക്കുക",
         submittedTitle: "നന്ദി!",
         submittedMessage: "കുടുംബത്തിന് നിങ്ങളുടെ റിപ്പോർട്ട് ലഭിച്ചു.",
-        closeButton: "അടയ്ക്കുക"
+        closeButton: "അടയ്ക്കുക",
+        submitErrorTitle: "അയയ്ക്കാൻ കഴിഞ്ഞില്ല",
+        submitErrorMessage: "ദയവായി കണക്ഷൻ പരിശോധിച്ച് വീണ്ടും ശ്രമിക്കുക.",
+        discardChangesTitle: "ഈ റിപ്പോർട്ട് ഉപേക്ഷിക്കണോ?",
+        discardChangesMessage: "നിങ്ങൾ നൽകിയ വിവരങ്ങൾ നഷ്ടപ്പെടും.",
+        discardButton: "ഉപേക്ഷിക്കുക",
+        keepEditingButton: "തുടരുക"
     )
 
     // MARK: - Tamil
@@ -213,6 +246,12 @@ struct CaregiverStrings {
         submitButton: "அறிக்கையை அனுப்பவும்",
         submittedTitle: "நன்றி!",
         submittedMessage: "உங்கள் அறிக்கை குடும்பத்திற்கு கிடைத்தது.",
-        closeButton: "மூடு"
+        closeButton: "மூடு",
+        submitErrorTitle: "அனுப்ப முடியவில்லை",
+        submitErrorMessage: "தயவுசெய்து இணைப்பைச் சரிபார்த்து மீண்டும் முயற்சிக்கவும்.",
+        discardChangesTitle: "இந்த அறிக்கையை நிராகரிக்கவா?",
+        discardChangesMessage: "நீங்கள் உள்ளிட்டவை இழக்கப்படும்.",
+        discardButton: "நிராகரி",
+        keepEditingButton: "தொடரவும்"
     )
 }

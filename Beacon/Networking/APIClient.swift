@@ -21,6 +21,14 @@ final class APIClient {
     /// route back to login with an explanation.
     static var onUnauthorized: (@Sendable () -> Void)?
 
+    /// Invoked when the server 403s specifically because
+    /// household_members no longer has a row for this token — i.e. a
+    /// patient/co_owner revoked this device's access from elsewhere.
+    /// Distinct from a plain 403 (e.g. a caregiver hitting a write
+    /// endpoint above their granted level), which should only fail that
+    /// one action, not end the session.
+    static var onAccessRevoked: (@Sendable () -> Void)?
+
     private let session: URLSession
     private let decoder: JSONDecoder
     private let encoder: JSONEncoder
@@ -104,6 +112,13 @@ final class APIClient {
         )
     }
 
+    /// DELETE that returns a decoded body — for endpoints like
+    /// `/v1/feed/{id}/react` that respond 200 with the updated resource
+    /// rather than 204 No Content.
+    func delete<R: Decodable>(_ path: String, authenticated: Bool = true) async throws -> R {
+        try await sendNoBody(method: "DELETE", path: path, authenticated: authenticated)
+    }
+
     // MARK: - Internals
 
     private func sendNoBody<R: Decodable>(
@@ -177,6 +192,15 @@ final class APIClient {
         case 401:
             Self.onUnauthorized?()
             throw APIError.unauthorized
+        case 403:
+            let detail = Self.extractDetail(from: data)
+            if let detail, detail.contains("membership") {
+                Self.onAccessRevoked?()
+            }
+            if let detail {
+                throw APIError.server(message: detail, requestId: requestId)
+            }
+            throw APIError.http(status: http.statusCode, requestId: requestId, body: data)
         default:
             if let detail = Self.extractDetail(from: data) {
                 throw APIError.server(message: detail, requestId: requestId)

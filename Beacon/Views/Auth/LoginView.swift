@@ -55,15 +55,17 @@ struct LoginView: View {
                         }
                     }
 
+                    #if DEBUG
                     Button {
                         showDevSheet = true
                     } label: {
-                        Text("התחברות עם אימייל")
+                        Text("התחברות עם אימייל (למפתחים)")
                             .font(Theme.Typography.captionEmphasis)
                             .foregroundStyle(.white.opacity(0.75))
                             .underline()
                     }
                     .padding(.top, Theme.Spacing.s)
+                    #endif
                 }
                 .padding(.horizontal, Theme.Spacing.l)
 
@@ -92,7 +94,11 @@ struct LoginView: View {
                 }
 
                 VStack(spacing: Theme.Spacing.xxs) {
-                    Text("בעצם ההתחברות אתה מסכים ל:")
+                    Text("גרסת פיילוט — מומלץ לשמור עותק של מסמכים חשובים גם מחוץ לאפליקציה.")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.7))
+                        .padding(.bottom, Theme.Spacing.xxs)
+                    Text("ההתחברות מהווה הסכמה ל:")
                         .font(.system(size: 11))
                         .foregroundStyle(.white.opacity(0.5))
                     HStack(spacing: Theme.Spacing.s) {
@@ -134,7 +140,10 @@ struct LoginView: View {
             // User-cancelled errors should not be shown
             let nsError = error as NSError
             if nsError.code != ASAuthorizationError.canceled.rawValue {
-                environment.authErrorMessage = error.localizedDescription
+                // The raw SDK error is an English NSError description with
+                // technical codes — replace it with something a Hebrew-
+                // speaking, non-technical user can actually act on.
+                environment.authErrorMessage = "ההתחברות לא הצליחה. בדוק/י את החיבור לאינטרנט ונסה/י שוב."
             }
         }
     }
@@ -195,6 +204,7 @@ private struct DevEmailSignInSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var email = ""
     @State private var password = ""
+    @State private var displayName = ""
     @State private var mode: Mode = .signIn
     @State private var isWorking = false
 
@@ -217,6 +227,10 @@ private struct DevEmailSignInSheet: View {
                 }
 
                 Section {
+                    if mode == .signUp {
+                        TextField("שם מלא", text: $displayName)
+                            .textContentType(.name)
+                    }
                     TextField("אימייל", text: $email)
                         .textContentType(.emailAddress)
                         .keyboardType(.emailAddress)
@@ -277,7 +291,7 @@ private struct DevEmailSignInSheet: View {
         case .signIn:
             await environment.signInWithEmail(email: email, password: password)
         case .signUp:
-            await environment.signUpWithEmail(email: email, password: password)
+            await environment.signUpWithEmail(email: email, password: password, displayName: displayName)
         }
         // Keep the sheet open when Supabase requires email confirmation.
         if environment.authErrorMessage == nil && environment.signUpSuccessMessage == nil {

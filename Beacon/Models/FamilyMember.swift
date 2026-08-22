@@ -7,6 +7,11 @@ struct FamilyMember: Identifiable, Hashable, Codable {
     let avatarSymbol: String
     var role: MemberRole
     var approvalStatus: MemberApprovalStatus = .approved
+    /// household_members.id on the backend — distinct from `id` (the
+    /// user's id, used everywhere else to match authorship/claims). Only
+    /// permission-management calls need this row id; nil for the static
+    /// demo cast and for the signed-in user's own entry.
+    var membershipId: String? = nil
 
     var isAdmin: Bool { role.isAdmin }
     var isPatient: Bool { role.isPatient }

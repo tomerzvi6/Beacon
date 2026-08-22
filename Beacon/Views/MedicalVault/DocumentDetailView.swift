@@ -83,18 +83,11 @@ struct DocumentDetailView: View {
                     .foregroundStyle(Theme.Palette.textPrimary)
                     .multilineTextAlignment(.trailing)
                     .frame(maxWidth: .infinity, alignment: .trailing)
-                Text("בדקו את המסמך לפני שמירה. ייתכן ששויך לחולה אחר בטעות.")
+                Text("בדקו שהמסמך אכן שייך למטופל/ת הנכון/ה. אם משהו לא מסתדר, פנו לתמיכה של Beacon.")
                     .font(Theme.Typography.caption)
                     .foregroundStyle(Theme.Palette.textSecondary)
                     .multilineTextAlignment(.trailing)
                     .frame(maxWidth: .infinity, alignment: .trailing)
-                if let reason = document.flag_reason, !reason.isEmpty {
-                    Text("(\(reason))")
-                        .font(Theme.Typography.caption.monospaced())
-                        .foregroundStyle(Theme.Palette.textSecondary)
-                        .multilineTextAlignment(.trailing)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                }
             }
         }
         .padding(Theme.Spacing.m)
@@ -116,12 +109,12 @@ struct DocumentDetailView: View {
                     HStack(spacing: Theme.Spacing.s) {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundStyle(Theme.Palette.coralAccent)
-                        Text("פרסור נכשל")
+                        Text("לא הצלחנו לעבד את המסמך")
                             .font(Theme.Typography.cardTitle)
                             .foregroundStyle(Theme.Palette.textPrimary)
                     }
                     .frame(maxWidth: .infinity, alignment: .trailing)
-                    Text("חזור למסך הראשי ונסה שוב להעלות או לפרסר את המסמך.")
+                    Text("חזרו למסך הראשי ונסו שוב להעלות או לעבד את המסמך.")
                         .font(Theme.Typography.body)
                         .foregroundStyle(Theme.Palette.textSecondary)
                         .multilineTextAlignment(.trailing)
@@ -176,11 +169,11 @@ struct DocumentDetailView: View {
                 metadataRow(label: "סטטוס", value: statusLabel)
                 metadataRow(label: "הועלה", value: Self.dateString(document.created_at))
                 if let parsedAt = document.parsed_at {
-                    metadataRow(label: "פרסור הסתיים", value: Self.dateString(parsedAt))
+                    metadataRow(label: "העיבוד הסתיים", value: Self.dateString(parsedAt))
                 }
                 if document.category_source == "user", let suggested = document.category_suggested {
                     metadataRow(
-                        label: "המודל הציע קטגוריה",
+                        label: "הקטגוריה שביקון הציע",
                         value: BackendDocumentCategory(rawValue: suggested)?.displayLabel ?? suggested
                     )
                 }
@@ -204,9 +197,9 @@ struct DocumentDetailView: View {
     private var statusLabel: String {
         switch document.status {
         case "uploaded":  return "הועלה"
-        case "finalized": return "ממתין לפרסור"
+        case "finalized": return "ממתין לעיבוד"
         case "parsing":   return "מעבדים…"
-        case "parsed":    return "פורסר"
+        case "parsed":    return "עובד"
         case "failed":    return "נכשל"
         default:          return document.status
         }

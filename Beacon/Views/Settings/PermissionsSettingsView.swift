@@ -116,7 +116,7 @@ struct PermissionsSettingsView: View {
         } header: {
             Text("מטופל/ת — סמכות עליונה")
         } footer: {
-            Text("למטופל/ת יש זכות וטו על הרשאות וגישה לתיק.")
+            Text("רק המטופל/ת מחליט/ה בסופו של דבר מי רואה את התיק ומה מותר לו/ה לעשות בו.")
         }
     }
 
@@ -178,6 +178,8 @@ struct PermissionsSettingsView: View {
                                 .font(.system(size: 12, weight: .semibold))
                                 .foregroundStyle(Theme.Palette.textSecondary)
                         }
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(moduleAccessSummary(for: member))
                     }
                     .padding(.vertical, 4)
                     .contentShape(Rectangle())
@@ -225,8 +227,8 @@ struct PermissionsSettingsView: View {
             Text("הזמנה")
         } footer: {
             Text(environment.canAddCaregiver
-                 ? "יצירת קישור הזמנה אישי. הנמען ילחץ עליו עם Beacon מותקן ויצורף אוטומטית."
-                 : "הגעת למגבלת \(AppEnvironment.maxCaregivers) מטפלים ב-MVP.")
+                 ? "יצירת קוד הצטרפות אישי. שלחו אותו לנמען/ת — הוא/היא יזינו אותו באפליקציה כדי להצטרף."
+                 : "אפשר להזמין עד \(AppEnvironment.maxCaregivers) מטפלים. כדי להוסיף עוד, יש להסיר גישה של מטפל קיים.")
         }
     }
 
@@ -253,6 +255,23 @@ struct PermissionsSettingsView: View {
         } footer: {
             Text("אישור זה הופך את המטופל/ת לסמכות העליונה על התיק.")
         }
+    }
+
+    /// VoiceOver/legend text for the row of tiny module icons — sighted
+    /// users only have icon color (teal vs. gray) to tell read-write from
+    /// read-only, and a missing icon to mean "no access," none of which is
+    /// explained anywhere on screen.
+    private func moduleAccessSummary(for member: FamilyMember) -> String {
+        let fullAccess = AppModule.allCases.filter { member.role.accessLevel(for: $0) == .readWrite }
+        let readOnly = AppModule.allCases.filter { member.role.accessLevel(for: $0) == .read }
+        var parts: [String] = []
+        if !fullAccess.isEmpty {
+            parts.append("גישה מלאה: " + fullAccess.map(\.displayLabel).joined(separator: ", "))
+        }
+        if !readOnly.isEmpty {
+            parts.append("צפייה בלבד: " + readOnly.map(\.displayLabel).joined(separator: ", "))
+        }
+        return parts.isEmpty ? "ללא גישה לתחומים" : parts.joined(separator: " · ")
     }
 
     private func memberRow(
@@ -371,7 +390,7 @@ private struct MemberPermissionsEditor: View {
                             .font(Theme.Typography.bodyEmphasis)
                             .foregroundStyle(Theme.Palette.deepTeal)
                     } footer: {
-                        Text("ב-MVP המטופל/ת יכול/ה להסיר את הגישה המלאה. שינוי גישה מלאה לרמות חלקיות יחובר בהמשך.")
+                        Text("המטופל/ת יכול/ה להסיר את הגישה המלאה. שינוי גישה מלאה לרמות חלקיות עדיין לא זמין באפליקציה.")
                     }
                 } else {
                     Section {
@@ -404,7 +423,7 @@ private struct MemberPermissionsEditor: View {
                             Label("הסר גישה מיד", systemImage: "person.crop.circle.badge.xmark")
                         }
                     } footer: {
-                        Text("ההסרה מיידית במכשיר הזה ונרשמת ב-audit log המקומי.")
+                        Text("ההסרה מיידית ותקף בכל המכשירים — הגישה תיחסם באופן מיידי.")
                     }
                 }
 
@@ -503,7 +522,7 @@ private struct InviteSheet: View {
                 .foregroundStyle(Theme.Palette.textPrimary)
                 .frame(maxWidth: .infinity, alignment: .trailing)
 
-            Text("שלח/י את הקוד למטפל/ת. אחרי שיתקינו את Beacon ויתחברו, הם יזינו אותו במסך ההצטרפות — ויראו את אותו תיק רפואי כמוך.")
+            Text("שלח/י את הקוד למטפל/ת. אחרי שיתקינו את Beacon ויתחברו, הם יזינו אותו במסך ההצטרפות ויצטרפו לתיק במצב צפייה בלבד. כדי לאפשר להם גם לערוך, היכנסו ל'ניהול גישה' אחרי שיצטרפו.")
                 .font(Theme.Typography.body)
                 .foregroundStyle(Theme.Palette.textSecondary)
                 .multilineTextAlignment(.trailing)
@@ -603,7 +622,7 @@ private struct InviteSheet: View {
             Text("הגעת למגבלת המטפלים")
                 .font(Theme.Typography.sectionTitle)
                 .foregroundStyle(Theme.Palette.textPrimary)
-            Text("ב-MVP הגבלנו עד \(AppEnvironment.maxCaregivers) מטפלים. כדי להוסיף עוד, הסר גישה ממטפל קיים תחילה.")
+            Text("אפשר להזמין עד \(AppEnvironment.maxCaregivers) מטפלים. כדי להוסיף עוד, הסר גישה ממטפל קיים תחילה.")
                 .font(Theme.Typography.body)
                 .foregroundStyle(Theme.Palette.textSecondary)
                 .multilineTextAlignment(.trailing)

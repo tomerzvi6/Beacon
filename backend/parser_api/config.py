@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     # Anthropic
     anthropic_api_key: str = Field(default_factory=lambda: os.environ["ANTHROPIC_API_KEY"])
 
+    # xAI (Grok) — alternate document parser, see services/grok_parser.py.
+    # Empty default (not required) since Anthropic remains the default provider.
+    xai_api_key: str = Field(default_factory=lambda: os.environ.get("XAI_API_KEY", ""))
+
     # AWS S3
     aws_region: str = Field(default="eu-central-1")
     s3_upload_bucket: str = Field(default_factory=lambda: os.environ.get("S3_UPLOAD_BUCKET", "beacon-uploads-dev"))

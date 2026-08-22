@@ -18,6 +18,7 @@ struct BeaconPrimaryButton: View {
                 if let systemImage {
                     Image(systemName: systemImage)
                         .font(.system(size: 16, weight: .semibold))
+                        .accessibilityHidden(true)
                 }
                 Text(title)
                     .font(Theme.Typography.bodyEmphasis)
@@ -54,6 +55,7 @@ struct BeaconSecondaryButton: View {
                 if let systemImage {
                     Image(systemName: systemImage)
                         .font(.system(size: 16, weight: .semibold))
+                        .accessibilityHidden(true)
                 }
                 Text(title)
                     .font(Theme.Typography.bodyEmphasis)

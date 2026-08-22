@@ -27,7 +27,7 @@ enum DataSourceMode: String, Codable, CaseIterable, Identifiable {
     var explanation: String {
         switch self {
         case .hospitalIntegrated:
-            return "מסמכים וסיכומים מגיעים אוטומטית מבית החולים ומהקופה."
+            return "מסמכים וסיכומים אמורים להגיע אוטומטית מבית החולים ומהקופה. השירות הזה בהקמה מול בית החולים ועדיין לא פעיל — עד אז יוצג תוכן לדוגמה בלבד."
         case .independent:
             return "המשפחה מצלמת ומשתפת — ביקון מזהה, מסדר ומסכם הכל לבד."
         }

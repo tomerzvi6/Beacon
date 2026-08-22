@@ -13,8 +13,11 @@ enum UploadOutcome {
 ///   2. PUT  <upload_url> with raw bytes    (S3 in prod / local handler in dev)
 ///   3. POST /v1/uploads/finalize           (sets sha256 + status="finalized")
 ///
-/// Step 2 must NOT carry our Beacon JWT — the URL is either a presigned
-/// AWS URL or a local route that doesn't expect bearer auth.
+/// Step 2 carries our Beacon JWT only when the presigned URL points back at
+/// our own backend (STORAGE_BACKEND=local — the dev/local-device path,
+/// where /v1/uploads/local/{id} is itself an authenticated route). A real
+/// S3 presigned URL already carries its own signature in the query string
+/// and must NOT get an extra Authorization header.
 struct BackendDocumentService {
     let client: APIClient
     let uploadSession: URLSession
@@ -178,6 +181,9 @@ struct BackendDocumentService {
         request.httpMethod = "PUT"
         request.setValue(mimeType, forHTTPHeaderField: "Content-Type")
         request.setValue(String(data.count), forHTTPHeaderField: "Content-Length")
+        if url.host == APIConfig.baseURL.host, let token = TokenStore.read() {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
 
         let delegate: UploadProgressDelegate? = onProgress.map { UploadProgressDelegate(onProgress: $0) }
         let response: URLResponse

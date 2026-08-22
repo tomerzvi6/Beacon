@@ -4,6 +4,7 @@ __pycache__/
 venv_parser/
 venv_agents/
 .env
+uploads/
 *.egg-info/
 .pytest_cache/
 .ruff_cache/

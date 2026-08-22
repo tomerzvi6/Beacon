@@ -23,6 +23,11 @@ struct HouseholdService {
         let role: String
         let joinedAt: Date
         let displayName: String
+        /// Per-module AccessLevel.rawValue, caregiver rows only — nil for
+        /// patient/co_owner (they always have full access) and nil for a
+        /// caregiver module key that was never explicitly set (defaults to
+        /// read on the backend).
+        let permissions: [String: Int]?
 
         enum CodingKeys: String, CodingKey {
             case id
@@ -31,6 +36,7 @@ struct HouseholdService {
             case role
             case joinedAt = "joined_at"
             case displayName = "display_name"
+            case permissions
         }
     }
 
@@ -62,6 +68,11 @@ struct HouseholdService {
 
     private struct CodeBody: Encodable {
         let code: String
+    }
+
+    private struct PermissionPatchBody: Encodable {
+        let module: String
+        let level: Int
     }
 
     private struct CoOwnerInviteBody: Encodable {
@@ -128,5 +139,23 @@ struct HouseholdService {
         )
         _ = TokenStore.save(result.accessToken)
         return result
+    }
+
+    // MARK: - Manage (patient/co_owner only — backend enforces via require_roles)
+
+    /// Revokes the member's access on the server. Unlike the pre-sync
+    /// version of this screen, this actually ends their access everywhere —
+    /// their own device's next request 403s (get_session re-checks
+    /// membership on every call), not just this device's local list.
+    func removeMember(id: UUID) async throws {
+        try await client.delete("/v1/households/members/\(id.uuidString)")
+    }
+
+    @discardableResult
+    func updatePermission(memberId: UUID, module: AppModule, level: AccessLevel) async throws -> Member {
+        try await client.patch(
+            "/v1/households/members/\(memberId.uuidString)/permissions",
+            body: PermissionPatchBody(module: module.rawValue, level: level.rawValue)
+        )
     }
 }

@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from parser_api.auth import TokenPayload
-from parser_api.dependencies import get_session, get_user_context
+from parser_api.dependencies import get_session, get_user_context, require_module_access
 from parser_api.middleware import limiter
 from parser_api.services.storage_service import get_storage_service
 from shared.models import AuditLog, Document
@@ -40,6 +40,7 @@ def presign_upload(
     body: PresignRequest,
     session: Session = Depends(get_session),
     user: TokenPayload = Depends(get_user_context),
+    _module: TokenPayload = Depends(require_module_access("medicalVault", 2)),
 ) -> PresignResponse:
     """
     Generate a presigned PUT URL for direct iOS upload.
@@ -168,6 +169,7 @@ def finalize_upload(
     body: FinalizeDocumentIn,
     session: Session = Depends(get_session),
     user: TokenPayload = Depends(get_user_context),
+    _module: TokenPayload = Depends(require_module_access("medicalVault", 2)),
 ) -> FinalizeDocumentOut:
     return _finalize_one(body, session, user.user_id, user.household_id)
 
@@ -182,6 +184,7 @@ def finalize_batch(
     body: BatchFinalizeIn,
     session: Session = Depends(get_session),
     user: TokenPayload = Depends(get_user_context),
+    _module: TokenPayload = Depends(require_module_access("medicalVault", 2)),
 ) -> BatchFinalizeOut:
     results = [
         _finalize_one(item, session, user.user_id, user.household_id)
@@ -205,6 +208,7 @@ async def local_upload(
     request: Request,
     session: Session = Depends(get_session),
     user: TokenPayload = Depends(get_user_context),
+    _module: TokenPayload = Depends(require_module_access("medicalVault", 2)),
 ) -> dict:
     """
     Receives raw bytes PUT by the iOS client. Despite the name this is the

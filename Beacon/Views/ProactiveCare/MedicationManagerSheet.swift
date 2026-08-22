@@ -18,7 +18,7 @@ struct MedicationManagerSheet: View {
                             BeaconEmptyState(
                                 systemImage: "pills",
                                 title: "אין תרופות עדיין",
-                                message: "הוסיפו תרופה דרך צילום קופסה בטאב התיק הרפואי, או מהזנה ידנית."
+                                message: "הוסיפו תרופה בטאב 'התיק הרפואי' — אפשר לצלם את הקופסה או להזין ידנית."
                             )
                         }
                     } else {

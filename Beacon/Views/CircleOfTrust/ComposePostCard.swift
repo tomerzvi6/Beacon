@@ -17,8 +17,8 @@ struct ComposePostCard: View {
     }
     private var effectivePlaceholder: String {
         isPublishingAsPatient
-            ? "כתבי את העדכון בשם \(patient.displayName)..."
-            : "שתפי עדכון חדש עם המשפחה..."
+            ? "לכתוב עדכון בשם \(patient.displayName)..."
+            : "לשתף עדכון חדש עם המשפחה..."
     }
 
     var body: some View {
@@ -46,7 +46,7 @@ struct ComposePostCard: View {
                             Image(systemName: "quote.bubble.fill")
                                 .font(.system(size: 13))
                                 .foregroundStyle(Theme.Palette.deepTeal)
-                            Text("פרסמי בשם \(patient.displayName)")
+                            Text("פרסום בשם \(patient.displayName)")
                                 .font(Theme.Typography.captionEmphasis)
                                 .foregroundStyle(Theme.Palette.textPrimary)
                                 .beaconHorizontalText(minScale: 0.65)

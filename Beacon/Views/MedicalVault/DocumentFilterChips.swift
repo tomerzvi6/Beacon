@@ -7,8 +7,13 @@ struct DocumentFilterChips: View {
     @Binding var selection: BackendDocumentCategory?
     /// Subset of categories surfaced as quick chips. Most users only
     /// need lab + visit summary + prescription day-to-day; the rest
-    /// can be added here once the product needs deeper filtering.
+    /// are reachable through the "עוד קטגוריות" chip below.
     var options: [BackendDocumentCategory] = [.lab, .visitSummary, .prescription, .imaging]
+    @State private var showingMoreCategories = false
+
+    private var moreOptions: [BackendDocumentCategory] {
+        BackendDocumentCategory.allCases.filter { !options.contains($0) }
+    }
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -21,19 +26,30 @@ struct DocumentFilterChips: View {
                         selection = (selection == option) ? nil : option
                     }
                 }
-                HStack(spacing: Theme.Spacing.xs) {
-                    Text("סינון")
-                        .font(Theme.Typography.captionEmphasis)
-                        .beaconHorizontalText()
-                    Image(systemName: "line.3.horizontal.decrease")
-                        .font(.system(size: 13, weight: .semibold))
+                Button {
+                    showingMoreCategories = true
+                } label: {
+                    HStack(spacing: Theme.Spacing.xs) {
+                        Text(selection.map { moreOptions.contains($0) ? $0.displayLabel : "עוד קטגוריות" } ?? "עוד קטגוריות")
+                            .font(Theme.Typography.captionEmphasis)
+                            .beaconHorizontalText(minScale: 0.6)
+                        Image(systemName: "line.3.horizontal.decrease")
+                            .font(.system(size: 13, weight: .semibold))
+                    }
+                    .foregroundStyle(selection.map(moreOptions.contains) == true ? .white : Theme.Palette.textSecondary)
+                    .padding(.vertical, Theme.Layout.chipVerticalPadding)
+                    .padding(.horizontal, Theme.Spacing.m)
+                    .background(selection.map(moreOptions.contains) == true ? Theme.Palette.deepTeal : Theme.Palette.cardBackground)
+                    .clipShape(Capsule())
                 }
-                .foregroundStyle(Theme.Palette.textSecondary)
-                .padding(.vertical, Theme.Layout.chipVerticalPadding)
-                .padding(.horizontal, Theme.Spacing.m)
-                .background(Theme.Palette.cardBackground)
-                .clipShape(Capsule())
+                .buttonStyle(.plain)
             }
+        }
+        .confirmationDialog("עוד קטגוריות", isPresented: $showingMoreCategories, titleVisibility: .visible) {
+            ForEach(moreOptions) { option in
+                Button(option.displayLabel) { selection = (selection == option) ? nil : option }
+            }
+            Button("ביטול", role: .cancel) { }
         }
     }
 

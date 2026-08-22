@@ -62,12 +62,14 @@ final class CircleOfTrustViewModel {
                 return created
             }()
         post.authorMemberId = dto.authorUserId.uuidString
+        post.trueAuthorMemberId = dto.authorUserId.uuidString
         post.body = dto.body
         post.status = dto.status.flatMap(FeedPostStatus.init(rawValue:))
         post.postedAt = dto.postedAt
         post.heartCount = dto.heartCount
         post.hugCount = dto.hugCount
         post.audience = FeedPostAudience(rawValue: dto.audience) ?? .familyOnly
+        post.myReactionsRaw = dto.myReactions
 
         let fetchedCommentIds = Set(dto.comments.map { $0.id.uuidString })
         post.comments.removeAll { UUID(uuidString: $0.id) != nil && !fetchedCommentIds.contains($0.id) }
@@ -109,15 +111,33 @@ final class CircleOfTrustViewModel {
         refresh()
     }
 
+    /// Adds the reaction, or removes it if the viewer already gave this
+    /// post the same reaction — matches the tap-to-toggle behavior users
+    /// already know from WhatsApp/Facebook, instead of a bare counter that
+    /// only ever goes up with no sign of the viewer's own state.
     @MainActor
-    func incrementReaction(_ reaction: SupportReaction, on post: FeedPost) async {
+    func toggleReaction(_ reaction: SupportReaction, on post: FeedPost) async {
         guard let id = UUID(uuidString: post.id) else { return }
-        if let dto = try? await feedService.react(postId: id, reaction: reaction.rawValue) {
-            upsertLocalPost(from: dto)
+        let alreadyReacted = post.myReactionsRaw.contains(reaction.rawValue)
+        if alreadyReacted {
+            if let dto = try? await feedService.removeReaction(postId: id, reaction: reaction.rawValue) {
+                upsertLocalPost(from: dto)
+            } else {
+                switch reaction {
+                case .heart: post.heartCount = max(0, post.heartCount - 1)
+                case .hug: post.hugCount = max(0, post.hugCount - 1)
+                }
+                post.myReactionsRaw.removeAll { $0 == reaction.rawValue }
+            }
         } else {
-            switch reaction {
-            case .heart: post.heartCount += 1
-            case .hug: post.hugCount += 1
+            if let dto = try? await feedService.react(postId: id, reaction: reaction.rawValue) {
+                upsertLocalPost(from: dto)
+            } else {
+                switch reaction {
+                case .heart: post.heartCount += 1
+                case .hug: post.hugCount += 1
+                }
+                post.myReactionsRaw.append(reaction.rawValue)
             }
         }
         try? context.save()

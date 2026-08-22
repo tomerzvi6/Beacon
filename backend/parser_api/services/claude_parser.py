@@ -1,4 +1,13 @@
-"""Claude Sonnet 4.6 / Haiku 4.5 — category-routed medical document parsing."""
+"""Claude Sonnet 5 / Haiku 4.5 — category-routed medical document parsing.
+
+Cost/quality split, chosen deliberately (not just "cheapest everywhere"):
+admin documents carry no clinical values, so Haiku 4.5 ($1/$5 per MTok) is
+plenty. Lab results, prescriptions, and imaging/referral/consult letters
+carry dosages and clinical values where a misread has real consequences —
+those stay on Sonnet 5 ($3/$15, currently $2/$10 introductory pricing
+through 2026-08-31), Anthropic's current mid-tier model and a strict
+upgrade over the previous claude-sonnet-4-6 at the same-or-lower price.
+"""
 from typing import Optional
 
 from anthropic import Anthropic
@@ -14,8 +23,8 @@ from parser_api.services.prompts import (
 )
 from shared.schemas import SuggestedTask
 
-_SONNET = "claude-sonnet-4-6"
-_HAIKU = "claude-haiku-4-5-20251001"
+_SONNET = "claude-sonnet-5"
+_HAIKU = "claude-haiku-4-5"
 
 # (model, tool_def, user_template, default_task_category)
 _ROUTE: dict[str, tuple[str, dict, str, str]] = {

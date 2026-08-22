@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MissedDoseAlertCard: View {
     var dose: MedicationDose
+    var additionalMissedCount: Int = 0
     var canResolve: Bool = true
     var onMarkTaken: () -> Void
     var onAddNote: () -> Void
@@ -45,12 +46,18 @@ struct MissedDoseAlertCard: View {
                             .multilineTextAlignment(.trailing)
                             .lineLimit(2)
                             .minimumScaleFactor(0.75)
+                        if additionalMissedCount > 0 {
+                            Text("יש עוד \(additionalMissedCount) מינונים חסרים היום — אפשר לראות אותם ברשימה למטה.")
+                                .font(Theme.Typography.caption)
+                                .foregroundStyle(Theme.Palette.coralAccent)
+                                .multilineTextAlignment(.trailing)
+                        }
                     }
                 }
 
                 if canResolve {
                     HStack(spacing: Theme.Spacing.s) {
-                        BeaconSecondaryButton(title: "הוסף הערה", action: onAddNote)
+                        BeaconSecondaryButton(title: "סמן שטופל בלי נטילה", action: onAddNote)
                         BeaconPrimaryButton(
                             title: "סמן כנלקח עכשיו",
                             variant: .danger,

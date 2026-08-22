@@ -9,11 +9,7 @@ struct FamilyScheduleCard: View {
             VStack(alignment: .trailing, spacing: Theme.Spacing.m) {
                 BeaconSectionHeader(
                     title: "לוח זמנים משפחתי",
-                    systemImage: "calendar",
-                    accessory: AnyView(
-                        Image(systemName: "ellipsis")
-                            .foregroundStyle(Theme.Palette.textSecondary)
-                    )
+                    systemImage: "calendar"
                 )
 
                 if events.isEmpty {

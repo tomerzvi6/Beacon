@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from parser_api.auth import TokenPayload
-from parser_api.dependencies import get_session, get_user_context
+from parser_api.dependencies import get_session, require_module_access
 from shared.models import ScheduleEvent
 from shared.schemas import ScheduleEventIn, ScheduleEventOut, ScheduleEventPatchIn
 
@@ -17,7 +17,7 @@ router = APIRouter(prefix="/v1/schedule", tags=["schedule"])
 @router.get("/", response_model=list[ScheduleEventOut])
 def list_events(
     session: Session = Depends(get_session),
-    user: TokenPayload = Depends(get_user_context),
+    user: TokenPayload = Depends(require_module_access("schedule", 1)),
 ) -> list[ScheduleEventOut]:
     events = session.scalars(
         select(ScheduleEvent)
@@ -31,7 +31,7 @@ def list_events(
 def create_event(
     body: ScheduleEventIn,
     session: Session = Depends(get_session),
-    user: TokenPayload = Depends(get_user_context),
+    user: TokenPayload = Depends(require_module_access("schedule", 2)),
 ) -> ScheduleEventOut:
     # id/created_at set explicitly (not left to the column default) so the
     # response can be built right after add() without depending on flush
@@ -58,7 +58,7 @@ def patch_event(
     event_id: str,
     body: ScheduleEventPatchIn,
     session: Session = Depends(get_session),
-    user: TokenPayload = Depends(get_user_context),
+    user: TokenPayload = Depends(require_module_access("schedule", 2)),
 ) -> ScheduleEventOut:
     event = session.scalar(
         select(ScheduleEvent).where(
@@ -82,7 +82,7 @@ def patch_event(
 def delete_event(
     event_id: str,
     session: Session = Depends(get_session),
-    user: TokenPayload = Depends(get_user_context),
+    user: TokenPayload = Depends(require_module_access("schedule", 2)),
 ) -> None:
     event = session.scalar(
         select(ScheduleEvent).where(

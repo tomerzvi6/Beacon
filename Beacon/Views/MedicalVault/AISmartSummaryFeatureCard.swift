@@ -7,6 +7,10 @@ struct AISmartSummaryFeatureCard: View {
     var onReadFullSummary: () -> Void
     var onAddSuggestedTasks: () -> Void
     var importedTaskCount: Int?
+    /// True when this card is showing the static demo summary, not a real
+    /// parsed document — without a visible label a first-time user has no
+    /// way to tell this isn't their relative's actual medical data.
+    var isExample: Bool = false
 
     private let gradient = LinearGradient(
         colors: [
@@ -31,12 +35,19 @@ struct AISmartSummaryFeatureCard: View {
             }
 
             HStack(spacing: Theme.Spacing.s) {
-                BeaconBadge(text: "חדש", tone: .softBlue)
+                BeaconBadge(text: isExample ? "דוגמה להמחשה" : "חדש", tone: isExample ? .coral : .softBlue)
                 Text("סיכום AI חכם")
                     .font(Theme.Typography.sectionTitle)
                     .foregroundStyle(.white)
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
+
+            if isExample {
+                Text("כך תיראה תמצית לאחר שתעלו מסמך:")
+                    .font(Theme.Typography.captionEmphasis)
+                    .foregroundStyle(.white.opacity(0.85))
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            }
 
             Text(summary.summaryText)
                 .font(Theme.Typography.body)
@@ -109,6 +120,7 @@ struct AISummaryDetailView: View {
 
     var summary: AISummary
     var onAddSuggestedTasks: ([String]) -> Void
+    var isExample: Bool = false
 
     @State private var mode: PreviewMode = .aiSummary
     @State private var importedCount: Int?
@@ -116,6 +128,16 @@ struct AISummaryDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .trailing, spacing: Theme.Spacing.l) {
+                if isExample {
+                    Text("דוגמה להמחשה — לא מידע רפואי אמיתי. כך תיראה תמצית לאחר שתעלו מסמך.")
+                        .font(Theme.Typography.captionEmphasis)
+                        .foregroundStyle(Theme.Palette.coralAccent)
+                        .multilineTextAlignment(.trailing)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .padding(Theme.Spacing.s)
+                        .background(Theme.Palette.coralBackground.opacity(0.5))
+                        .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.chip, style: .continuous))
+                }
                 header
                 Picker("תצוגה", selection: $mode) {
                     ForEach(PreviewMode.allCases) { option in

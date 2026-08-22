@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from parser_api.auth import TokenPayload
-from parser_api.dependencies import get_session, get_user_context
+from parser_api.dependencies import get_session, require_module_access
 from parser_api.services.notify import notify_household
 from shared.models import FeedComment, FeedPost, FeedReaction
 from shared.schemas import (
@@ -43,7 +43,7 @@ def _to_out(post: FeedPost, viewer_user_id: uuid.UUID) -> FeedPostOut:
 @router.get("/", response_model=list[FeedPostOut])
 def list_posts(
     session: Session = Depends(get_session),
-    user: TokenPayload = Depends(get_user_context),
+    user: TokenPayload = Depends(require_module_access("feed", 1)),
 ) -> list[FeedPostOut]:
     posts = session.scalars(
         select(FeedPost)
@@ -59,7 +59,7 @@ def list_posts(
 def create_post(
     body: FeedPostIn,
     session: Session = Depends(get_session),
-    user: TokenPayload = Depends(get_user_context),
+    user: TokenPayload = Depends(require_module_access("feed", 2)),
 ) -> FeedPostOut:
     # id/posted_at set explicitly — see schedule.py's create_event for why.
     post = FeedPost(
@@ -100,7 +100,7 @@ def add_comment(
     post_id: str,
     body: FeedCommentIn,
     session: Session = Depends(get_session),
-    user: TokenPayload = Depends(get_user_context),
+    user: TokenPayload = Depends(require_module_access("feed", 2)),
 ) -> FeedPostOut:
     post = _get_post(session, post_id, user.household_id)
     comment = FeedComment(
@@ -121,7 +121,7 @@ def react_to_post(
     post_id: str,
     body: FeedReactionIn,
     session: Session = Depends(get_session),
-    user: TokenPayload = Depends(get_user_context),
+    user: TokenPayload = Depends(require_module_access("feed", 2)),
 ) -> FeedPostOut:
     post = _get_post(session, post_id, user.household_id)
     try:
@@ -145,7 +145,7 @@ def remove_reaction(
     post_id: str,
     reaction: str,
     session: Session = Depends(get_session),
-    user: TokenPayload = Depends(get_user_context),
+    user: TokenPayload = Depends(require_module_access("feed", 2)),
 ) -> FeedPostOut:
     post = _get_post(session, post_id, user.household_id)
     existing = session.scalar(

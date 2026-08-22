@@ -132,4 +132,14 @@ struct MedicationService {
         }
         return try await client.post(path)
     }
+
+    private struct UndoTakenResponse: Decodable {
+        let dose_event_id: String
+    }
+
+    /// Reverses a mistaken "mark as taken" tap — the dose card has no other
+    /// way to correct it once a dose reads "taken".
+    func undoTaken(doseId: UUID) async throws {
+        let _: UndoTakenResponse = try await client.post("/v1/doses/\(doseId.uuidString)/untake")
+    }
 }

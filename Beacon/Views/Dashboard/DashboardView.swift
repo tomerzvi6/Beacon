@@ -149,6 +149,7 @@ struct DashboardView: View {
 }
 
 private struct PermissionNoticeCard: View {
+    @Environment(AppEnvironment.self) private var environment
     let module: AppModule
 
     var body: some View {
@@ -164,7 +165,7 @@ private struct PermissionNoticeCard: View {
                     Text("אין הרשאה ל\(module.displayLabel)")
                         .font(Theme.Typography.bodyEmphasis)
                         .foregroundStyle(Theme.Palette.textPrimary)
-                    Text("המטופל/ת או מנהל/ת הגישה יכולים לפתוח לך גישה.")
+                    Text("\(environment.patient.displayName) יכול/ה לפתוח לך גישה. בקש/י ממנו/ה להיכנס ל'ניהול גישה'.")
                         .font(Theme.Typography.caption)
                         .foregroundStyle(Theme.Palette.textSecondary)
                 }

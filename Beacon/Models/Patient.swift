@@ -1,5 +1,23 @@
 import Foundation
 
+/// Hebrew is a grammatically gendered language — every place the app
+/// addresses or describes the patient needs to pick the right verb/adjective
+/// form. Defaults to `.male` only to match this file's pre-existing demo
+/// patient; onboarding always asks explicitly for a real patient.
+enum PatientGender: String, Codable, CaseIterable, Identifiable {
+    case male
+    case female
+
+    var id: String { rawValue }
+
+    var displayLabel: String {
+        switch self {
+        case .male: return "זכר"
+        case .female: return "נקבה"
+        }
+    }
+}
+
 enum PatientWellness: String, Codable, CaseIterable, Identifiable {
     case great
     case stable
@@ -8,12 +26,14 @@ enum PatientWellness: String, Codable, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    var displayLabel: String {
-        switch self {
-        case .great: return "מרגיש מצוין"
-        case .stable: return "מצב יציב"
-        case .tired: return "עייף יותר"
-        case .rough: return "יום קשה"
+    func displayLabel(for gender: PatientGender) -> String {
+        switch (self, gender) {
+        case (.great, .male): return "מרגיש מצוין"
+        case (.great, .female): return "מרגישה מצוין"
+        case (.stable, _): return "מצב יציב"
+        case (.tired, .male): return "עייף יותר"
+        case (.tired, .female): return "עייפה יותר"
+        case (.rough, _): return "יום קשה"
         }
     }
 
@@ -33,9 +53,13 @@ struct Patient: Identifiable, Hashable {
     let relationToCaregiver: String
     let avatarSymbol: String
     let age: Int
+    let gender: PatientGender
     let condition: String
     let primaryDoctor: String
     let primaryHospital: String
+    /// קופת חולים — many patients only have this, not a specific hospital
+    /// file (e.g. no hospital-based treatment yet). Both are optional.
+    let healthFund: String
     let bloodType: String
     let allergies: [String]
     let emergencyContactName: String
@@ -49,9 +73,11 @@ struct Patient: Identifiable, Hashable {
         relationToCaregiver: "אב",
         avatarSymbol: "person.crop.circle.fill",
         age: 71,
+        gender: .male,
         condition: "אונקולוגי - לימפומה",
         primaryDoctor: "ד״ר לוי",
         primaryHospital: "בי״ח שיבא",
+        healthFund: "",
         bloodType: "A+",
         allergies: ["פניצילין", "אגוזים"],
         emergencyContactName: "רונית (בת)",

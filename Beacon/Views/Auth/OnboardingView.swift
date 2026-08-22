@@ -5,8 +5,10 @@ struct OnboardingView: View {
     @State private var step = 0
     @State private var patientName = ""
     @State private var patientAge = ""
+    @State private var patientGender: PatientGender = .male
     @State private var primaryHospital = ""
     @State private var primaryDoctor = ""
+    @State private var healthFund = ""
     @State private var bloodType = ""
     @State private var allergies = ""
     @State private var emergencyContactName = ""
@@ -25,6 +27,7 @@ struct OnboardingView: View {
         case patientAge
         case primaryHospital
         case primaryDoctor
+        case healthFund
         case bloodType
         case allergies
         case emergencyContactName
@@ -167,7 +170,7 @@ struct OnboardingView: View {
 
                 stepHeader(
                     title: "יצירת פרופיל חולה",
-                    subtitle: "ב-POC ננהל חולה אחד. את הפרטים האלה נוכל להחליף בהמשך ב-backend מלא."
+                    subtitle: "אפשר לנהל מטופל/ת אחד/ת כרגע. תמיד אפשר לעדכן את הפרטים האלה מאוחר יותר."
                 )
 
                 inputField(
@@ -190,6 +193,18 @@ struct OnboardingView: View {
                     submitLabel: .next
                 ) {
                     advanceFromPatient()
+                }
+
+                VStack(alignment: .trailing, spacing: Theme.Spacing.xs) {
+                    Text("מין")
+                        .font(Theme.Typography.captionEmphasis)
+                        .foregroundStyle(Theme.Palette.textSecondary)
+                    Picker("מין", selection: $patientGender) {
+                        ForEach(PatientGender.allCases) { g in
+                            Text(g.displayLabel).tag(g)
+                        }
+                    }
+                    .pickerStyle(.segmented)
                 }
 
                 BeaconPrimaryButton(
@@ -223,13 +238,13 @@ struct OnboardingView: View {
 
                 stepHeader(
                     title: "מידע שימושי לטיפול",
-                    subtitle: "לא נוסיף אבחנה בשלב הזה. נשמור רק פרטים שעוזרים למשפחה לפעול מהר."
+                    subtitle: "לא נוסיף אבחנה בשלב הזה. נשמור רק פרטים שעוזרים למשפחה לפעול מהר. כל השדות כאן הם לא חובה — אפשר להמשיך גם בלעדיהם."
                 )
 
                 inputField(
-                    title: "בית חולים",
+                    title: "בית חולים (לא חובה)",
                     text: $primaryHospital,
-                    prompt: "לדוגמה: שיבא",
+                    prompt: "לדוגמה: שיבא — רק אם יש תיק בבית חולים ספציפי",
                     field: .primaryHospital,
                     submitLabel: .next
                 ) {
@@ -237,17 +252,27 @@ struct OnboardingView: View {
                 }
 
                 inputField(
-                    title: "רופא/ה ראשי/ת",
+                    title: "רופא/ה ראשי/ת (לא חובה)",
                     text: $primaryDoctor,
                     prompt: "לדוגמה: ד״ר לוי",
                     field: .primaryDoctor,
+                    submitLabel: .next
+                ) {
+                    focusedField = .healthFund
+                }
+
+                inputField(
+                    title: "קופת חולים (לא חובה)",
+                    text: $healthFund,
+                    prompt: "לדוגמה: כללית, מכבי, מאוחדת, לאומית",
+                    field: .healthFund,
                     submitLabel: .next
                 ) {
                     focusedField = .bloodType
                 }
 
                 inputField(
-                    title: "סוג דם",
+                    title: "סוג דם (לא חובה)",
                     text: $bloodType,
                     prompt: "לדוגמה: A+",
                     field: .bloodType,
@@ -257,7 +282,7 @@ struct OnboardingView: View {
                 }
 
                 inputField(
-                    title: "אלרגיות",
+                    title: "אלרגיות (לא חובה)",
                     text: $allergies,
                     prompt: "להפריד בפסיקים, אם יש",
                     field: .allergies,
@@ -267,7 +292,7 @@ struct OnboardingView: View {
                 }
 
                 inputField(
-                    title: "איש קשר לחירום",
+                    title: "איש קשר לחירום (לא חובה)",
                     text: $emergencyContactName,
                     prompt: "שם מלא",
                     field: .emergencyContactName,
@@ -278,7 +303,7 @@ struct OnboardingView: View {
                 }
 
                 inputField(
-                    title: "טלפון חירום",
+                    title: "טלפון חירום (לא חובה)",
                     text: $emergencyContactPhone,
                     prompt: "050-0000000",
                     field: .emergencyContactPhone,
@@ -333,7 +358,7 @@ struct OnboardingView: View {
                 BeaconPrimaryButton(
                     title: isWorking ? "יוצר פרופיל חולה..." : "צור פרופיל חולה והמשך",
                     systemImage: "checkmark.circle.fill",
-                    isEnabled: !trimmed(caregiverName).isEmpty && isVerificationReady && !isWorking
+                    isEnabled: !trimmed(caregiverName).isEmpty && !trimmed(patientName).isEmpty && isVerificationReady && !isWorking
                 ) {
                     Task { await submit() }
                 }
@@ -361,7 +386,7 @@ struct OnboardingView: View {
 
                 stepHeader(
                     title: "אישור המטופל",
-                    subtitle: "כדי לשמור על סודיות רפואית, נאסוף מייל לאימות ואישור שקיים צילום תעודת זהות. בשלב הבא המטופל יאשר בעלות על התיק."
+                    subtitle: "כדי לשמור על סודיות רפואית, נאסוף מייל לאימות ואישור שקיים צילום תעודת זהות. לאחר יצירת התיק תישלח למטופל/ת בקשה נפרדת לאישור הבעלות."
                 )
 
                 inputField(
@@ -487,15 +512,25 @@ struct OnboardingView: View {
     private func submit() async {
         let patient = trimmed(patientName)
         let caregiver = trimmed(caregiverName)
-        guard !patient.isEmpty, !caregiver.isEmpty, isVerificationReady else { return }
+        guard !patient.isEmpty else {
+            // Reachable if the swipeable TabView skipped patientStep without
+            // the "המשך" button's own check — otherwise the button above is
+            // already disabled and this never fires silently.
+            environment.authErrorMessage = "חסר שם המטופל/ת — חזרו לשלב הראשון והזינו אותו."
+            withAnimation { step = 1 }
+            return
+        }
+        guard !caregiver.isEmpty, isVerificationReady else { return }
         isWorking = true
         defer { isWorking = false }
         await environment.createFamily(
             patientProfile: PatientProfileDraft(
                 displayName: patient,
                 age: Int(trimmed(patientAge)),
+                gender: patientGender,
                 primaryDoctor: trimmed(primaryDoctor),
                 primaryHospital: trimmed(primaryHospital),
+                healthFund: trimmed(healthFund),
                 bloodType: trimmed(bloodType),
                 allergies: allergies
                     .split(separator: ",")
